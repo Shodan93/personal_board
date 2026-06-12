@@ -101,6 +101,45 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 
 .col[data-status="Blocked / Wartend"] .col-head span:first-child{color:var(--red)}
 
+/* "+"-Trennlinie unter der Spaltenüberschrift: Ticket direkt im Status anlegen */
+.col-add{
+  display:flex; align-items:center; gap:8px; width:100%;
+  border:none; background:none; padding:0 2px; margin-bottom:8px;
+  color:var(--text-weak); opacity:0; transition:opacity .15s, color .15s;
+}
+.col:hover .col-add,.col-add:focus-visible{opacity:1}
+.col-add::before,.col-add::after{content:''; flex:1; height:1px; background:var(--border)}
+.col-add span{
+  width:18px; height:18px; flex:none; border:1px solid currentColor; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; line-height:1;
+}
+.col-add:hover{color:var(--blue)}
+
+/* Kategorie-Dropdown mit Farbkreis-Vorschau */
+.csel{position:relative}
+.csel-btn{
+  display:flex; align-items:center; gap:6px; max-width:200px;
+  border:1px solid var(--border); border-radius:var(--radius);
+  padding:5px 8px; font-size:12px; background:var(--card);
+}
+.csel-btn .csel-label{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.csel-btn .caret{color:var(--text-weak); font-size:9px; margin-left:auto; padding-left:2px}
+.cdot{width:10px; height:10px; border-radius:50%; flex:none; border:1px solid rgba(0,0,0,.15)}
+.csel-list{
+  position:absolute; top:calc(100% + 4px); left:0; min-width:100%; max-height:260px;
+  overflow-y:auto; background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:0 6px 18px rgba(0,0,0,.18);
+  z-index:120; padding:4px; display:none;
+}
+.csel.open .csel-list{display:block}
+.csel-item{
+  display:flex; align-items:center; gap:7px; width:100%; text-align:left;
+  border:none; background:none; padding:5px 8px; font-size:12px;
+  border-radius:4px; white-space:nowrap;
+}
+.csel-item:hover{background:var(--blue-bg)}
+
 /* Breites Modal (Toggle neben dem X) */
 .modal{transition:max-width .15s ease}
 .modal.wide{max-width:1100px}
@@ -210,7 +249,8 @@ tr.row.done-final td{opacity:.4}
 .cat-chips{display:flex; gap:5px; flex-wrap:wrap; margin-bottom:6px; min-height:20px}
 .cat-chips .tag button{border:none; background:none; color:inherit; font-weight:800; margin-left:4px; padding:0; font-size:11px}
 .cat-add{display:flex; gap:6px}
-.cat-add select{flex:1}
+.cat-add .csel{flex:1}
+.cat-add .csel .csel-btn{width:100%; max-width:none}
 .cat-add input{flex:1}
 
 /* Kategorien-Verwaltung in Einstellungen */
@@ -231,12 +271,6 @@ tr.row.done-final td{opacity:.4}
 .richtext img{max-width:100%;display:block;margin:6px 0;border:1px solid var(--border);border-radius:4px;cursor:zoom-in}
 .richtext ul,.richtext ol{padding-left:22px;margin:4px 0}
 .richtext li{margin:2px 0}
-/* Checkbox-Liste */
-.richtext ul.checklist{list-style:none;padding-left:4px}
-.richtext ul.checklist li{display:flex;gap:7px;align-items:flex-start}
-.richtext ul.checklist input[type=checkbox]{margin-top:3px;flex:none;cursor:pointer}
-.richtext ul.checklist input[type=checkbox]:checked + *,
-.richtext ul.checklist li:has(input:checked){color:var(--text-weak)}
 .rt-toolbar{display:flex;gap:3px;align-items:center;flex-wrap:wrap;border:1px solid var(--border);border-bottom:none;
   border-radius:var(--radius) var(--radius) 0 0;background:#FAFAF9;padding:4px 6px}
 .rt-toolbar button{border:1px solid transparent;background:none;border-radius:4px;padding:2px 7px;font-size:12px;color:var(--text);line-height:1.3}
@@ -277,7 +311,8 @@ tr.row.done-final td{opacity:.4}
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: auf diese Woche filtern">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
   <span class="spacer"></span>
-  <select id="globalCat" title="Nach Kategorie filtern" style="border:1px solid var(--border);border-radius:var(--radius);padding:5px 8px;font-size:12px;max-width:180px"></select>
+  <div id="globalCat" title="Nach Kategorie filtern"></div>
+  <button class="btn" id="btnFocus" title="Claude fragen: Worum soll ich mich jetzt kümmern?">🎯 Fokus</button>
   <div class="toggle">
     <button id="btnKanban" class="active">Kanban</button>
     <button id="btnList">Liste</button>
@@ -293,6 +328,11 @@ tr.row.done-final td{opacity:.4}
   <span>⚠ Letzter Export liegt länger zurück. localStorage ist kein Backup — jetzt sichern.</span>
   <button class="btn" id="btnBannerExport">Jetzt exportieren</button>
   <button class="btn" id="btnBannerDismiss">Später</button>
+</div>
+
+<div class="banner" id="focusBanner" style="background:var(--blue-bg);border-bottom-color:#cfdcf5" hidden>
+  <span>🎯 <b id="focusText"></b></span>
+  <button class="btn" id="btnFocusClose">Schließen</button>
 </div>
 
 <!-- Kanban-Toolbar -->
@@ -386,7 +426,7 @@ tr.row.done-final td{opacity:.4}
         <label>Kategorien</label>
         <div class="cat-chips" id="catChips"></div>
         <div class="cat-add">
-          <select id="catSelect"><option value="">+ aus Liste wählen…</option></select>
+          <div id="catSelect"></div>
           <input id="catNew" placeholder="Neue Kategorie…" maxlength="40">
           <button type="button" class="btn" id="btnCatAdd">Anlegen</button>
         </div>
@@ -659,6 +699,13 @@ function renderKanban() {
       ? (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]) || a.deadline.localeCompare(b.deadline)
       : a.deadline.localeCompare(b.deadline) || (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]));
     col.innerHTML = '<div class="col-head"><span>' + status + '</span><span class="col-count">' + items.length + '</span></div>';
+    // "+"-Trennlinie: neues Ticket direkt mit diesem Status anlegen (sichtbar beim Hovern)
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button'; addBtn.className = 'col-add';
+    addBtn.title = 'Neues Ticket in „' + status + '“ anlegen';
+    addBtn.innerHTML = '<span>+</span>';
+    addBtn.addEventListener('click', () => openModal(null, status));
+    col.appendChild(addBtn);
     items.forEach(t => col.appendChild(cardEl(t)));
 
     col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('dragover'); });
@@ -756,13 +803,45 @@ function renderList() {
   });
 }
 
+/* Kategorie-Dropdown mit Farbkreis-Vorschau (statt komplett eingefärbter Optionen) */
+function buildCatDropdown(host, opts) {
+  host.classList.add('csel');
+  const cur = opts.items.find(i => i.name === opts.value);
+  host.innerHTML =
+    '<button type="button" class="csel-btn">' +
+      (cur ? '<span class="cdot" style="background:' + cur.color + '"></span>' : '') +
+      '<span class="csel-label">' + esc(cur ? cur.name : opts.placeholder) + '</span>' +
+      '<span class="caret">▼</span></button>' +
+    '<div class="csel-list">' +
+      '<button type="button" class="csel-item" data-name="">' + esc(opts.placeholder) + '</button>' +
+      opts.items.map(i =>
+        '<button type="button" class="csel-item" data-name="' + esc(i.name) + '">' +
+        '<span class="cdot" style="background:' + i.color + '"></span>' + esc(i.name) + '</button>').join('') +
+    '</div>';
+  host.querySelector('.csel-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    closeCatDropdowns(host);
+    host.classList.toggle('open');
+  });
+  host.querySelectorAll('.csel-item').forEach(b => b.addEventListener('click', () => {
+    host.classList.remove('open');
+    opts.onSelect(b.dataset.name);
+  }));
+}
+function closeCatDropdowns(except) {
+  document.querySelectorAll('.csel.open').forEach(c => { if (c !== except) c.classList.remove('open'); });
+}
+document.addEventListener('click', () => closeCatDropdowns());
+
 function refreshFilters() {
   document.getElementById('filterStatus').innerHTML =
     '<option value="">Status: Alle</option>' + STATUSES.map(s => '<option>' + s + '</option>').join('');
-  const gc = document.getElementById('globalCat');
-  gc.innerHTML = '<option value="">Kategorie: Alle</option>' +
-    state.categories.map(c => '<option style="background:' + c.color + ';color:' + textOn(c.color) + '"' +
-      (c.name === globalCat ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('');
+  buildCatDropdown(document.getElementById('globalCat'), {
+    placeholder: 'Kategorie: Alle',
+    value: globalCat,
+    items: state.categories,
+    onSelect: name => { globalCat = name; refreshFilters(); render(); }
+  });
 }
 
 function esc(s) {
@@ -791,13 +870,13 @@ function modalFingerprint() {
 }
 function isModalDirty() { return modalFingerprint() !== modalSnapshot; }
 
-function openModal(id) {
+function openModal(id, presetStatus) {
   editingId = id || null;
   const t = id ? state.tickets.find(x => x.id === id) : null;
   document.getElementById('modalTitle').textContent = t ? 'Ticket bearbeiten' : 'Neues Ticket';
   document.getElementById('btnDelete').hidden = !t;
   document.getElementById('fTitle').value = t ? t.title : '';
-  document.getElementById('fStatus').value = t ? t.status : 'Themenspeicher';
+  document.getElementById('fStatus').value = t ? t.status : (presetStatus || 'Themenspeicher');
   document.getElementById('fPrio').value = t ? t.prio : 'Mittel';
   document.getElementById('fDeadline').value = t ? t.deadline : todayStr();
   document.getElementById('fJira').value = t ? (t.jira || '') : '';
@@ -838,9 +917,12 @@ function renderModalCats() {
     '<span class="tag" style="background:' + catColor(c) + ';color:' + textOn(catColor(c)) + '">' + esc(c) +
     '<button type="button" data-rm="' + esc(c) + '" title="Entfernen">✕</button></span>').join('') ||
     '<span style="color:var(--text-weak);font-size:11px">Keine Kategorie gewählt</span>';
-  document.getElementById('catSelect').innerHTML = '<option value="">+ aus Liste wählen…</option>' +
-    state.categories.filter(c => !modalCats.includes(c.name))
-      .map(c => '<option style="background:' + c.color + ';color:' + textOn(c.color) + '">' + esc(c.name) + '</option>').join('');
+  buildCatDropdown(document.getElementById('catSelect'), {
+    placeholder: '+ aus Liste wählen…',
+    value: '',
+    items: state.categories.filter(c => !modalCats.includes(c.name)),
+    onSelect: name => { if (name && !modalCats.includes(name)) { modalCats.push(name); renderModalCats(); } }
+  });
   document.querySelectorAll('#catChips [data-rm]').forEach(b =>
     b.onclick = () => { modalCats = modalCats.filter(x => x !== b.dataset.rm); renderModalCats(); });
 }
@@ -1084,7 +1166,6 @@ document.getElementById('dueMonthBadge').onclick = () => toggleQuick('month');
 
 /* Kanban-Sortierung */
 document.getElementById('kanbanSort').addEventListener('change', e => { kanbanSortKey = e.target.value; render(); });
-document.getElementById('globalCat').addEventListener('change', e => { globalCat = e.target.value; render(); });
 
 /* Listen-Filter */
 ['search', 'filterStatus', 'filterPrio'].forEach(id =>
@@ -1099,9 +1180,6 @@ document.querySelectorAll('th.sortable').forEach(th =>
   }));
 
 /* Kategorien im Ticket-Modal */
-document.getElementById('catSelect').addEventListener('change', e => {
-  if (e.target.value) { modalCats.push(e.target.value); renderModalCats(); }
-});
 document.getElementById('btnCatAdd').onclick = () => {
   const inp = document.getElementById('catNew');
   const name = addCategory(inp.value);
@@ -1206,23 +1284,14 @@ function sanitizeHtml(html) {
         [...ch.attributes].forEach(a => { if (a.name !== 'data-img-id') ch.removeAttribute(a.name); });
         return;
       }
-      if (ch.tagName === 'INPUT') { // nur Checkboxen (Checklisten) überleben
-        if (ch.getAttribute('type') !== 'checkbox') { ch.remove(); return; }
-        const checked = ch.hasAttribute('checked');
-        [...ch.attributes].forEach(a => ch.removeAttribute(a.name));
-        ch.setAttribute('type', 'checkbox');
-        if (checked) ch.setAttribute('checked', '');
-        return;
-      }
       if (!ALLOW.includes(ch.tagName)) {             // unbekanntes Tag: auspacken
         clean(ch);
         while (ch.firstChild) node.insertBefore(ch.firstChild, ch);
         ch.remove(); return;
       }
-      [...ch.attributes].forEach(a => { // nur validierte Attribute überleben
+      [...ch.attributes].forEach(a => { // nur validierte FONT-Attribute überleben
         if (ch.tagName === 'FONT' && a.name === 'color' && /^#[0-9A-Fa-f]{6}$/.test(a.value)) return;
         if (ch.tagName === 'FONT' && a.name === 'size' && /^[1-7]$/.test(a.value)) return;
-        if (ch.tagName === 'UL' && a.name === 'class' && a.value === 'checklist') return;
         ch.removeAttribute(a.name);
       });
       clean(ch);
@@ -1282,7 +1351,6 @@ function buildToolbar(editor) {
     '<span class="rt-sep"></span>' +
     '<button type="button" data-cmd="insertUnorderedList" title="Aufzählung">• Liste</button>' +
     '<button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1. Liste</button>' +
-    '<button type="button" data-check title="Checkbox-Liste">☑ Liste</button>' +
     '<span class="rt-sep"></span>' +
     '<button type="button" data-cmd="removeFormat" title="Formatierung entfernen">Tx</button>';
   editor.parentNode.insertBefore(tb, editor);
@@ -1292,43 +1360,12 @@ function buildToolbar(editor) {
   tb.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.cmd) exec(b.dataset.cmd);
-    else if (b.hasAttribute('data-check')) insertChecklist(editor);
-  });
-}
-
-/* Checkbox-Liste: normale UL anlegen, als .checklist markieren, Häkchen einsetzen */
-function insertChecklist(editor) {
-  editor.focus();
-  document.execCommand('insertUnorderedList');
-  const sel = getSelection();
-  let node = sel.rangeCount ? sel.anchorNode : null;
-  while (node && node !== editor && node.tagName !== 'UL') node = node.parentNode;
-  if (node && node.tagName === 'UL') node.classList.add('checklist');
-  normalizeChecklists(editor);
-}
-/* Jedes LI einer Checkliste bekommt genau eine Checkbox (auch Enter-erzeugte) */
-function normalizeChecklists(editor) {
-  editor.querySelectorAll('ul.checklist li').forEach(li => {
-    if (!li.querySelector('input[type=checkbox]')) {
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      li.insertBefore(cb, li.firstChild);
-    }
   });
 }
 
 /* Editor-Events: Drop + Doppelklick für Vollbild (Einfachklick markiert zum Löschen) */
 document.querySelectorAll('.richtext').forEach(ed => {
   buildToolbar(ed);
-  ed.addEventListener('input', () => normalizeChecklists(ed));
-  // Checkbox-Klick in contenteditable: Zustand selbst toggeln + als Attribut persistieren
-  ed.addEventListener('click', e => {
-    if (e.target.matches('ul.checklist input[type=checkbox]')) {
-      e.preventDefault();
-      e.target.toggleAttribute('checked');
-      e.target.checked = e.target.hasAttribute('checked');
-    }
-  });
   ed.addEventListener('dragover', e => e.preventDefault());
   ed.addEventListener('drop', e => {
     e.preventDefault();
@@ -1367,27 +1404,28 @@ document.addEventListener('paste', e => {
 document.getElementById('lightbox').onclick = () => document.getElementById('lightbox').classList.remove('open');
 
 /* ============================================================
-   HOUSEKEEPER — KI-Aufräumen (Rechtschreibung + Formatierung)
-   Der Button ist fertig verdrahtet; es fehlt nur noch das Backend.
-   In HOUSEKEEPER_ENDPOINT die URL eines kleinen Proxys eintragen,
-   der die Anfrage an die Claude-API weiterreicht (API-Key gehört
-   NICHT in diese Datei — sie ist öffentlich erreichbar).
-   Erwartetes Protokoll: POST {title, desc, note} -> {title, desc, note}
+   CLAUDE-ANBINDUNG — Housekeeper + Fokus
+   Hier die URL des Cloudflare Workers eintragen (Code: worker.js
+   im Repo, Anleitung im README/Chat). Der API-Key bleibt als
+   Secret im Worker — er gehört NICHT in diese Datei, sie ist
+   öffentlich erreichbar.
+   Endpunkte: POST /housekeeper {title, desc, note} -> {title, desc, note}
+              POST /focus {heute, tickets:[...]}    -> {fokus}
    ============================================================ */
-const HOUSEKEEPER_ENDPOINT = ''; // z.B. 'https://mein-worker.example.workers.dev/housekeeper'
+const CLAUDE_WORKER_URL = ''; // z.B. 'https://board-claude.mein-account.workers.dev'
+
+function claudeNotConfigured() {
+  alert('Die Claude-Anbindung ist noch nicht konfiguriert.\n\n' +
+    'Oben im Script unter CLAUDE_WORKER_URL die URL des Cloudflare Workers ' +
+    'eintragen (Code liegt als worker.js im Repository).');
+}
 
 async function runHousekeeper() {
   const btn = document.getElementById('btnHousekeeper');
-  if (!HOUSEKEEPER_ENDPOINT) {
-    alert('Housekeeper ist noch nicht mit der KI verbunden.\n\n' +
-      'Dazu oben im Script unter HOUSEKEEPER_ENDPOINT die URL eines kleinen ' +
-      'Claude-Proxys eintragen (z.B. Cloudflare Worker). Der Button und das ' +
-      'Protokoll (POST {title, desc, note}) stehen schon bereit.');
-    return;
-  }
+  if (!CLAUDE_WORKER_URL) { claudeNotConfigured(); return; }
   btn.disabled = true; btn.textContent = '🧹 arbeitet…';
   try {
-    const res = await fetch(HOUSEKEEPER_ENDPOINT, {
+    const res = await fetch(CLAUDE_WORKER_URL + '/housekeeper', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1409,6 +1447,44 @@ async function runHousekeeper() {
   }
 }
 document.getElementById('btnHousekeeper').onclick = runHousekeeper;
+
+/* Fokus: Claude liest die aktiven Tickets und sagt in einem Satz,
+   worum sich der Nutzer jetzt kümmern soll. */
+async function runFocus() {
+  const btn = document.getElementById('btnFocus');
+  if (!CLAUDE_WORKER_URL) { claudeNotConfigured(); return; }
+  const tickets = state.tickets
+    .filter(t => t.status !== 'Erledigt')
+    .map(t => ({
+      titel: t.title,
+      status: t.status,
+      prio: t.prio,
+      deadline: t.deadline,
+      ueberfaellig: isOverdue(t),
+      heuteFaellig: isToday(t),
+      kategorien: t.cats,
+      beschreibung: stripHtml(t.desc).slice(0, 300)
+    }));
+  if (!tickets.length) { toast('Keine aktiven Tickets — nichts zu tun 🎉'); return; }
+  btn.disabled = true; btn.textContent = '🎯 denkt…';
+  try {
+    const res = await fetch(CLAUDE_WORKER_URL + '/focus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ heute: todayStr(), tickets })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const out = await res.json();
+    document.getElementById('focusText').textContent = out.fokus || 'Keine Empfehlung erhalten.';
+    document.getElementById('focusBanner').hidden = false;
+  } catch (e) {
+    alert('Fokus fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🎯 Fokus';
+  }
+}
+document.getElementById('btnFocus').onclick = runFocus;
+document.getElementById('btnFocusClose').onclick = () => document.getElementById('focusBanner').hidden = true;
 
 /* ============================================================
    ERFOLG: Konfetti-Kanonen + Toast beim Abschließen
