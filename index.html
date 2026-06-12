@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control Panel</title>
+<style>
+/* ============================================================
+   CONTROL PANEL v2 — Salesforce Lightning Stil, Single-User
+   ============================================================ */
+:root{
+  --blue:#0176D3; --blue-dark:#014486; --blue-bg:#EEF4FF;
+  --red:#C23934; --yellow:#FFB75D; --green:#2E844A;
+  --gray-bg:#F3F3F3; --card:#FFFFFF; --border:#E5E5E5;
+  --text:#181818; --text-weak:#706E6B;
+  --shadow:0 2px 4px rgba(0,0,0,.08);
+  --radius:6px;
+  --overdue-bg:#FDEDEC; --today-bg:#FFF3E6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+/* FIX v2: hidden-Attribut muss display:grid/flex etc. immer schlagen
+   (Ursache des Listenansicht-Bugs in v1) */
+[hidden]{display:none!important}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--gray-bg); color:var(--text); font-size:13px; line-height:1.45;
+}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit}
+
+/* ---------- Header ---------- */
+header{
+  background:var(--card); border-bottom:1px solid var(--border);
+  padding:8px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  position:sticky; top:0; z-index:50; box-shadow:var(--shadow);
+}
+header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:nowrap}
+.header-meta{color:var(--text-weak); font-size:12px; white-space:nowrap}
+.badge-today{
+  background:var(--red); color:#fff; border-radius:10px; padding:1px 10px;
+  font-size:11px; font-weight:700; border:2px solid transparent; cursor:pointer;
+}
+.badge-today.zero{background:var(--green)}
+.badge-today.filter-on{border-color:var(--blue-dark); box-shadow:0 0 0 2px var(--blue-bg)}
+.badge-week{background:var(--yellow); color:#5a3b00}
+.badge-month{background:var(--green)}
+.spacer{flex:1}
+.btn{
+  border:1px solid var(--border); background:var(--card); color:var(--blue);
+  border-radius:var(--radius); padding:5px 12px; font-weight:600; font-size:12px;
+}
+.btn:hover{background:var(--blue-bg)}
+.btn-primary{background:var(--blue); border-color:var(--blue); color:#fff}
+.btn-primary:hover{background:var(--blue-dark)}
+.btn-danger{color:var(--red); border-color:var(--red)}
+.btn-danger:hover{background:var(--overdue-bg)}
+.btn-icon{padding:5px 9px}
+.toggle{display:flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+.toggle button{border:none; background:var(--card); padding:5px 12px; font-size:12px; font-weight:600; color:var(--text-weak)}
+.toggle button.active{background:var(--blue); color:#fff}
+
+/* ---------- Export-Erinnerung ---------- */
+.banner{
+  background:var(--today-bg); border-bottom:1px solid #f0d9b8;
+  padding:6px 16px; display:flex; gap:10px; align-items:center; font-size:12px;
+}
+.banner button{margin-left:auto}
+
+/* ---------- Toolbars ---------- */
+.toolbar{
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  padding:8px 16px 0;
+}
+.toolbar input,.toolbar select{
+  border:1px solid var(--border); border-radius:var(--radius);
+  padding:5px 8px; background:var(--card); font-size:12px;
+}
+.toolbar input[type=search]{min-width:180px; flex:1; max-width:320px}
+.toolbar .lbl{font-size:11px; color:var(--text-weak); font-weight:700}
+.chips{display:flex; gap:6px; flex-wrap:wrap}
+.chip{
+  border:1px solid var(--border); background:var(--card); border-radius:12px;
+  padding:3px 11px; font-size:11px; font-weight:600; color:var(--text-weak);
+}
+.chip:hover{border-color:var(--blue); color:var(--blue)}
+.chip.active{background:var(--blue); border-color:var(--blue); color:#fff}
+
+/* ---------- Kanban ---------- */
+.kanban{
+  display:grid; grid-template-columns:repeat(5,1fr); gap:10px;
+  padding:10px 16px 24px; align-items:start;
+}
+.col{background:#ECEBEA; border-radius:var(--radius); padding:8px; min-height:140px}
+.col.dragover{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
+.col-head{
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+  color:var(--text-weak); padding:2px 4px 8px;
+}
+.col-count{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:0 8px; font-size:11px; color:var(--text)}
+
+.col[data-status="Blocked / Wartend"] .col-head span:first-child{color:var(--red)}
+
+/* Breites Modal (Toggle neben dem X) */
+.modal{transition:max-width .15s ease}
+.modal.wide{max-width:1100px}
+
+/* Erfolgs-Toast */
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-30px);
+  background:var(--green);color:#fff;font-weight:700;font-size:14px;padding:9px 20px;
+  border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:301;opacity:0;
+  transition:opacity .3s, transform .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Ticket-Card ---------- */
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  border-left:4px solid var(--border);
+  box-shadow:var(--shadow); padding:8px; margin-bottom:8px; cursor:pointer;
+  position:relative;
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 6px 14px rgba(0,0,0,.18);
+  border-color:var(--blue);
+}
+.card.dragging{opacity:.4}
+.card .title{font-weight:700; font-size:13px; margin-bottom:2px; word-break:break-word; padding-right:18px}
+.card .desc{color:var(--text-weak); font-size:12px; max-height:34px; overflow:hidden; margin-bottom:4px}
+body.compact .card .desc{display:none}
+.card .meta{display:flex; gap:5px; flex-wrap:wrap; align-items:center; font-size:11px}
+.card-foot{display:flex; justify-content:space-between; align-items:flex-end; gap:6px; margin-top:4px}
+.card select.quick-status{
+  font-size:11px; padding:2px 4px; flex:1;
+  border:1px solid var(--border); border-radius:4px; background:var(--gray-bg);
+  display:none; /* Fallback für Drag&Drop auf Touch */
+}
+/* Eskalation: rotes Ausrufezeichen rechts oben bei überfällig */
+.escal{
+  position:absolute; top:6px; right:6px;
+  width:16px; height:16px; border-radius:50%;
+  background:var(--red); color:#fff; font-weight:800; font-size:11px;
+  display:flex; align-items:center; justify-content:center;
+}
+.prio-hoch{border-left-color:var(--red)}
+.prio-mittel{border-left-color:var(--yellow)}
+.prio-niedrig{border-left-color:var(--green)}
+.pill{border-radius:10px; padding:0 7px; font-weight:700; color:#fff; font-size:11px; white-space:nowrap}
+.pill.hoch{background:var(--red)} .pill.mittel{background:var(--yellow); color:#5a3b00} .pill.niedrig{background:var(--green)}
+.tag{border-radius:10px; padding:0 7px; font-size:11px; font-weight:600; white-space:nowrap}
+.deadline{color:var(--text-weak); white-space:nowrap}
+.jira{color:var(--blue); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap}
+.jira:hover{text-decoration:underline}
+
+.due-today{background:var(--today-bg)}
+.overdue{background:var(--overdue-bg)}
+.due-today .deadline{color:#B25D00; font-weight:700}
+.overdue .deadline{color:var(--red); font-weight:700}
+.done{opacity:.65}
+.done .title{text-decoration:line-through}
+.done-final{opacity:.4}
+
+/* ---------- Liste ---------- */
+.list-wrap{padding:10px 16px 24px; overflow-x:auto}
+table{width:100%; border-collapse:collapse; background:var(--card); box-shadow:var(--shadow); border-radius:var(--radius); overflow:hidden}
+th,td{padding:7px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; vertical-align:top}
+th{background:#FAFAF9; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-weak); white-space:nowrap; user-select:none}
+th.sortable{cursor:pointer}
+th.sortable:hover{color:var(--blue)}
+th .arrow{font-size:10px}
+tr.row{cursor:pointer}
+tr.row td{transition:background .1s}
+tr.row:hover td{background:var(--blue-bg)}
+tr.row.due-today td{background:var(--today-bg)}
+tr.row.overdue td{background:var(--overdue-bg)}
+tr.row.done td{opacity:.65}
+tr.row.done-final td{opacity:.4}
+.empty{padding:24px; text-align:center; color:var(--text-weak)}
+
+/* ---------- Modals ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+  align-items:flex-start; justify-content:center; z-index:100; padding:24px 12px; overflow-y:auto;
+}
+.overlay.open{display:flex}
+.modal{background:var(--card); border-radius:8px; width:100%; max-width:560px; box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.modal-head{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border)}
+.modal-head h2{font-size:15px; color:var(--blue-dark)}
+.modal-close{border:none; background:none; font-size:18px; color:var(--text-weak)}
+.modal-body{padding:12px 16px; display:grid; gap:10px}
+.field label{display:block; font-size:11px; font-weight:700; color:var(--text-weak); margin-bottom:3px}
+.field label .req{color:var(--red)}
+.field input,.field select,.field textarea{
+  width:100%; border:1px solid var(--border); border-radius:var(--radius);
+  padding:6px 8px; font-size:13px;
+}
+/* Datums-Icon linksbündig vor dem Datum */
+.field input[type=date]{position:relative; padding-left:32px}
+.field input[type=date]::-webkit-calendar-picker-indicator{
+  position:absolute; left:8px; top:50%; transform:translateY(-50%); margin:0;
+}
+.field textarea{resize:vertical; min-height:56px}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--blue); outline-offset:-1px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.modal-foot{display:flex; gap:8px; justify-content:flex-end; padding:0 16px 14px}
+.modal-foot .foot-left{display:flex; gap:8px; margin-right:auto}
+
+/* Kategorie-Auswahl im Ticket-Modal */
+.cat-chips{display:flex; gap:5px; flex-wrap:wrap; margin-bottom:6px; min-height:20px}
+.cat-chips .tag button{border:none; background:none; color:inherit; font-weight:800; margin-left:4px; padding:0; font-size:11px}
+.cat-add{display:flex; gap:6px}
+.cat-add select{flex:1}
+.cat-add input{flex:1}
+
+/* Kategorien-Verwaltung in Einstellungen */
+.cat-row{display:flex; gap:6px; align-items:center}
+.cat-row input[type=text]{flex:1}
+.cat-row input[type=color]{width:34px; height:28px; padding:1px; border:1px solid var(--border); border-radius:4px; background:var(--card); cursor:pointer}
+.cat-row .btn{padding:3px 8px}
+.settings-section{border-top:1px solid var(--border); padding-top:10px}
+.settings-section h3{font-size:12px; color:var(--blue-dark); margin-bottom:8px; text-transform:uppercase; letter-spacing:.03em}
+.set-row{display:flex; align-items:center; gap:8px; justify-content:space-between}
+.set-row label{font-size:12px}
+.set-row select,.set-row input[type=number]{border:1px solid var(--border); border-radius:var(--radius); padding:4px 6px; width:130px}
+
+/* ---------- Rich-Text (Beschreibung/Notiz mit Inline-Bildern) ---------- */
+.richtext{width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:6px 8px;font-size:13px;min-height:72px;max-height:300px;overflow-y:auto;background:var(--card)}
+.richtext:focus{outline:2px solid var(--blue);outline-offset:-1px}
+.richtext:empty::before{content:attr(data-ph);color:var(--text-weak)}
+.richtext img{max-width:100%;display:block;margin:6px 0;border:1px solid var(--border);border-radius:4px;cursor:zoom-in}
+.richtext ul,.richtext ol{padding-left:22px;margin:4px 0}
+.richtext li{margin:2px 0}
+/* Checkbox-Liste */
+.richtext ul.checklist{list-style:none;padding-left:4px}
+.richtext ul.checklist li{display:flex;gap:7px;align-items:flex-start}
+.richtext ul.checklist input[type=checkbox]{margin-top:3px;flex:none;cursor:pointer}
+.richtext ul.checklist input[type=checkbox]:checked + *,
+.richtext ul.checklist li:has(input:checked){color:var(--text-weak)}
+.rt-toolbar{display:flex;gap:3px;align-items:center;flex-wrap:wrap;border:1px solid var(--border);border-bottom:none;
+  border-radius:var(--radius) var(--radius) 0 0;background:#FAFAF9;padding:4px 6px}
+.rt-toolbar button{border:1px solid transparent;background:none;border-radius:4px;padding:2px 7px;font-size:12px;color:var(--text);line-height:1.3}
+.rt-toolbar button:hover{background:var(--blue-bg);border-color:var(--border)}
+.rt-sep{width:1px;height:16px;background:var(--border);margin:0 3px}
+.rt-toolbar + .richtext{border-top-left-radius:0;border-top-right-radius:0}
+
+/* ---------- Anhänge ---------- */
+.att-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:12px;text-align:center;color:var(--text-weak);font-size:12px;cursor:pointer}
+.att-zone:hover,.att-zone.drag{border-color:var(--blue);background:var(--blue-bg)}
+.att-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.att-thumb{position:relative;width:74px;height:74px;border:1px solid var(--border);border-radius:4px;overflow:hidden;cursor:zoom-in;background:var(--gray-bg)}
+.att-thumb img{width:100%;height:100%;object-fit:cover}
+.att-thumb button{position:absolute;top:2px;right:2px;width:18px;height:18px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:200;cursor:zoom-out}
+.lightbox.open{display:flex}
+.lightbox img{max-width:95vw;max-height:95vh;border-radius:4px}
+
+/* ---------- Responsiv ---------- */
+@media (max-width:1180px){ .kanban{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:860px){ .kanban{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:560px){
+  .kanban{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr}
+  .card select.quick-status{display:block}
+  header h1{font-size:15px}
+}
+@media (pointer:coarse){ .card select.quick-status{display:block} }
+@media (prefers-reduced-motion:reduce){ .card{transition:none} .card:hover{transform:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Control Panel</h1>
+  <span class="header-meta" id="todayDate"></span>
+  <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
+  <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: auf diese Woche filtern">0 diese Woche</button>
+  <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
+  <span class="spacer"></span>
+  <select id="globalCat" title="Nach Kategorie filtern" style="border:1px solid var(--border);border-radius:var(--radius);padding:5px 8px;font-size:12px;max-width:180px"></select>
+  <div class="toggle">
+    <button id="btnKanban" class="active">Kanban</button>
+    <button id="btnList">Liste</button>
+  </div>
+  <button class="btn" id="btnExport">Export</button>
+  <button class="btn" id="btnImport">Import</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+  <button class="btn btn-icon" id="btnSettings" title="Einstellungen">⚙</button>
+  <button class="btn btn-primary" id="btnNew">+ Neues Ticket</button>
+</header>
+
+<div class="banner" id="exportBanner" hidden>
+  <span>⚠ Letzter Export liegt länger zurück. localStorage ist kein Backup — jetzt sichern.</span>
+  <button class="btn" id="btnBannerExport">Jetzt exportieren</button>
+  <button class="btn" id="btnBannerDismiss">Später</button>
+</div>
+
+<!-- Kanban-Toolbar -->
+<div class="toolbar" id="kanbanBar">
+  <span class="lbl">Sortierung:</span>
+  <select id="kanbanSort">
+    <option value="deadline">Fälligkeit</option>
+    <option value="prio">Priorität</option>
+  </select>
+</div>
+
+<!-- Listen-Toolbar -->
+<div class="toolbar" id="listBar" hidden>
+  <input type="search" id="search" placeholder="Suche in Titel + Beschreibung…">
+  <select id="filterStatus"></select>
+  <select id="filterPrio">
+    <option value="">Priorität: Alle</option>
+    <option>Hoch</option><option>Mittel</option><option>Niedrig</option>
+  </select>
+  <div class="chips" id="quickChips">
+    <button class="chip" data-q="today">Heute fällig</button>
+    <button class="chip" data-q="overdue">Überfällig</button>
+    <button class="chip" data-q="week">Diese Woche</button>
+    <button class="chip" data-q="month">Diesen Monat</button>
+    <button class="chip" data-q="active">Aktiv</button>
+  </div>
+</div>
+
+<main>
+  <div class="kanban" id="kanban"></div>
+  <div class="list-wrap" id="listWrap" hidden>
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="title">Titel <span class="arrow"></span></th>
+          <th class="sortable" data-sort="status">Status <span class="arrow"></span></th>
+          <th class="sortable" data-sort="prio">Priorität <span class="arrow"></span></th>
+          <th class="sortable" data-sort="deadline">Deadline <span class="arrow"></span></th>
+          <th>Kategorien</th>
+          <th>Jira</th>
+        </tr>
+      </thead>
+      <tbody id="listBody"></tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Ticket-Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="modalTitle">Neues Ticket</h2>
+      <span>
+        <button class="modal-close" id="btnWide" title="Breite Ansicht umschalten" aria-label="Breite umschalten">⤢</button>
+        <button class="modal-close" data-close aria-label="Schließen">✕</button>
+      </span>
+    </div>
+    <form class="modal-body" id="ticketForm">
+      <div class="field">
+        <label>Titel <span class="req">*</span></label>
+        <input id="fTitle" required maxlength="200">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Status <span class="req">*</span></label>
+          <select id="fStatus" required></select>
+        </div>
+        <div class="field">
+          <label>Priorität <span class="req">*</span></label>
+          <select id="fPrio" required>
+            <option>Hoch</option><option selected>Mittel</option><option>Niedrig</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Deadline <span class="req">*</span></label>
+        <input type="date" id="fDeadline" required>
+      </div>
+      <div class="field">
+        <label>Beschreibung <span class="req">*</span> — Bilder per Strg+V direkt in den Text</label>
+        <div class="richtext" id="fDesc" contenteditable="true" data-ph="Text schreiben, Screenshots mit Strg+V an der Cursorposition einfügen…"></div>
+      </div>
+      <div class="field">
+        <label>Kommentar / Verlauf (optional)</label>
+        <div class="richtext" id="fNote" contenteditable="true" data-ph="Verlauf führen: „+ Datumszeile“ stempelt das heutige Datum — Bilder per Strg+V"></div>
+        <div style="margin-top:6px;text-align:left">
+          <button type="button" class="btn" id="btnLogDate" style="padding:2px 8px;font-size:11px">+ Datumszeile</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Kategorien</label>
+        <div class="cat-chips" id="catChips"></div>
+        <div class="cat-add">
+          <select id="catSelect"><option value="">+ aus Liste wählen…</option></select>
+          <input id="catNew" placeholder="Neue Kategorie…" maxlength="40">
+          <button type="button" class="btn" id="btnCatAdd">Anlegen</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Anhänge (Bilder) — Strg+V, Drag &amp; Drop oder klicken</label>
+        <div class="att-zone" id="attZone">📎 Screenshot einfügen oder Bild hier ablegen</div>
+        <input type="file" id="attFile" accept="image/*" multiple hidden>
+        <div class="att-thumbs" id="attThumbs"></div>
+      </div>
+      <div class="field">
+        <label>Jira-Link (optional)</label>
+        <input type="url" id="fJira" placeholder="https://…">
+      </div>
+    </form>
+    <div class="modal-foot">
+      <span class="foot-left">
+        <button class="btn btn-danger" id="btnDelete" hidden>Löschen</button>
+        <button type="button" class="btn" id="btnHousekeeper" title="Rechtschreibung &amp; Formatierung per KI aufräumen">🧹 Housekeeper</button>
+      </span>
+      <button class="btn" data-close>Abbrechen</button>
+      <button class="btn btn-primary" id="btnSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bestätigungsdialog: ungespeicherte Änderungen -->
+<div class="overlay" id="confirmOverlay" style="z-index:150">
+  <div class="modal" role="alertdialog" aria-modal="true" style="max-width:420px">
+    <div class="modal-head">
+      <h2>Ungespeicherte Änderungen</h2>
+    </div>
+    <div class="modal-body">
+      <p>Möchten Sie Ihre Änderungen wirklich nicht speichern?</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="btnConfirmCancel" style="margin-right:auto">Abbrechen</button>
+      <button class="btn btn-danger" id="btnConfirmDiscard">Verwerfen</button>
+      <button class="btn btn-primary" id="btnConfirmSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Einstellungen-Modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2>Einstellungen</h2>
+      <button class="modal-close" data-close-settings aria-label="Schließen">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="set-row">
+        <label>Standardansicht beim Start</label>
+        <select id="setView"><option value="kanban">Kanban</option><option value="list">Liste</option></select>
+      </div>
+      <div class="set-row">
+        <label>Kanban-Standardsortierung</label>
+        <select id="setKanbanSort"><option value="deadline">Fälligkeit</option><option value="prio">Priorität</option></select>
+      </div>
+      <div class="set-row">
+        <label>„Erledigt" ausblenden nach (Tage, 0 = nie)</label>
+        <input type="number" id="setHideDone" min="0" max="365">
+      </div>
+      <div class="set-row">
+        <label>Export-Erinnerung alle (Tage, 0 = aus)</label>
+        <input type="number" id="setRemind" min="0" max="90">
+      </div>
+      <div class="set-row">
+        <label>Kompakte Kacheln (ohne Beschreibung)</label>
+        <input type="checkbox" id="setCompact">
+      </div>
+      <div class="set-row">
+        <label>Speicherverbrauch (inkl. Bilder)</label>
+        <span id="setUsage" style="font-size:12px;color:var(--text-weak)">–</span>
+      </div>
+      <div class="settings-section">
+        <h3>Kategorien</h3>
+        <div id="catManager" style="display:grid;gap:6px"></div>
+        <div class="cat-add" style="margin-top:8px">
+          <input id="catManagerNew" placeholder="Neue Kategorie…" maxlength="40">
+          <button type="button" class="btn" id="btnCatManagerAdd">Anlegen</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" data-close-settings>Schließen</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox"><img id="lightboxImg" alt="Anhang"></div>
+
+<script>
+/* ============================================================
+   KONSTANTEN & STATE
+   ============================================================ */
+const LS_KEY = 'controlPanel.v2';
+const LS_KEY_V1 = 'controlPanel.tickets.v1'; // Migration aus v1
+// Workflow: Themenspeicher -> Blocked / Wartend -> In Arbeit -> Erledigt JF -> Erledigt
+const STATUSES = ['Themenspeicher', 'Blocked / Wartend', 'In Arbeit', 'Erledigt JF', 'Erledigt'];
+const DONE = ['Erledigt JF', 'Erledigt'];
+const PRIO_ORDER = { 'Hoch': 0, 'Mittel': 1, 'Niedrig': 2 };
+const PALETTE = ['#0176D3','#2E844A','#C23934','#9050E9','#06A59A','#B25D00',
+                 '#5867E8','#AA309F','#3BA755','#CA8501','#0D9DDA','#7F2D7B'];
+
+let state = { tickets: [], categories: [], settings: defaultSettings() };
+let view = 'kanban';
+let editingId = null;
+let modalCats = [];                          // Kategorien des offenen Tickets
+let modalImgs = [], sessionNewImgs = [], attUrls = [];
+let idb = null;                              // IndexedDB-Handle für Bild-Anhänge
+let sort = { key: 'deadline', dir: 1 };      // Liste: default Deadline aufsteigend
+let quick = '';                              // Schnellfilter Liste
+let kanbanQuick = '';                        // Badge-Filter im Kanban: ''|today|week|month
+let kanbanSortKey = 'deadline';
+let globalCat = '';                          // Globaler Kategorie-Filter (Header)
+
+function defaultSettings() {
+  return { defaultView: 'kanban', kanbanSort: 'deadline', hideDoneAfter: 14,
+           remindDays: 7, compact: false, modalWide: false, lastExport: todayStr() };
+}
+
+/* ============================================================
+   LADEN / SPEICHERN / MIGRATION
+   ============================================================ */
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      state.tickets = data.tickets || [];
+      state.categories = data.categories || [];
+      state.settings = Object.assign(defaultSettings(), data.settings || {});
+      migrateTickets(); ensureCategories();
+      return;
+    }
+    const rawV1 = localStorage.getItem(LS_KEY_V1); // v1 -> v2 Migration
+    if (rawV1) {
+      state.tickets = JSON.parse(rawV1);
+      migrateTickets(); ensureCategories(); save();
+      return;
+    }
+  } catch (e) { console.warn('localStorage nicht lesbar:', e); }
+  state.tickets = []; // Leere Version — Daten per JSON-Import laden
+  migrateTickets(); ensureCategories(); save();
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  catch (e) { alert('Speichern fehlgeschlagen (localStorage voll oder blockiert).'); }
+}
+/* Alte Status umbenennen + Felder ergänzen */
+function migrateTickets() {
+  state.tickets.forEach(t => {
+    if (t.status === 'Offen') t.status = 'Themenspeicher';
+    if (t.status === 'Blocked') t.status = 'Blocked / Wartend';
+    if (!STATUSES.includes(t.status)) t.status = 'Themenspeicher';
+    if (!Array.isArray(t.cats)) t.cats = [];
+    if (!Array.isArray(t.imgs)) t.imgs = [];
+    if (!t.descFormat) { // Alt-Daten: Plaintext einmalig nach HTML wandeln
+      t.desc = esc(t.desc || '').replace(/\n/g, '<br>');
+      t.note = esc(t.note || '').replace(/\n/g, '<br>');
+      t.descFormat = 'html';
+    } else { // HTML aus Importen immer durch den Sanitizer schicken (XSS-Schutz)
+      t.desc = sanitizeHtml(t.desc || '');
+      t.note = sanitizeHtml(t.note || '');
+    }
+    if (t.status === 'Erledigt' && !t.completedAt) t.completedAt = todayStr();
+  });
+}
+/* Jede in Tickets verwendete Kategorie bekommt einen Listeneintrag + Farbe */
+function ensureCategories() {
+  const known = new Set(state.categories.map(c => c.name));
+  state.tickets.flatMap(t => t.cats).forEach(name => {
+    if (name && !known.has(name)) {
+      state.categories.push({ name, color: PALETTE[state.categories.length % PALETTE.length] });
+      known.add(name);
+    }
+  });
+  state.categories.forEach((c, i) => {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(c.color || '')) c.color = PALETTE[i % PALETTE.length];
+  });
+  state.categories.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+function catColor(name) {
+  const c = state.categories.find(x => x.name === name);
+  return c ? c.color : '#706E6B';
+}
+/* Lesbare Textfarbe auf farbigem Hintergrund */
+function textOn(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  return lum > 160 ? '#181818' : '#fff';
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+/* ---------- Datum ---------- */
+function todayStr() {
+  const t = new Date();
+  return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+}
+function weekBounds() { // Mo–So der aktuellen Woche
+  const d = new Date(); const day = (d.getDay() + 6) % 7;
+  const mon = new Date(d); mon.setDate(d.getDate() - day);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const f = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+  return [f(mon), f(sun)];
+}
+function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return d + '.' + m + '.' + y; }
+function isOverdue(t) { return !DONE.includes(t.status) && t.deadline < todayStr(); }
+function isToday(t)   { return !DONE.includes(t.status) && t.deadline === todayStr(); }
+function isThisWeek(t)  { const [m, s] = weekBounds(); return !DONE.includes(t.status) && t.deadline >= m && t.deadline <= s; }
+function isThisMonth(t) { return !DONE.includes(t.status) && t.deadline.slice(0, 7) === todayStr().slice(0, 7); }
+function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
+function doneClass(t) {
+  if (t.status === 'Erledigt') return 'done done-final';   // final: stark gedimmt
+  if (t.status === 'Erledigt JF') return 'done';           // JF: wartet auf Meeting
+  return '';
+}
+/* "Erledigt" nach X Tagen ausblenden (Daten bleiben erhalten) */
+function isHidden(t) {
+  const days = state.settings.hideDoneAfter;
+  if (!days || t.status !== 'Erledigt' || !t.completedAt) return false;
+  return (new Date(todayStr()) - new Date(t.completedAt)) / 86400000 > days;
+}
+function setStatus(t, status) {
+  const wasDone = DONE.includes(t.status);
+  t.status = status;
+  if (status === 'Erledigt') t.completedAt = todayStr(); else delete t.completedAt;
+  if (!wasDone && DONE.includes(status)) celebrate(); // erstmaliger Abschluss
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function render() {
+  document.body.classList.toggle('compact', !!state.settings.compact);
+  renderHeader();
+  if (view === 'kanban') renderKanban(); else renderList();
+}
+
+function renderHeader() {
+  document.getElementById('todayDate').textContent =
+    new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const cur = view === 'kanban' ? kanbanQuick : quick;
+  [['dueTodayBadge', isToday, ' heute fällig', 'today'],
+   ['dueWeekBadge', isThisWeek, ' diese Woche', 'week'],
+   ['dueMonthBadge', isThisMonth, ' diesen Monat', 'month']
+  ].forEach(([id, fn, label, q]) => {
+    const n = state.tickets.filter(fn).length;
+    const b = document.getElementById(id);
+    b.textContent = n + label;
+    if (q === 'today') b.classList.toggle('zero', n === 0);
+    b.classList.toggle('filter-on', cur === q);
+  });
+}
+
+/* ---------- Kanban ---------- */
+function renderKanban() {
+  const root = document.getElementById('kanban');
+  root.innerHTML = '';
+  STATUSES.forEach(status => {
+    const col = document.createElement('div');
+    col.className = 'col'; col.dataset.status = status;
+    let items = state.tickets.filter(t => t.status === status && !isHidden(t));
+    if (kanbanQuick === 'today') items = items.filter(isToday);
+    else if (kanbanQuick === 'week') items = items.filter(isThisWeek);
+    else if (kanbanQuick === 'month') items = items.filter(isThisMonth);
+    if (globalCat) items = items.filter(t => t.cats.includes(globalCat));
+    items.sort((a, b) => kanbanSortKey === 'prio'
+      ? (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]) || a.deadline.localeCompare(b.deadline)
+      : a.deadline.localeCompare(b.deadline) || (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]));
+    col.innerHTML = '<div class="col-head"><span>' + status + '</span><span class="col-count">' + items.length + '</span></div>';
+    items.forEach(t => col.appendChild(cardEl(t)));
+
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('dragover'); });
+    col.addEventListener('dragleave', () => col.classList.remove('dragover'));
+    col.addEventListener('drop', e => {
+      e.preventDefault(); col.classList.remove('dragover');
+      const t = state.tickets.find(x => x.id === e.dataTransfer.getData('text/plain'));
+      if (t && t.status !== status) { setStatus(t, status); save(); render(); }
+    });
+    root.appendChild(col);
+  });
+}
+
+function cardEl(t) {
+  const el = document.createElement('div');
+  el.className = ['card', 'prio-' + t.prio.toLowerCase(), deadlineClass(t), doneClass(t)].join(' ').trim();
+  el.draggable = true; el.dataset.id = t.id;
+
+  const tags = t.cats.map(c =>
+    '<span class="tag" style="background:' + catColor(c) + ';color:' + textOn(catColor(c)) + '">' + esc(c) + '</span>').join('');
+  el.innerHTML =
+    (isOverdue(t) ? '<span class="escal" title="Überfällig!">!</span>' : '') +
+    '<div class="title">' + esc(t.title) + '</div>' +
+    '<div class="desc">' + esc(stripHtml(t.desc)) + '</div>' +
+    '<div class="meta">' +
+      '<span class="pill ' + t.prio.toLowerCase() + '">' + t.prio + '</span>' +
+      '<span class="deadline">📅 ' + fmtDate(t.deadline) + '</span>' +
+      (collectIds(t).length ? '<span class="deadline">📎 ' + collectIds(t).length + '</span>' : '') + tags +
+    '</div>' +
+    '<div class="card-foot">' +
+      '<select class="quick-status" title="Status ändern">' +
+        STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>').join('') +
+      '</select>' +
+      (t.jira ? '<a class="jira" href="' + esc(t.jira) + '" target="_blank" rel="noopener">Jira ↗</a>' : '') +
+    '</div>';
+
+  el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', t.id); el.classList.add('dragging'); });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  el.addEventListener('click', e => {
+    if (e.target.closest('a') || e.target.closest('select')) return;
+    openModal(t.id);
+  });
+  el.querySelector('.quick-status').addEventListener('change', e => { setStatus(t, e.target.value); save(); render(); });
+  return el;
+}
+
+/* ---------- Liste ---------- */
+function renderList() {
+  const body = document.getElementById('listBody');
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const fs = document.getElementById('filterStatus').value;
+  const fp = document.getElementById('filterPrio').value;
+  let rows = state.tickets.filter(t =>
+    !isHidden(t) &&
+    (!fs || t.status === fs) &&
+    (!fp || t.prio === fp) &&
+    (!globalCat || t.cats.includes(globalCat)) &&
+    (!q || t.title.toLowerCase().includes(q) || stripHtml(t.desc).toLowerCase().includes(q)) &&
+    (quick !== 'today'   || isToday(t)) &&
+    (quick !== 'overdue' || isOverdue(t)) &&
+    (quick !== 'week'    || isThisWeek(t)) &&
+    (quick !== 'month'   || isThisMonth(t)) &&
+    (quick !== 'active'  || !DONE.includes(t.status))
+  );
+
+  rows.sort((a, b) => {
+    let v = 0;
+    if (sort.key === 'deadline') v = a.deadline.localeCompare(b.deadline);
+    else if (sort.key === 'prio') v = PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio];
+    else if (sort.key === 'status') v = STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
+    else if (sort.key === 'title') v = a.title.localeCompare(b.title, 'de');
+    return v * sort.dir;
+  });
+
+  document.querySelectorAll('th.sortable').forEach(th =>
+    th.querySelector('.arrow').textContent = th.dataset.sort === sort.key ? (sort.dir === 1 ? '▲' : '▼') : '');
+  document.querySelectorAll('#quickChips .chip').forEach(c =>
+    c.classList.toggle('active', c.dataset.q === quick));
+
+  body.innerHTML = '';
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty">Keine Tickets gefunden.</td></tr>'; return; }
+  rows.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.className = ['row', deadlineClass(t), doneClass(t)].join(' ').trim();
+    tr.innerHTML =
+      '<td>' + (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;margin-right:5px">!</span>' : '') +
+        '<strong>' + esc(t.title) + '</strong>' + (collectIds(t).length ? ' <span style="color:var(--text-weak)">📎' + collectIds(t).length + '</span>' : '') + '<br><span style="color:var(--text-weak)">' + esc(stripHtml(t.desc)) + '</span></td>' +
+      '<td>' + t.status + '</td>' +
+      '<td><span class="pill ' + t.prio.toLowerCase() + '">' + t.prio + '</span></td>' +
+      '<td><span class="deadline">' + fmtDate(t.deadline) + '</span></td>' +
+      '<td>' + t.cats.map(c => '<span class="tag" style="background:' + catColor(c) + ';color:' + textOn(catColor(c)) + '">' + esc(c) + '</span>').join(' ') + '</td>' +
+      '<td>' + (t.jira ? '<a class="jira" href="' + esc(t.jira) + '" target="_blank" rel="noopener">öffnen ↗</a>' : '') + '</td>';
+    tr.addEventListener('click', e => { if (!e.target.closest('a')) openModal(t.id); });
+    body.appendChild(tr);
+  });
+}
+
+function refreshFilters() {
+  document.getElementById('filterStatus').innerHTML =
+    '<option value="">Status: Alle</option>' + STATUSES.map(s => '<option>' + s + '</option>').join('');
+  const gc = document.getElementById('globalCat');
+  gc.innerHTML = '<option value="">Kategorie: Alle</option>' +
+    state.categories.map(c => '<option style="background:' + c.color + ';color:' + textOn(c.color) + '"' +
+      (c.name === globalCat ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('');
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ============================================================
+   TICKET-MODAL
+   ============================================================ */
+const overlay = document.getElementById('overlay');
+const confirmOverlay = document.getElementById('confirmOverlay');
+let modalSnapshot = '';                      // Zustand beim Öffnen — für Dirty-Check
+
+function modalFingerprint() {
+  return JSON.stringify({
+    title: document.getElementById('fTitle').value,
+    status: document.getElementById('fStatus').value,
+    prio: document.getElementById('fPrio').value,
+    deadline: document.getElementById('fDeadline').value,
+    jira: document.getElementById('fJira').value,
+    desc: document.getElementById('fDesc').innerHTML,
+    note: document.getElementById('fNote').innerHTML,
+    cats: modalCats, imgs: modalImgs
+  });
+}
+function isModalDirty() { return modalFingerprint() !== modalSnapshot; }
+
+function openModal(id) {
+  editingId = id || null;
+  const t = id ? state.tickets.find(x => x.id === id) : null;
+  document.getElementById('modalTitle').textContent = t ? 'Ticket bearbeiten' : 'Neues Ticket';
+  document.getElementById('btnDelete').hidden = !t;
+  document.getElementById('fTitle').value = t ? t.title : '';
+  document.getElementById('fStatus').value = t ? t.status : 'Themenspeicher';
+  document.getElementById('fPrio').value = t ? t.prio : 'Mittel';
+  document.getElementById('fDeadline').value = t ? t.deadline : todayStr();
+  document.getElementById('fJira').value = t ? (t.jira || '') : '';
+  document.getElementById('fDesc').innerHTML = '';
+  document.getElementById('fNote').innerHTML = '';
+  modalCats = t ? [...t.cats] : [];
+  renderModalCats();
+  modalImgs = t ? [...t.imgs] : [];
+  sessionNewImgs = [];
+  renderAttachments();
+  modalSnapshot = modalFingerprint();
+  Promise.all([htmlWithSrcs(t ? t.desc : ''), htmlWithSrcs(t ? t.note : '')]).then(([d, n]) => {
+    document.getElementById('fDesc').innerHTML = d;
+    document.getElementById('fNote').innerHTML = n;
+    modalSnapshot = modalFingerprint(); // Basis erst nach dem (async) Befüllen setzen
+  });
+  overlay.querySelector('.modal').classList.toggle('wide', !!state.settings.modalWide);
+  overlay.classList.add('open');
+  document.getElementById('fTitle').focus();
+}
+/* Schließen anfordern: bei ungespeicherten Änderungen erst nachfragen */
+function requestCloseModal() {
+  if (!overlay.classList.contains('open')) return;
+  if (isModalDirty()) { confirmOverlay.classList.add('open'); return; }
+  closeModal();
+}
+function closeModal() {
+  // Abbruch: in dieser Sitzung neu hinzugefügte Bilder wieder löschen
+  sessionNewImgs.forEach(id => imgDel(id).catch(() => {}));
+  sessionNewImgs = [];
+  attUrls.forEach(u => URL.revokeObjectURL(u)); attUrls = [];
+  overlay.classList.remove('open'); editingId = null;
+}
+
+/* Kategorie-Chips + Pickliste im Modal */
+function renderModalCats() {
+  document.getElementById('catChips').innerHTML = modalCats.map(c =>
+    '<span class="tag" style="background:' + catColor(c) + ';color:' + textOn(catColor(c)) + '">' + esc(c) +
+    '<button type="button" data-rm="' + esc(c) + '" title="Entfernen">✕</button></span>').join('') ||
+    '<span style="color:var(--text-weak);font-size:11px">Keine Kategorie gewählt</span>';
+  document.getElementById('catSelect').innerHTML = '<option value="">+ aus Liste wählen…</option>' +
+    state.categories.filter(c => !modalCats.includes(c.name))
+      .map(c => '<option style="background:' + c.color + ';color:' + textOn(c.color) + '">' + esc(c.name) + '</option>').join('');
+  document.querySelectorAll('#catChips [data-rm]').forEach(b =>
+    b.onclick = () => { modalCats = modalCats.filter(x => x !== b.dataset.rm); renderModalCats(); });
+}
+function addCategory(name) { // Neue Kategorie -> Liste (Outlook-Stil), Farbe automatisch
+  name = name.trim();
+  if (!name) return null;
+  if (!state.categories.some(c => c.name === name)) {
+    state.categories.push({ name, color: PALETTE[state.categories.length % PALETTE.length] });
+    state.categories.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    save(); refreshFilters();
+  }
+  return name;
+}
+
+function saveTicket() {
+  const form = document.getElementById('ticketForm');
+  if (!form.reportValidity()) return;
+  const descHtml = sanitizeHtml(document.getElementById('fDesc').innerHTML);
+  const noteHtml = sanitizeHtml(document.getElementById('fNote').innerHTML);
+  // Pflichtfeld: Text ODER mindestens ein Bild
+  if (!stripHtml(descHtml).trim() && !descHtml.includes('data-img-id')) {
+    alert('Beschreibung ist ein Pflichtfeld.'); document.getElementById('fDesc').focus(); return;
+  }
+  const data = {
+    title: document.getElementById('fTitle').value.trim(),
+    prio: document.getElementById('fPrio').value,
+    deadline: document.getElementById('fDeadline').value,
+    desc: descHtml,
+    jira: document.getElementById('fJira').value.trim(),
+    note: noteHtml,
+    descFormat: 'html',
+    cats: [...modalCats],
+    imgs: [...modalImgs]
+  };
+  const newStatus = document.getElementById('fStatus').value;
+  const oldIds = editingId ? collectIds(state.tickets.find(x => x.id === editingId)) : [];
+  let t;
+  if (editingId) {
+    t = state.tickets.find(x => x.id === editingId);
+    Object.assign(t, data); setStatus(t, newStatus);
+  } else {
+    t = Object.assign({ id: uid() }, data); setStatus(t, newStatus);
+    state.tickets.push(t);
+  }
+  // Bild-Aufräumen per Diff: alles, was nicht mehr referenziert ist, löschen
+  const newIds = new Set(collectIds(t));
+  oldIds.filter(id => !newIds.has(id)).forEach(id => imgDel(id).catch(() => {}));
+  sessionNewImgs.filter(id => !newIds.has(id)).forEach(id => imgDel(id).catch(() => {}));
+  sessionNewImgs = [];
+  save(); closeModal(); render();
+}
+function deleteTicket() {
+  if (!editingId) return;
+  const t = state.tickets.find(x => x.id === editingId);
+  if (confirm('Ticket "' + t.title + '" wirklich löschen?')) {
+    collectIds(t).forEach(id => imgDel(id).catch(() => {})); // Anhänge + Inline-Bilder mitlöschen
+    state.tickets = state.tickets.filter(x => x.id !== editingId);
+    save(); closeModal(); render();
+  }
+}
+
+/* ============================================================
+   EINSTELLUNGEN
+   ============================================================ */
+const settingsOverlay = document.getElementById('settingsOverlay');
+
+function openSettings() {
+  const s = state.settings;
+  document.getElementById('setView').value = s.defaultView;
+  document.getElementById('setKanbanSort').value = s.kanbanSort;
+  document.getElementById('setHideDone').value = s.hideDoneAfter;
+  document.getElementById('setRemind').value = s.remindDays;
+  document.getElementById('setCompact').checked = !!s.compact;
+  renderCatManager();
+  const u = document.getElementById('setUsage'); u.textContent = '–';
+  if (navigator.storage && navigator.storage.estimate)
+    navigator.storage.estimate().then(({ usage, quota }) =>
+      u.textContent = (usage / 1048576).toFixed(1) + ' MB von ' + Math.round(quota / 1048576) + ' MB');
+  settingsOverlay.classList.add('open');
+}
+function closeSettings() {
+  const s = state.settings;
+  s.defaultView = document.getElementById('setView').value;
+  s.kanbanSort = document.getElementById('setKanbanSort').value;
+  s.hideDoneAfter = Math.max(0, +document.getElementById('setHideDone').value || 0);
+  s.remindDays = Math.max(0, +document.getElementById('setRemind').value || 0);
+  s.compact = document.getElementById('setCompact').checked;
+  save(); settingsOverlay.classList.remove('open');
+  refreshFilters(); render();
+}
+
+/* Kategorien verwalten: umbenennen (Tickets folgen), Farbe, löschen */
+function renderCatManager() {
+  const root = document.getElementById('catManager');
+  root.innerHTML = '';
+  if (!state.categories.length) { root.innerHTML = '<span style="color:var(--text-weak)">Noch keine Kategorien.</span>'; return; }
+  state.categories.forEach(cat => {
+    const row = document.createElement('div');
+    row.className = 'cat-row';
+    const count = state.tickets.filter(t => t.cats.includes(cat.name)).length;
+    row.innerHTML =
+      '<input type="color" value="' + cat.color + '" title="Farbe">' +
+      '<input type="text" value="' + esc(cat.name) + '" maxlength="40" title="Umbenennen — wirkt auf alle Tickets">' +
+      '<span style="color:var(--text-weak);font-size:11px;white-space:nowrap">' + count + '×</span>' +
+      '<button class="btn btn-danger" title="Löschen">✕</button>';
+    row.querySelector('input[type=color]').addEventListener('change', e => {
+      cat.color = e.target.value; save(); render();
+    });
+    row.querySelector('input[type=text]').addEventListener('change', e => {
+      const newName = e.target.value.trim();
+      if (!newName) { e.target.value = cat.name; return; }
+      if (state.categories.some(c => c !== cat && c.name === newName)) {
+        alert('Kategorie "' + newName + '" existiert bereits.'); e.target.value = cat.name; return;
+      }
+      state.tickets.forEach(t => { t.cats = t.cats.map(c => c === cat.name ? newName : c); });
+      cat.name = newName;
+      state.categories.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+      save(); refreshFilters(); renderCatManager(); render();
+    });
+    row.querySelector('.btn-danger').addEventListener('click', () => {
+      if (!confirm('Kategorie "' + cat.name + '" löschen? Sie wird von ' + count + ' Ticket(s) entfernt.')) return;
+      state.tickets.forEach(t => { t.cats = t.cats.filter(c => c !== cat.name); });
+      state.categories = state.categories.filter(c => c !== cat);
+      save(); refreshFilters(); renderCatManager(); render();
+    });
+    root.appendChild(row);
+  });
+}
+
+/* ============================================================
+   EXPORT / IMPORT
+   ============================================================ */
+async function exportJSON() {
+  const images = [];
+  if (idb) { // alle referenzierten Bilder als Base64 einbetten
+    for (const t of state.tickets) for (const id of collectIds(t)) {
+      try {
+        const rec = await imgGet(id);
+        if (rec) images.push({ id, name: rec.name, type: rec.type, data: await blobToB64(rec.blob) });
+      } catch (e) { console.warn('Bild fehlt im Export:', id); }
+    }
+  }
+  const blob = new Blob([JSON.stringify({ version: 3, ...state, images }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'control-panel-export-' + todayStr() + '.json';
+  a.click(); URL.revokeObjectURL(a.href);
+  state.settings.lastExport = todayStr(); save();
+  document.getElementById('exportBanner').hidden = true;
+}
+function importJSON(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (Array.isArray(data)) {            // v1-Format: nur Ticket-Array
+        state.tickets = data;
+      } else if (Array.isArray(data.tickets)) { // v2-Format
+        state.tickets = data.tickets;
+        if (Array.isArray(data.categories)) state.categories = data.categories;
+        if (data.settings) state.settings = Object.assign(defaultSettings(), data.settings);
+      } else throw new Error('Unbekanntes Format');
+      state.tickets = state.tickets.filter(t => t && t.title)
+        .map(t => Object.assign({ id: uid(), cats: [], jira: '', note: '', desc: '', deadline: todayStr(), prio: 'Mittel', status: 'Themenspeicher' }, t));
+      if (Array.isArray(data.images)) { // v3: eingebettete Bilder zurück in IndexedDB
+        if (!idb) alert('Hinweis: Bilder konnten nicht importiert werden (IndexedDB nicht verfügbar).');
+        else for (const rec of data.images) {
+          try {
+            const blob = await (await fetch(rec.data)).blob();
+            await imgPut({ id: rec.id, blob, name: rec.name || 'bild.jpg', type: rec.type || blob.type });
+          } catch (e) { console.warn('Bild nicht importierbar:', rec.id); }
+        }
+      }
+      migrateTickets(); ensureCategories(); save(); refreshFilters(); render();
+      alert(state.tickets.length + ' Tickets importiert. Bestehende Daten wurden ersetzt.');
+    } catch (e) { alert('Import fehlgeschlagen: keine gültige JSON-Datei.'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   EVENTS / INIT
+   ============================================================ */
+function setView(v) {
+  view = v;
+  document.getElementById('btnKanban').classList.toggle('active', v === 'kanban');
+  document.getElementById('btnList').classList.toggle('active', v === 'list');
+  document.getElementById('kanban').hidden = v !== 'kanban';
+  document.getElementById('kanbanBar').hidden = v !== 'kanban';
+  document.getElementById('listBar').hidden = v !== 'list';
+  document.getElementById('listWrap').hidden = v !== 'list';
+  render();
+}
+
+document.getElementById('btnKanban').onclick = () => setView('kanban');
+document.getElementById('btnList').onclick = () => setView('list');
+document.getElementById('btnNew').onclick = () => openModal(null);
+document.getElementById('btnSave').onclick = saveTicket;
+document.getElementById('btnWide').onclick = () => {
+  state.settings.modalWide = !state.settings.modalWide; save();
+  overlay.querySelector('.modal').classList.toggle('wide', state.settings.modalWide);
+};
+document.getElementById('btnLogDate').onclick = () => {
+  const ed = document.getElementById('fNote');
+  const line = document.createElement('div');
+  line.innerHTML = '<b>— ' + fmtDate(todayStr()) + ':</b>&nbsp;';
+  ed.insertBefore(line, ed.firstChild);
+  ed.focus();
+  const r = document.createRange(); r.selectNodeContents(line); r.collapse(false);
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+};
+document.getElementById('btnDelete').onclick = deleteTicket;
+document.getElementById('btnExport').onclick = exportJSON;
+document.getElementById('btnBannerExport').onclick = exportJSON;
+document.getElementById('btnBannerDismiss').onclick = () => document.getElementById('exportBanner').hidden = true;
+document.getElementById('btnImport').onclick = () => document.getElementById('importFile').click();
+document.getElementById('importFile').addEventListener('change', e => {
+  if (e.target.files[0] && confirm('Import ersetzt ALLE aktuellen Daten. Fortfahren?')) importJSON(e.target.files[0]);
+  e.target.value = '';
+});
+document.getElementById('btnSettings').onclick = openSettings;
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = requestCloseModal);
+document.querySelectorAll('[data-close-settings]').forEach(b => b.onclick = closeSettings);
+overlay.addEventListener('click', e => { if (e.target === overlay) requestCloseModal(); });
+settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) closeSettings(); });
+
+/* Bestätigungsdialog für ungespeicherte Änderungen */
+document.getElementById('btnConfirmCancel').onclick = () => confirmOverlay.classList.remove('open');
+document.getElementById('btnConfirmDiscard').onclick = () => { confirmOverlay.classList.remove('open'); closeModal(); };
+document.getElementById('btnConfirmSave').onclick = () => { confirmOverlay.classList.remove('open'); saveTicket(); };
+
+/* Header-Badges: filtern die aktuelle Ansicht (Toggle, exklusiv) */
+function toggleQuick(q) {
+  if (view === 'kanban') kanbanQuick = kanbanQuick === q ? '' : q;
+  else quick = quick === q ? '' : q;
+  render();
+}
+document.getElementById('dueTodayBadge').onclick = () => toggleQuick('today');
+document.getElementById('dueWeekBadge').onclick = () => toggleQuick('week');
+document.getElementById('dueMonthBadge').onclick = () => toggleQuick('month');
+
+/* Kanban-Sortierung */
+document.getElementById('kanbanSort').addEventListener('change', e => { kanbanSortKey = e.target.value; render(); });
+document.getElementById('globalCat').addEventListener('change', e => { globalCat = e.target.value; render(); });
+
+/* Listen-Filter */
+['search', 'filterStatus', 'filterPrio'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { renderList(); renderHeader(); }));
+document.querySelectorAll('#quickChips .chip').forEach(c =>
+  c.addEventListener('click', () => { quick = quick === c.dataset.q ? '' : c.dataset.q; renderList(); renderHeader(); }));
+document.querySelectorAll('th.sortable').forEach(th =>
+  th.addEventListener('click', () => {
+    if (sort.key === th.dataset.sort) sort.dir *= -1;
+    else { sort.key = th.dataset.sort; sort.dir = 1; }
+    renderList();
+  }));
+
+/* Kategorien im Ticket-Modal */
+document.getElementById('catSelect').addEventListener('change', e => {
+  if (e.target.value) { modalCats.push(e.target.value); renderModalCats(); }
+});
+document.getElementById('btnCatAdd').onclick = () => {
+  const inp = document.getElementById('catNew');
+  const name = addCategory(inp.value);
+  if (name && !modalCats.includes(name)) modalCats.push(name);
+  inp.value = ''; renderModalCats();
+};
+document.getElementById('catNew').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnCatAdd').click(); }
+});
+document.getElementById('btnCatManagerAdd').onclick = () => {
+  const inp = document.getElementById('catManagerNew');
+  addCategory(inp.value); inp.value = ''; renderCatManager();
+};
+
+/* ============================================================
+   BILD-ANHÄNGE (IndexedDB)
+   Tickets bleiben in localStorage, Bilder als Blobs in IndexedDB.
+   ============================================================ */
+function idbOpen() {
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('IndexedDB fehlt'));
+    const r = indexedDB.open('controlPanelImages', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('images', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function imgStore(mode) { return idb.transaction('images', mode).objectStore('images'); }
+function imgPut(rec) { return new Promise((res, rej) => { const q = imgStore('readwrite').put(rec); q.onsuccess = res; q.onerror = () => rej(q.error); }); }
+function imgGet(id)  { return new Promise((res, rej) => { const q = imgStore('readonly').get(id);  q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+function imgDel(id)  { if (!idb) return Promise.resolve(); return new Promise((res, rej) => { const q = imgStore('readwrite').delete(id); q.onsuccess = res; q.onerror = () => rej(q.error); }); }
+function blobToB64(b) { return new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); }); }
+
+/* Bilder vor dem Speichern verkleinern: max 1600px, JPEG 85% */
+async function compressImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const max = 1600; let w = img.width, h = img.height;
+    if (Math.max(w, h) > max) { const f = max / Math.max(w, h); w = Math.round(w * f); h = Math.round(h * f); }
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+    return (blob && blob.size < file.size) ? blob : file;
+  } catch (e) { return file; } finally { URL.revokeObjectURL(url); }
+}
+
+async function addAttachment(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  if (!idb) { alert('Anhänge benötigen IndexedDB. Auf file:// blockieren das manche Browser — App hosten (z.B. GitHub Pages) oder Chrome/Edge nutzen.'); return; }
+  const blob = await compressImage(file);
+  const id = uid();
+  try {
+    await imgPut({ id, blob, name: file.name || 'screenshot.jpg', type: blob.type });
+    modalImgs.push(id); sessionNewImgs.push(id);
+    renderAttachments();
+  } catch (e) { alert('Bild konnte nicht gespeichert werden: ' + e); }
+}
+
+async function renderAttachments() {
+  const root = document.getElementById('attThumbs');
+  attUrls.forEach(u => URL.revokeObjectURL(u)); attUrls = [];
+  root.innerHTML = '';
+  if (!idb && modalImgs.length) { root.innerHTML = '<span style="color:var(--red);font-size:11px">Bilder nicht verfügbar (IndexedDB blockiert)</span>'; return; }
+  for (const id of modalImgs) {
+    let rec = null;
+    try { rec = await imgGet(id); } catch (e) {}
+    if (!rec) continue;
+    const url = URL.createObjectURL(rec.blob); attUrls.push(url);
+    const d = document.createElement('div');
+    d.className = 'att-thumb';
+    d.innerHTML = '<img src="' + url + '" alt=""><button type="button" title="Entfernen">✕</button>';
+    d.querySelector('img').onclick = () => {
+      document.getElementById('lightboxImg').src = url;
+      document.getElementById('lightbox').classList.add('open');
+    };
+    d.querySelector('button').onclick = e => {
+      e.stopPropagation();
+      modalImgs = modalImgs.filter(x => x !== id);
+      if (sessionNewImgs.includes(id)) { sessionNewImgs = sessionNewImgs.filter(x => x !== id); imgDel(id).catch(() => {}); }
+      renderAttachments(); // persistierte Bilder löscht der Diff beim Speichern
+    };
+    root.appendChild(d);
+  }
+}
+
+/* ---------- HTML-Helfer (DOMParser = inert, kein Script-/Bild-Laden) ---------- */
+function stripHtml(html) {
+  return new DOMParser().parseFromString(html || '', 'text/html').body.textContent || '';
+}
+/* Whitelist-Sanitizer: nur einfache Formatierung + Bilder mit data-img-id */
+function sanitizeHtml(html) {
+  const doc = new DOMParser().parseFromString(html || '', 'text/html');
+  const ALLOW = ['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'DIV', 'P', 'SPAN', 'UL', 'OL', 'LI', 'FONT'];
+  (function clean(node) {
+    [...node.childNodes].forEach(ch => {
+      if (ch.nodeType === 3) return;                 // Text behalten
+      if (ch.nodeType !== 1) { ch.remove(); return; } // Kommentare etc. raus
+      if (ch.tagName === 'IMG') {
+        const id = ch.getAttribute('data-img-id');
+        if (!id) { ch.remove(); return; }
+        [...ch.attributes].forEach(a => { if (a.name !== 'data-img-id') ch.removeAttribute(a.name); });
+        return;
+      }
+      if (ch.tagName === 'INPUT') { // nur Checkboxen (Checklisten) überleben
+        if (ch.getAttribute('type') !== 'checkbox') { ch.remove(); return; }
+        const checked = ch.hasAttribute('checked');
+        [...ch.attributes].forEach(a => ch.removeAttribute(a.name));
+        ch.setAttribute('type', 'checkbox');
+        if (checked) ch.setAttribute('checked', '');
+        return;
+      }
+      if (!ALLOW.includes(ch.tagName)) {             // unbekanntes Tag: auspacken
+        clean(ch);
+        while (ch.firstChild) node.insertBefore(ch.firstChild, ch);
+        ch.remove(); return;
+      }
+      [...ch.attributes].forEach(a => { // nur validierte Attribute überleben
+        if (ch.tagName === 'FONT' && a.name === 'color' && /^#[0-9A-Fa-f]{6}$/.test(a.value)) return;
+        if (ch.tagName === 'FONT' && a.name === 'size' && /^[1-7]$/.test(a.value)) return;
+        if (ch.tagName === 'UL' && a.name === 'class' && a.value === 'checklist') return;
+        ch.removeAttribute(a.name);
+      });
+      clean(ch);
+    });
+  })(doc.body);
+  return doc.body.innerHTML;
+}
+/* Alle Bild-IDs eines Tickets: Anhang-Liste + Inline-Verweise in desc/note */
+function collectIds(t) {
+  const ids = new Set(t.imgs || []);
+  const re = /data-img-id="([^"]+)"/g;
+  for (const f of [t.desc || '', t.note || '']) {
+    re.lastIndex = 0; let m;
+    while ((m = re.exec(f))) ids.add(m[1]);
+  }
+  return [...ids];
+}
+/* Gespeichertes HTML -> anzeigbares HTML (Blob-URLs einsetzen) */
+async function htmlWithSrcs(html) {
+  const doc = new DOMParser().parseFromString(html || '', 'text/html');
+  for (const img of [...doc.body.querySelectorAll('img[data-img-id]')]) {
+    let rec = null;
+    if (idb) { try { rec = await imgGet(img.dataset.imgId); } catch (e) {} }
+    if (rec) { const u = URL.createObjectURL(rec.blob); attUrls.push(u); img.src = u; }
+    else img.replaceWith(doc.createTextNode('[Bild fehlt]'));
+  }
+  return doc.body.innerHTML;
+}
+/* Bild an der Cursorposition in einen Editor einfügen */
+async function insertInlineImage(editor, file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  if (!idb) { alert('Anhänge benötigen IndexedDB. Auf file:// blockieren das manche Browser — gehostete URL nutzen.'); return; }
+  const blob = await compressImage(file);
+  const id = uid();
+  try { await imgPut({ id, blob, name: file.name || 'screenshot.jpg', type: blob.type }); }
+  catch (e) { alert('Bild konnte nicht gespeichert werden: ' + e); return; }
+  sessionNewImgs.push(id);
+  const img = document.createElement('img');
+  const u = URL.createObjectURL(blob); attUrls.push(u);
+  img.src = u; img.dataset.imgId = id;
+  editor.focus();
+  const sel = window.getSelection();
+  if (sel.rangeCount && editor.contains(sel.anchorNode)) {
+    const r = sel.getRangeAt(0); r.deleteContents(); r.insertNode(img);
+    r.setStartAfter(img); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+  } else editor.appendChild(img);
+}
+/* ---------- Formatierungs-Toolbar für Rich-Text-Felder ---------- */
+function buildToolbar(editor) {
+  const tb = document.createElement('div');
+  tb.className = 'rt-toolbar';
+  tb.innerHTML =
+    '<button type="button" data-cmd="bold" title="Fett (Strg+B)"><b>B</b></button>' +
+    '<button type="button" data-cmd="italic" title="Kursiv (Strg+I)"><i>K</i></button>' +
+    '<button type="button" data-cmd="underline" title="Unterstrichen (Strg+U)"><u>U</u></button>' +
+    '<span class="rt-sep"></span>' +
+    '<button type="button" data-cmd="insertUnorderedList" title="Aufzählung">• Liste</button>' +
+    '<button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1. Liste</button>' +
+    '<button type="button" data-check title="Checkbox-Liste">☑ Liste</button>' +
+    '<span class="rt-sep"></span>' +
+    '<button type="button" data-cmd="removeFormat" title="Formatierung entfernen">Tx</button>';
+  editor.parentNode.insertBefore(tb, editor);
+  const exec = (cmd, val) => { editor.focus(); document.execCommand(cmd, false, val || null); };
+  // mousedown abfangen, damit die Textauswahl im Editor erhalten bleibt
+  tb.addEventListener('mousedown', e => e.preventDefault());
+  tb.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.cmd) exec(b.dataset.cmd);
+    else if (b.hasAttribute('data-check')) insertChecklist(editor);
+  });
+}
+
+/* Checkbox-Liste: normale UL anlegen, als .checklist markieren, Häkchen einsetzen */
+function insertChecklist(editor) {
+  editor.focus();
+  document.execCommand('insertUnorderedList');
+  const sel = getSelection();
+  let node = sel.rangeCount ? sel.anchorNode : null;
+  while (node && node !== editor && node.tagName !== 'UL') node = node.parentNode;
+  if (node && node.tagName === 'UL') node.classList.add('checklist');
+  normalizeChecklists(editor);
+}
+/* Jedes LI einer Checkliste bekommt genau eine Checkbox (auch Enter-erzeugte) */
+function normalizeChecklists(editor) {
+  editor.querySelectorAll('ul.checklist li').forEach(li => {
+    if (!li.querySelector('input[type=checkbox]')) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      li.insertBefore(cb, li.firstChild);
+    }
+  });
+}
+
+/* Editor-Events: Drop + Doppelklick für Vollbild (Einfachklick markiert zum Löschen) */
+document.querySelectorAll('.richtext').forEach(ed => {
+  buildToolbar(ed);
+  ed.addEventListener('input', () => normalizeChecklists(ed));
+  // Checkbox-Klick in contenteditable: Zustand selbst toggeln + als Attribut persistieren
+  ed.addEventListener('click', e => {
+    if (e.target.matches('ul.checklist input[type=checkbox]')) {
+      e.preventDefault();
+      e.target.toggleAttribute('checked');
+      e.target.checked = e.target.hasAttribute('checked');
+    }
+  });
+  ed.addEventListener('dragover', e => e.preventDefault());
+  ed.addEventListener('drop', e => {
+    e.preventDefault();
+    [...e.dataTransfer.files].forEach(f => insertInlineImage(ed, f));
+  });
+  ed.addEventListener('dblclick', e => {
+    if (e.target.tagName === 'IMG' && e.target.src) {
+      document.getElementById('lightboxImg').src = e.target.src;
+      document.getElementById('lightbox').classList.add('open');
+    }
+  });
+});
+
+/* Zone: Klick, Drag&Drop, Datei-Dialog */
+const attZone = document.getElementById('attZone');
+attZone.onclick = () => document.getElementById('attFile').click();
+attZone.addEventListener('dragover', e => { e.preventDefault(); attZone.classList.add('drag'); });
+attZone.addEventListener('dragleave', () => attZone.classList.remove('drag'));
+attZone.addEventListener('drop', e => {
+  e.preventDefault(); attZone.classList.remove('drag');
+  [...e.dataTransfer.files].forEach(addAttachment);
+});
+document.getElementById('attFile').addEventListener('change', e => {
+  [...e.target.files].forEach(addAttachment); e.target.value = '';
+});
+/* Strg+V: Screenshot direkt ins offene Ticket */
+document.addEventListener('paste', e => {
+  if (!overlay.classList.contains('open')) return;
+  const imgs = [...e.clipboardData.items].filter(i => i.type.startsWith('image/'));
+  if (!imgs.length) return;
+  e.preventDefault();
+  const editor = e.target.closest ? e.target.closest('.richtext') : null;
+  imgs.forEach(item => editor ? insertInlineImage(editor, item.getAsFile())
+                              : addAttachment(item.getAsFile()));
+});
+document.getElementById('lightbox').onclick = () => document.getElementById('lightbox').classList.remove('open');
+
+/* ============================================================
+   HOUSEKEEPER — KI-Aufräumen (Rechtschreibung + Formatierung)
+   Der Button ist fertig verdrahtet; es fehlt nur noch das Backend.
+   In HOUSEKEEPER_ENDPOINT die URL eines kleinen Proxys eintragen,
+   der die Anfrage an die Claude-API weiterreicht (API-Key gehört
+   NICHT in diese Datei — sie ist öffentlich erreichbar).
+   Erwartetes Protokoll: POST {title, desc, note} -> {title, desc, note}
+   ============================================================ */
+const HOUSEKEEPER_ENDPOINT = ''; // z.B. 'https://mein-worker.example.workers.dev/housekeeper'
+
+async function runHousekeeper() {
+  const btn = document.getElementById('btnHousekeeper');
+  if (!HOUSEKEEPER_ENDPOINT) {
+    alert('Housekeeper ist noch nicht mit der KI verbunden.\n\n' +
+      'Dazu oben im Script unter HOUSEKEEPER_ENDPOINT die URL eines kleinen ' +
+      'Claude-Proxys eintragen (z.B. Cloudflare Worker). Der Button und das ' +
+      'Protokoll (POST {title, desc, note}) stehen schon bereit.');
+    return;
+  }
+  btn.disabled = true; btn.textContent = '🧹 arbeitet…';
+  try {
+    const res = await fetch(HOUSEKEEPER_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: document.getElementById('fTitle').value,
+        desc: sanitizeHtml(document.getElementById('fDesc').innerHTML),
+        note: sanitizeHtml(document.getElementById('fNote').innerHTML)
+      })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const out = await res.json();
+    if (out.title) document.getElementById('fTitle').value = out.title;
+    if (out.desc != null) document.getElementById('fDesc').innerHTML = await htmlWithSrcs(sanitizeHtml(out.desc));
+    if (out.note != null) document.getElementById('fNote').innerHTML = await htmlWithSrcs(sanitizeHtml(out.note));
+    toast('🧹 Housekeeper fertig — bitte prüfen und speichern');
+  } catch (e) {
+    alert('Housekeeper fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🧹 Housekeeper';
+  }
+}
+document.getElementById('btnHousekeeper').onclick = runHousekeeper;
+
+/* ============================================================
+   ERFOLG: Konfetti-Kanonen + Toast beim Abschließen
+   ============================================================ */
+function celebrate() {
+  toast('🎉 Erledigt — sauber!');
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let cv = document.getElementById('confettiCanvas');
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.id = 'confettiCanvas';
+    cv.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:300';
+    document.body.appendChild(cv);
+  }
+  cv.width = innerWidth; cv.height = innerHeight;
+  const ctx = cv.getContext('2d');
+  const COLORS = ['#0176D3', '#2E844A', '#FFB75D', '#C23934', '#9050E9', '#06A59A', '#FFD700', '#FF6FA5'];
+  const P = [];
+  const add = (x, y, angle, spread, speed, n) => {
+    for (let i = 0; i < n; i++) {
+      const a = angle + (Math.random() - 0.5) * spread;
+      const v = speed * (0.5 + Math.random() * 0.8);
+      P.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3,
+        w: 6 + Math.random() * 6, h: 4 + Math.random() * 4,
+        color: COLORS[(Math.random() * COLORS.length) | 0],
+        life: 1, decay: 0.006 + Math.random() * 0.007,
+        circle: Math.random() < 0.25 });
+    }
+  };
+  add(0, cv.height, -Math.PI / 3, 0.7, 17, 80);                  // Kanone links unten
+  add(cv.width, cv.height, -Math.PI + Math.PI / 3, 0.7, 17, 80); // Kanone rechts unten
+  add(cv.width / 2, cv.height * 0.25, 0, Math.PI * 2, 8, 70);    // Burst Mitte
+  let last = performance.now();
+  (function frame(now) {
+    const dt = Math.min((now - last) / 16.7, 3); last = now;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    let alive = false;
+    for (const p of P) {
+      if (p.life <= 0) continue;
+      alive = true;
+      p.vy += 0.18 * dt; p.vx *= 0.99; p.vy *= 0.995;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      p.life -= p.decay * dt;
+      ctx.save();
+      ctx.globalAlpha = Math.max(p.life, 0);
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      if (p.circle) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill(); }
+      else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * (0.4 + Math.abs(Math.sin(p.rot)) * 0.6));
+      ctx.restore();
+    }
+    if (alive) requestAnimationFrame(frame);
+    else ctx.clearRect(0, 0, cv.width, cv.height);
+  })(last);
+}
+function toast(msg) {
+  let el = document.getElementById('toast');
+  if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg;
+  requestAnimationFrame(() => el.classList.add('show'));
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* Keyboard: N = neues Ticket, Esc = Modal schließen */
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement.tagName;
+  if (e.key === 'Escape') {
+    const lb = document.getElementById('lightbox');
+    if (lb.classList.contains('open')) { lb.classList.remove('open'); return; }
+    if (confirmOverlay.classList.contains('open')) { confirmOverlay.classList.remove('open'); return; } // weiter bearbeiten
+    if (overlay.classList.contains('open')) requestCloseModal();
+    else if (settingsOverlay.classList.contains('open')) closeSettings();
+    return;
+  }
+  if ((e.key === 'n' || e.key === 'N') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)
+      && !overlay.classList.contains('open') && !settingsOverlay.classList.contains('open')) {
+    e.preventDefault(); openModal(null);
+  }
+});
+
+/* Init */
+document.getElementById('fStatus').innerHTML = STATUSES.map(s => '<option>' + s + '</option>').join('');
+idbOpen().then(db => { idb = db; }).catch(() => { idb = null; console.warn('IndexedDB nicht verfügbar — Anhänge deaktiviert.'); });
+load();
+refreshFilters();
+kanbanSortKey = state.settings.kanbanSort;
+document.getElementById('kanbanSort').value = kanbanSortKey;
+/* Export-Erinnerung prüfen */
+if (state.settings.remindDays > 0 &&
+    (new Date(todayStr()) - new Date(state.settings.lastExport || todayStr())) / 86400000 >= state.settings.remindDays) {
+  document.getElementById('exportBanner').hidden = false;
+}
+setView(state.settings.defaultView || 'kanban');
+</script>
+
+<!-- ============================================================
+DEPLOYMENT-OPTIONEN
+
+GITHUB PAGES:
+Repo erstellen, index.html pushen, dann unter Settings → Pages den
+Branch "main" als Quelle wählen. Die App ist danach unter
+https://USERNAME.github.io/REPO/ erreichbar — kostenlos, kein Build nötig.
+
+VERCEL:
+Auf vercel.com das GitHub-Repo importieren oder per "vercel" CLI
+deployen (Framework: "Other"). Vercel erkennt statische Dateien
+automatisch und liefert sie über ein globales CDN aus.
+
+NETLIFY:
+Auf app.netlify.com die index.html per Drag & Drop in den
+"Deploy"-Bereich ziehen — fertig. Alternativ Repo verbinden für
+automatische Deploys bei jedem Push.
+
+WICHTIG: localStorage ist an Browser + Origin gebunden. Beim Wechsel
+von file:// zu einer gehosteten URL startet die App leer — vorher per
+Export sichern, danach importieren. Single-User-Tool: NICHT für
+gleichzeitige Nutzung durch mehrere Mitarbeiter geeignet.
+============================================================ -->
+</body>
+</html>
