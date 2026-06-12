@@ -1,81 +1,107 @@
 /* ============================================================
-   CLOUDFLARE WORKER — Claude-Anbindung für das Control Panel
-   Endpunkte:
-     POST /housekeeper  {title, desc, note}  -> {title, desc, note}
-     POST /focus        {heute, tickets:[…]} -> {fokus}
+   CLOUDFLARE WORKER — Control Panel Backend
+   Auth, Cloud-Speicher (KV) und Claude-Anbindung in einem.
 
-   Einrichtung (siehe README/Chat):
-   1. Worker in Cloudflare anlegen, diesen Code einfügen, deployen.
-   2. Secret ANTHROPIC_API_KEY setzen (Key von console.anthropic.com).
-   3. Optional: Variable ALLOWED_ORIGINS (kommagetrennt) setzen.
-   4. Worker-URL in index.html unter CLAUDE_WORKER_URL eintragen.
+   Endpunkte (alle außer /login mit Header "X-Board-Key"):
+     POST   /login        {key}                 -> Profil {user, statuses, done, focus, reportJF, reportAll, housekeeper}
+     GET    /data                               -> Board-JSON (204 wenn leer)
+     PUT    /data         Board-JSON            -> {ok, bytes}
+     GET    /file/<id>                          -> {data, name, type}
+     PUT    /file/<id>    {data, name, type}    -> {ok}
+     DELETE /file/<id>                          -> {ok}
+     GET    /usage                              -> {used, limit}
+     POST   /housekeeper  {title, desc, note}   -> {title, desc, note}
+     POST   /focus        {heute, tickets}      -> {fokus}
+     POST   /report       {heute, tickets}      -> {report}   (JF-Report)
+     POST   /report-all   {heute, tickets}      -> {report}   (Gesamt-Report)
 
-   Hinweis: bewusst ohne npm-Abhängigkeiten (rohes fetch zur
-   Claude-API), damit der Code direkt im Cloudflare-Dashboard
-   eingefügt werden kann — kein Build-Schritt nötig.
+   Einrichtung in Cloudflare:
+   1. Storage & Databases -> KV -> Namespace "board" anlegen.
+   2. Worker -> Settings -> Bindings -> Add -> KV Namespace,
+      Variable name: BOARD_KV, Namespace: board.
+   3. Worker -> Settings -> Variables and Secrets:
+      - Secret  ANTHROPIC_API_KEY  (Key von console.anthropic.com)
+      - Secret  USER_KEYS          (JSON: {"<schlüssel>":"david", ...})
+      - Text    ALLOWED_ORIGINS    (optional, kommagetrennt)
+   4. Diesen Code einfügen, Deploy.
+
+   Nutzerprofile: beliebig viele Schlüssel möglich — unbekannte
+   Nutzernamen bekommen das _default-Profil. Sonderfälle unten.
    ============================================================ */
 
-const MODEL = 'claude-opus-4-8';
+// Bewusst das kleinste Modell — minimaler Tokenverbrauch, reicht für
+// rudimentäre Rechtschreib-/Formatkorrektur und kurze Zusammenfassungen.
+const MODEL = 'claude-haiku-4-5';
+const MAXTOK = { housekeeper: 3000, focus: 250, report: 1200 };
+
+const PROFILES = {
+  valeska: {
+    statuses: ['Themenspeicher', 'PRIO', 'Blocked / Wartend', 'In Arbeit', 'Erledigt'],
+    done: ['Erledigt'],
+    focus: false, reportJF: false, reportAll: true, housekeeper: true,
+  },
+  _default: { // david, svenja und alle weiteren
+    statuses: ['Themenspeicher', 'Blocked / Wartend', 'In Arbeit', 'Erledigt JF', 'Erledigt'],
+    done: ['Erledigt JF', 'Erledigt'],
+    focus: true, reportJF: true, reportAll: true, housekeeper: true,
+  },
+};
+
+// Speicherlimits — verhindern, dass zu viel Speicher verbraucht wird
+const LIMIT_STATE = 2 * 1024 * 1024;   // 2 MB Board-Daten
+const LIMIT_FILE  = 3 * 1024 * 1024;   // 3 MB pro Anhang
+const LIMIT_TOTAL = 100 * 1024 * 1024; // 100 MB pro Nutzer gesamt
 
 const HOUSEKEEPER_SYSTEM =
-  'Du bist ein Housekeeper für ein persönliches Ticket-Board (Sprache: Deutsch). ' +
-  'Du erhältst ein Ticket als JSON mit den Feldern title, desc (HTML) und note (HTML, Verlauf). ' +
-  'Deine Aufgabe: Rechtschreibung, Grammatik und Zeichensetzung korrigieren und die Formatierung ' +
-  'nach Best Practices aufräumen — prägnanter Titel ohne Punkt am Ende, Beschreibung klar strukturiert, ' +
-  'Aufzählungen als <ul>/<ol> statt Spiegelstrich-Text, sinnvolle Absätze. ' +
-  'Strenge Regeln: Den inhaltlichen Sinn NIEMALS verändern, nichts hinzudichten, nichts weglassen. ' +
-  'Erlaubte HTML-Tags: b, strong, i, em, u, br, div, p, span, ul, ol, li. ' +
-  '<img data-img-id="…">-Tags exakt unverändert an ihrer Position belassen. ' +
-  'Datumszeilen im Verlauf (z.B. "— 12.06.2026:") unverändert lassen, nur den Text dahinter korrigieren.';
+  'Korrigiere in den JSON-Feldern title, desc und note ausschließlich Rechtschreibung, Grammatik und ' +
+  'Zeichensetzung (Deutsch). Inhalt, Satzbau, Struktur und alle HTML-Tags (insbesondere <img data-img-id>) ' +
+  'unverändert lassen. Nichts hinzufügen, nichts weglassen, nichts umformulieren.';
 
 const FOCUS_SYSTEM =
-  'Du bist ein Priorisierungs-Coach für ein persönliches Aufgaben-Board (Sprache: Deutsch). ' +
-  'Du erhältst das heutige Datum und die aktiven Tickets als JSON (titel, status, prio, deadline, ' +
-  'ueberfaellig, heuteFaellig, kategorien, beschreibung). ' +
-  'Bestimme das EINE Ticket, um das sich der Nutzer jetzt kümmern soll. Priorisiere so: ' +
-  '1) Überfällige Tickets schlagen alles — bei mehreren das mit der ältesten Deadline, bei Gleichstand die höhere Priorität. ' +
-  '2) Danach heute fällige, 3) dann nahende Deadlines, 4) dann Priorität Hoch. ' +
-  '5) Tickets im Status "Blocked / Wartend" nur empfehlen, wenn die Beschreibung nahelegt, dass der Nutzer ' +
-  'die Blockade selbst lösen kann — dann lautet die Empfehlung, genau das zu tun. ' +
-  '6) Status "Erledigt JF" ignorieren. ' +
-  'Antworte mit GENAU EINEM Satz, der drei Dinge enthält: das Ticket beim Titel genannt, ' +
-  'den Grund warum es jetzt dran ist (z.B. "seit 3 Tagen überfällig"), und den konkreten nächsten ' +
-  'Schritt, abgeleitet aus der Beschreibung. Der Satz muss so konkret sein, dass der Nutzer sofort ' +
-  'loslegen kann, ohne das Ticket zu öffnen. Kein Vorgeplänkel, keine Aufzählung, keine Alternativen.';
+  'Du erhältst Tickets eines Aufgaben-Boards als JSON und das heutige Datum. Nenne in GENAU EINEM deutschen ' +
+  'Satz das wichtigste Ticket (Reihenfolge: überfällig vor heute fällig vor naher Deadline vor Priorität Hoch; ' +
+  '"Blocked / Wartend" nur, wenn der Nutzer die Blockade laut Beschreibung selbst lösen kann; "Erledigt JF" ' +
+  'ignorieren), warum es jetzt dran ist, und den konkreten nächsten Schritt aus der Beschreibung.';
 
 const REPORT_SYSTEM =
-  'Du bist ein Assistent, der für den Jour Fixe (JF) zusammenfasst, was erledigt wurde (Sprache: Deutsch). ' +
-  'Du erhältst ausschließlich Tickets im Status "Erledigt JF" als JSON (titel, prio, kategorien, deadline, ' +
-  'beschreibung, verlauf) sowie das heutige Datum. ' +
-  'Erstelle eine vortragsfertige Zusammenfassung für das Meeting: ein einleitender Satz mit der Anzahl der ' +
-  'erledigten Themen, danach pro Ticket genau ein Stichpunkt im Format "• Titel — was erreicht wurde, in einem ' +
-  'Halbsatz, abgeleitet aus Beschreibung und Verlauf". Gruppiere nach Kategorie, wenn es mehrere Kategorien gibt. ' +
-  'Sachlich und konkret, nichts erfinden, keine Floskeln. Reiner Text mit "•"-Aufzählung, keine HTML- oder Markdown-Syntax.';
+  'Du erhältst erledigte Tickets (Status "Erledigt JF") als JSON. Erstelle eine kurze, vortragsfertige ' +
+  'Zusammenfassung fürs Jour-Fixe auf Deutsch, nach Themen/Kategorien gruppiert (Themenname als Zeile, ' +
+  'darunter die Punkte): pro Ticket genau ein Stichpunkt "• Titel — Ergebnis in einem Halbsatz" aus ' +
+  'Beschreibung und Verlauf. Sachlich, nichts erfinden, reiner Text ohne Markdown.';
 
-const REPORT_SCHEMA = {
-  type: 'object',
-  properties: { report: { type: 'string' } },
-  required: ['report'],
-  additionalProperties: false,
-};
+const REPORT_ALL_SYSTEM =
+  'Du erhältst alle erledigten Tickets eines Nutzers als JSON (inkl. offenTage = Tage von Anlage bis ' +
+  'Erledigung). Fasse auf Deutsch kompakt zusammen, an welchen Themen der Nutzer gearbeitet hat: nach Themen ' +
+  'gruppiert, je Thema 1–3 Sätze zu Umfang und Ergebnissen; zum Schluss ein Satz zur Gesamtbilanz ' +
+  '(Anzahl, ggf. durchschnittliche Bearbeitungsdauer). Sachlich, nichts erfinden, reiner Text ohne Markdown.';
 
 const HOUSEKEEPER_SCHEMA = {
   type: 'object',
-  properties: {
-    title: { type: 'string' },
-    desc: { type: 'string' },
-    note: { type: 'string' },
-  },
+  properties: { title: { type: 'string' }, desc: { type: 'string' }, note: { type: 'string' } },
   required: ['title', 'desc', 'note'],
   additionalProperties: false,
 };
-
 const FOCUS_SCHEMA = {
-  type: 'object',
-  properties: { fokus: { type: 'string' } },
-  required: ['fokus'],
-  additionalProperties: false,
+  type: 'object', properties: { fokus: { type: 'string' } },
+  required: ['fokus'], additionalProperties: false,
 };
+const REPORT_SCHEMA = {
+  type: 'object', properties: { report: { type: 'string' } },
+  required: ['report'], additionalProperties: false,
+};
+
+async function usedBytes(env, user) {
+  let used = 0;
+  const st = await env.BOARD_KV.getWithMetadata('state:' + user);
+  used += (st && st.metadata && st.metadata.size) || 0;
+  let cursor;
+  do {
+    const page = await env.BOARD_KV.list({ prefix: 'file:' + user + ':', cursor });
+    for (const k of page.keys) used += (k.metadata && k.metadata.size) || 0;
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor);
+  return used;
+}
 
 export default {
   async fetch(request, env) {
@@ -84,30 +110,95 @@ export default {
       .split(',').map(s => s.trim());
     const cors = {
       'Access-Control-Allow-Origin': allowed.includes(origin) ? origin : allowed[0],
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Board-Key',
     };
+    const json = (obj, status = 200) =>
+      new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...cors } });
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
-    if (request.method !== 'POST') {
-      return new Response('Nur POST erlaubt', { status: 405, headers: cors });
-    }
-
-    let body;
-    try { body = await request.json(); }
-    catch { return new Response('Ungültiges JSON', { status: 400, headers: cors }); }
 
     const path = new URL(request.url).pathname;
-    let system, schema;
-    if (path.endsWith('/housekeeper')) {
-      system = HOUSEKEEPER_SYSTEM; schema = HOUSEKEEPER_SCHEMA;
-    } else if (path.endsWith('/focus')) {
-      system = FOCUS_SYSTEM; schema = FOCUS_SCHEMA;
-    } else if (path.endsWith('/report')) {
-      system = REPORT_SYSTEM; schema = REPORT_SCHEMA;
-    } else {
-      return new Response('Unbekannter Endpunkt', { status: 404, headers: cors });
+    let users = {};
+    try { users = JSON.parse(env.USER_KEYS || '{}'); } catch (e) {}
+    const profileFor = u => ({ user: u, ...(PROFILES[u] || PROFILES._default) });
+
+    // Login: Schlüssel im Body, Profil zurück
+    if (path.endsWith('/login') && request.method === 'POST') {
+      const { key } = await request.json().catch(() => ({}));
+      const user = users[key];
+      if (!user) return json({ error: 'Ungültiger Schlüssel' }, 401);
+      return json(profileFor(user));
     }
 
+    // Alle anderen Endpunkte: Schlüssel im Header
+    const user = users[request.headers.get('X-Board-Key')];
+    if (!user) return json({ error: 'Nicht angemeldet' }, 401);
+    const profile = profileFor(user);
+    const needsKV = path.endsWith('/data') || path.endsWith('/usage') || /\/file\//.test(path);
+    if (needsKV && !env.BOARD_KV)
+      return json({ error: 'KV-Namespace BOARD_KV ist nicht gebunden (Worker-Settings -> Bindings)' }, 500);
+
+    // Board-Daten
+    if (path.endsWith('/data')) {
+      const k = 'state:' + user;
+      if (request.method === 'GET') {
+        const v = await env.BOARD_KV.get(k);
+        return v
+          ? new Response(v, { headers: { 'Content-Type': 'application/json', ...cors } })
+          : new Response(null, { status: 204, headers: cors });
+      }
+      if (request.method === 'PUT') {
+        const body = await request.text();
+        if (body.length > LIMIT_STATE) return json({ error: 'Board-Daten zu groß (max. 2 MB) — alte Tickets löschen oder Anhänge reduzieren.' }, 413);
+        await env.BOARD_KV.put(k, body, { metadata: { size: body.length } });
+        return json({ ok: true, bytes: body.length });
+      }
+    }
+
+    // Anhänge
+    const mFile = path.match(/\/file\/([A-Za-z0-9]+)$/);
+    if (mFile) {
+      const k = 'file:' + user + ':' + mFile[1];
+      if (request.method === 'GET') {
+        const v = await env.BOARD_KV.get(k);
+        return v
+          ? new Response(v, { headers: { 'Content-Type': 'application/json', ...cors } })
+          : json({ error: 'Nicht gefunden' }, 404);
+      }
+      if (request.method === 'PUT') {
+        const body = await request.text();
+        if (body.length > LIMIT_FILE) return json({ error: 'Datei zu groß (max. 3 MB).' }, 413);
+        const used = await usedBytes(env, user);
+        if (used + body.length > LIMIT_TOTAL) return json({ error: 'Speicherlimit (100 MB) erreicht — Anhänge löschen.' }, 413);
+        await env.BOARD_KV.put(k, body, { metadata: { size: body.length } });
+        return json({ ok: true });
+      }
+      if (request.method === 'DELETE') {
+        await env.BOARD_KV.delete(k);
+        return json({ ok: true });
+      }
+    }
+
+    if (path.endsWith('/usage') && request.method === 'GET') {
+      return json({ used: await usedBytes(env, user), limit: LIMIT_TOTAL });
+    }
+
+    // Claude-Endpunkte (pro Profil freigeschaltet)
+    if (request.method !== 'POST') return json({ error: 'Methode nicht erlaubt' }, 405);
+    let system, schema, maxTokens;
+    if (path.endsWith('/housekeeper') && profile.housekeeper) {
+      system = HOUSEKEEPER_SYSTEM; schema = HOUSEKEEPER_SCHEMA; maxTokens = MAXTOK.housekeeper;
+    } else if (path.endsWith('/focus') && profile.focus) {
+      system = FOCUS_SYSTEM; schema = FOCUS_SCHEMA; maxTokens = MAXTOK.focus;
+    } else if (path.endsWith('/report-all') && profile.reportAll) {
+      system = REPORT_ALL_SYSTEM; schema = REPORT_SCHEMA; maxTokens = MAXTOK.report;
+    } else if (path.endsWith('/report') && profile.reportJF) {
+      system = REPORT_SYSTEM; schema = REPORT_SCHEMA; maxTokens = MAXTOK.report;
+    } else {
+      return json({ error: 'Endpunkt für dieses Profil nicht verfügbar' }, 403);
+    }
+
+    const body = await request.text();
     const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -117,25 +208,16 @@ export default {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 16000,
+        max_tokens: maxTokens,
         system,
-        messages: [{ role: 'user', content: JSON.stringify(body) }],
+        messages: [{ role: 'user', content: body }],
         output_config: { format: { type: 'json_schema', schema } },
       }),
     });
-
-    if (!apiRes.ok) {
-      const err = await apiRes.text();
-      return new Response('Claude-API-Fehler: ' + err, { status: 502, headers: cors });
-    }
+    if (!apiRes.ok) return new Response('Claude-API-Fehler: ' + await apiRes.text(), { status: 502, headers: cors });
     const data = await apiRes.json();
-    if (data.stop_reason === 'refusal') {
-      return new Response(JSON.stringify({ error: 'Anfrage wurde abgelehnt.' }),
-        { status: 422, headers: { 'Content-Type': 'application/json', ...cors } });
-    }
+    if (data.stop_reason === 'refusal') return json({ error: 'Anfrage wurde abgelehnt.' }, 422);
     const text = (data.content.find(b => b.type === 'text') || {}).text || '{}';
-    return new Response(text, {
-      headers: { 'Content-Type': 'application/json', ...cors },
-    });
+    return new Response(text, { headers: { 'Content-Type': 'application/json', ...cors } });
   },
 };
