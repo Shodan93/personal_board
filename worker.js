@@ -43,6 +43,22 @@ const FOCUS_SYSTEM =
   'Schritt, abgeleitet aus der Beschreibung. Der Satz muss so konkret sein, dass der Nutzer sofort ' +
   'loslegen kann, ohne das Ticket zu öffnen. Kein Vorgeplänkel, keine Aufzählung, keine Alternativen.';
 
+const REPORT_SYSTEM =
+  'Du bist ein Assistent, der für den Jour Fixe (JF) zusammenfasst, was erledigt wurde (Sprache: Deutsch). ' +
+  'Du erhältst ausschließlich Tickets im Status "Erledigt JF" als JSON (titel, prio, kategorien, deadline, ' +
+  'beschreibung, verlauf) sowie das heutige Datum. ' +
+  'Erstelle eine vortragsfertige Zusammenfassung für das Meeting: ein einleitender Satz mit der Anzahl der ' +
+  'erledigten Themen, danach pro Ticket genau ein Stichpunkt im Format "• Titel — was erreicht wurde, in einem ' +
+  'Halbsatz, abgeleitet aus Beschreibung und Verlauf". Gruppiere nach Kategorie, wenn es mehrere Kategorien gibt. ' +
+  'Sachlich und konkret, nichts erfinden, keine Floskeln. Reiner Text mit "•"-Aufzählung, keine HTML- oder Markdown-Syntax.';
+
+const REPORT_SCHEMA = {
+  type: 'object',
+  properties: { report: { type: 'string' } },
+  required: ['report'],
+  additionalProperties: false,
+};
+
 const HOUSEKEEPER_SCHEMA = {
   type: 'object',
   properties: {
@@ -86,6 +102,8 @@ export default {
       system = HOUSEKEEPER_SYSTEM; schema = HOUSEKEEPER_SCHEMA;
     } else if (path.endsWith('/focus')) {
       system = FOCUS_SYSTEM; schema = FOCUS_SCHEMA;
+    } else if (path.endsWith('/report')) {
+      system = REPORT_SYSTEM; schema = REPORT_SCHEMA;
     } else {
       return new Response('Unbekannter Endpunkt', { status: 404, headers: cors });
     }

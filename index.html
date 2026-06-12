@@ -103,18 +103,19 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 
 /* "+"-Trennlinie unter der Spaltenüberschrift: Ticket direkt im Status anlegen */
 .col-add{
-  display:flex; align-items:center; gap:8px; width:100%;
-  border:none; background:none; padding:0 2px; margin-bottom:8px;
-  color:var(--text-weak); opacity:0; transition:opacity .15s, color .15s;
+  display:flex; align-items:center; gap:8px; width:100%; cursor:pointer;
+  border:none; background:none; padding:0 2px; margin-bottom:8px; color:var(--blue);
 }
-.col:hover .col-add,.col-add:focus-visible{opacity:1}
 .col-add::before,.col-add::after{content:''; flex:1; height:1px; background:var(--border)}
-.col-add span{
-  width:18px; height:18px; flex:none; border:1px solid currentColor; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  font-size:13px; font-weight:700; line-height:1;
+.col-add span{position:relative; width:20px; height:20px; flex:none; border:2px solid currentColor; border-radius:50%}
+.col-add span::before,.col-add span::after{
+  content:''; position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%); background:currentColor; border-radius:1px;
 }
-.col-add:hover{color:var(--blue)}
+.col-add span::before{width:10px; height:2px}
+.col-add span::after{width:2px; height:10px}
+.col-add:hover{color:var(--blue-dark)}
+.col-add:hover::before,.col-add:hover::after{background:var(--blue)}
 
 /* Kategorie-Dropdown mit Farbkreis-Vorschau */
 .csel{position:relative}
@@ -312,7 +313,8 @@ tr.row.done-final td{opacity:.4}
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
   <span class="spacer"></span>
   <div id="globalCat" title="Nach Kategorie filtern"></div>
-  <button class="btn" id="btnFocus" title="Claude fragen: Worum soll ich mich jetzt kümmern?">🎯 Fokus</button>
+  <button class="btn" id="btnFocus" title="Claude fragen: Worum soll ich mich jetzt kümmern?">🚀 Fokus</button>
+  <button class="btn" id="btnReport" title="Claude: Was habe ich erledigt? (nur Status „Erledigt JF“)">📋 JF-Report</button>
   <div class="toggle">
     <button id="btnKanban" class="active">Kanban</button>
     <button id="btnList">Liste</button>
@@ -331,7 +333,7 @@ tr.row.done-final td{opacity:.4}
 </div>
 
 <div class="banner" id="focusBanner" style="background:var(--blue-bg);border-bottom-color:#cfdcf5" hidden>
-  <span>🎯 <b id="focusText"></b></span>
+  <span>🚀 <b id="focusText"></b></span>
   <button class="btn" id="btnFocusClose">Schließen</button>
 </div>
 
@@ -513,6 +515,23 @@ tr.row.done-final td{opacity:.4}
     </div>
     <div class="modal-foot">
       <button class="btn btn-primary" data-close-settings>Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- JF-Report-Modal -->
+<div class="overlay" id="reportOverlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2>📋 JF-Report — Erledigt JF</h2>
+      <button class="modal-close" data-close-report aria-label="Schließen">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="reportText" style="white-space:pre-wrap;font-size:13px;line-height:1.55"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="btnReportCopy" style="margin-right:auto">In Zwischenablage kopieren</button>
+      <button class="btn btn-primary" data-close-report>Schließen</button>
     </div>
   </div>
 </div>
@@ -703,7 +722,7 @@ function renderKanban() {
     const addBtn = document.createElement('button');
     addBtn.type = 'button'; addBtn.className = 'col-add';
     addBtn.title = 'Neues Ticket in „' + status + '“ anlegen';
-    addBtn.innerHTML = '<span>+</span>';
+    addBtn.innerHTML = '<span></span>';
     addBtn.addEventListener('click', () => openModal(null, status));
     col.appendChild(addBtn);
     items.forEach(t => col.appendChild(cardEl(t)));
@@ -1466,7 +1485,7 @@ async function runFocus() {
       beschreibung: stripHtml(t.desc).slice(0, 300)
     }));
   if (!tickets.length) { toast('Keine aktiven Tickets — nichts zu tun 🎉'); return; }
-  btn.disabled = true; btn.textContent = '🎯 denkt…';
+  btn.disabled = true; btn.textContent = '🚀 denkt…';
   try {
     const res = await fetch(CLAUDE_WORKER_URL + '/focus', {
       method: 'POST',
@@ -1480,11 +1499,49 @@ async function runFocus() {
   } catch (e) {
     alert('Fokus fehlgeschlagen: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '🎯 Fokus';
+    btn.disabled = false; btn.textContent = '🚀 Fokus';
   }
 }
 document.getElementById('btnFocus').onclick = runFocus;
 document.getElementById('btnFocusClose').onclick = () => document.getElementById('focusBanner').hidden = true;
+
+/* JF-Report: fasst ausschließlich Tickets im Status "Erledigt JF" zusammen */
+const reportOverlay = document.getElementById('reportOverlay');
+async function runReport() {
+  const btn = document.getElementById('btnReport');
+  if (!CLAUDE_WORKER_URL) { claudeNotConfigured(); return; }
+  const tickets = state.tickets
+    .filter(t => t.status === 'Erledigt JF')
+    .map(t => ({
+      titel: t.title, prio: t.prio, kategorien: t.cats, deadline: t.deadline,
+      beschreibung: stripHtml(t.desc).slice(0, 400),
+      verlauf: stripHtml(t.note).slice(0, 300)
+    }));
+  if (!tickets.length) { toast('Keine Tickets in „Erledigt JF“.'); return; }
+  btn.disabled = true; btn.textContent = '📋 erstellt…';
+  try {
+    const res = await fetch(CLAUDE_WORKER_URL + '/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ heute: todayStr(), tickets })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const out = await res.json();
+    document.getElementById('reportText').textContent = out.report || 'Kein Report erhalten.';
+    reportOverlay.classList.add('open');
+  } catch (e) {
+    alert('Report fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '📋 JF-Report';
+  }
+}
+document.getElementById('btnReport').onclick = runReport;
+document.querySelectorAll('[data-close-report]').forEach(b => b.onclick = () => reportOverlay.classList.remove('open'));
+reportOverlay.addEventListener('click', e => { if (e.target === reportOverlay) reportOverlay.classList.remove('open'); });
+document.getElementById('btnReportCopy').onclick = () => {
+  navigator.clipboard.writeText(document.getElementById('reportText').textContent)
+    .then(() => toast('Report kopiert'));
+};
 
 /* ============================================================
    ERFOLG: Konfetti-Kanonen + Toast beim Abschließen
@@ -1557,6 +1614,7 @@ document.addEventListener('keydown', e => {
     const lb = document.getElementById('lightbox');
     if (lb.classList.contains('open')) { lb.classList.remove('open'); return; }
     if (confirmOverlay.classList.contains('open')) { confirmOverlay.classList.remove('open'); return; } // weiter bearbeiten
+    if (reportOverlay.classList.contains('open')) { reportOverlay.classList.remove('open'); return; }
     if (overlay.classList.contains('open')) requestCloseModal();
     else if (settingsOverlay.classList.contains('open')) closeSettings();
     return;
