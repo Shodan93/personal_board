@@ -406,9 +406,7 @@ tr.row.done-final td{opacity:.4}
   <div id="dinoWrap">
     <button id="dinoStart" title="Neues Tier losschicken">▶</button>
     <button id="dinoPause" title="Pause">⏸</button>
-    <button id="dinoNext" title="Nächstes Biom">⏭</button>
     <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
-    <span id="dinoBiome" title="Aktuelles Biom"></span>
     <canvas id="dinoCv" height="34"></canvas>
   </div>
   <div id="globalCat" title="Nach Kategorie filtern"></div>
@@ -520,6 +518,7 @@ tr.row.done-final td{opacity:.4}
       <div class="field">
         <label>Deadline <span class="req">*</span></label>
         <input type="date" id="fDeadline" required>
+        <div id="fCreated" style="font-size:11px;color:var(--text-weak);margin-top:4px" hidden></div>
       </div>
       <div class="field">
         <label>Beschreibung <span class="req">*</span></label>
@@ -723,6 +722,7 @@ const PALETTE = ['#0176D3','#2E844A','#C23934','#9050E9','#06A59A','#B25D00',
 let state = { tickets: [], categories: [], settings: defaultSettings() };
 let view = 'kanban';
 let editingId = null;
+let pendingNoteId = null;                     // Sticky-Notiz, die gerade zu einem Ticket wird
 let modalCats = [];                          // Kategorien des offenen Tickets
 let modalImgs = [], sessionNewImgs = [], attUrls = [];
 let idb = null;                              // IndexedDB-Handle für Bild-Anhänge
@@ -968,7 +968,6 @@ function cardEl(t) {
       '<span class="deadline">📅 ' + fmtDate(t.deadline) + '</span>' +
       (collectIds(t).length ? '<span class="deadline">📎 ' + collectIds(t).length + '</span>' : '') + tags +
     '</div>' +
-    (t.createdAt ? '<div class="meta" style="margin-top:2px"><span class="deadline" style="font-size:10px" title="Erstellt am">🗓 erstellt ' + fmtDate(t.createdAt) + '</span></div>' : '') +
     '<div class="card-foot">' +
       '<select class="quick-status" title="Status ändern">' +
         STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>').join('') +
@@ -1168,6 +1167,9 @@ function openModal(id, presetStatus, presetDesc) {
   document.getElementById('fStatus').value = t ? t.status : (presetStatus || 'Themenspeicher');
   document.getElementById('fPrio').value = t ? t.prio : 'Mittel';
   document.getElementById('fDeadline').value = t ? t.deadline : todayStr();
+  const fc = document.getElementById('fCreated');
+  if (t && t.createdAt) { fc.textContent = '🗓 Erstellt am ' + fmtDate(t.createdAt); fc.hidden = false; }
+  else fc.hidden = true;
   document.getElementById('fJira').value = t ? (t.jira || '') : '';
   document.getElementById('fDesc').innerHTML = '';
   document.getElementById('fNote').innerHTML = '';
@@ -2216,7 +2218,7 @@ document.addEventListener('keydown', e => {
 const DINO = (() => {
   const cv = document.getElementById('dinoCv');
   const ctx = cv.getContext('2d');
-  const INK = '#535353', INK2 = '#7a7a7a', SKY = '#c9c9c9', SNOW = '#a9cce8';
+  const INK = '#535353', INK2 = '#7a7a7a', SKY = '#c9c9c9';
   const SPRITES = [
     ['......####', '......#.##', '......####', '......##..', '#....####.', '##..#####.', '.########.', '..######..', '...####...', '...a#.b#..', '...a..b...'], // T-Rex
     ['.......###', '......####', '......##..', '#.....###.', '.#..####..', '..######..', '...####...', '...a..b...', '..aa..b...'],                               // Raptor
@@ -2238,17 +2240,11 @@ const DINO = (() => {
   // Biome: Urzeit (prähistorisch), Wüste, Winter, Dschungel
   // far = ferne Berge (Hintergrund-Ebene), near = Hügel/Dünen (Vordergrund-Ebene),
   // hi  = EIN Highlight pro Biom (max. eines gleichzeitig auf dem Canvas)
-  const BIOMES = {
-    prehistoric: { name: 'Urzeit',    plants: ['leaf', 'fern', 'rock', 'grass'], far: ['mountain'],   near: ['hill'],            hi: 'volcano' },
-    desert:      { name: 'Wüste',     plants: ['bush', 'rock'],                   far: [],             near: ['dune'],            hi: 'pyramid' },
-    winter:      { name: 'Winter',    plants: ['fir', 'snowbush'],                far: ['snowmount'],  near: ['hill'],            hi: null },
-    jungle:      { name: 'Dschungel', plants: ['palm', 'fern', 'grass'],          far: [],             near: ['hill', 'jhill'],   hi: 'maya' },
-  };
-  const BIOME_KEYS = Object.keys(BIOMES);
-  let biomeIdx = 0, biome = BIOME_KEYS[0], nextBiome = 0;
-
-  // Farben (alle deckend, damit Überschneidungen die Helligkeit nicht ändern)
-  const FAR = '#cdcdcd', NEAR = '#b4b1ac', STONE = '#9aa0a6', STONE2 = '#a9aeb4', SAND = '#cbb88c';
+  // Nur EIN Biom (Urzeit) — monochrom, viel Pflanzen-Variation
+  const PLANTS = ['leaf', 'leaf2', 'pine', 'fern', 'grass', 'tallgrass', 'rock', 'rock2', 'shrub', 'flower', 'mushroom', 'log', 'sapling', 'reed'];
+  const FAR_K = ['mountain'], NEAR_K = ['hill'];
+  // Farben (deckend; nur Grautöne — keine Einfärbung von Bergen/Highlights)
+  const FAR = '#cdcdcd', NEAR = '#b4b1ac';
 
   let running = true, started = false, rafId = null, lastTs = 0;
   let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [];
@@ -2264,12 +2260,12 @@ const DINO = (() => {
     const v = VARIANTS[(Math.random() * VARIANTS.length) | 0];
     animals.push({ v, x: -40, speed: 16 + Math.random() * 26, ft: 0, frame: 0 });
   }
-  const spawnPlant = x => { if (BIOMES[biome].plants.length) plants.push({ kind: pick(BIOMES[biome].plants), x, s: 1 + Math.random() }); };
+  const spawnPlant = x => plants.push({ kind: pick(PLANTS), x, s: 1 + Math.random() });
   const spawnCloud = x => clouds.push({ x, y: 2 + Math.random() * 8, w: 16 + Math.random() * 16 });
   const spawnBird = x => birds.push({ x, y: 4 + Math.random() * 8, ft: 0, frame: 0 });
-  const spawnFar = x => { const f = BIOMES[biome].far; if (f.length) farM.push({ kind: pick(f), x, w: 50 + Math.random() * 70, h: 15 + Math.random() * 12 }); };
-  const spawnNear = x => { const n = BIOMES[biome].near; if (n.length) nearM.push({ kind: pick(n), x, w: 34 + Math.random() * 46, h: 7 + Math.random() * 7 }); };
-  const spawnHi = x => { if (BIOMES[biome].hi && !hiM) hiM = { kind: BIOMES[biome].hi, x, w: 44 + Math.random() * 22, h: 16 + Math.random() * 8 }; };
+  const spawnFar = x => farM.push({ kind: pick(FAR_K), x, w: 50 + Math.random() * 70, h: 15 + Math.random() * 12 });
+  const spawnNear = x => nearM.push({ kind: pick(NEAR_K), x, w: 34 + Math.random() * 46, h: 7 + Math.random() * 7 });
+  const spawnHi = x => { if (!hiM) hiM = { kind: 'volcano', x, w: 44 + Math.random() * 22, h: 16 + Math.random() * 8 }; };
   const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42 });
 
   function drawAnimal(a, groundY) {
@@ -2285,34 +2281,46 @@ const DINO = (() => {
     ctx.fillStyle = INK2;
     const s = o.s, k = o.kind;
     const r = (gx2, gy, w, h) => R(o.x + gx2, groundY - gy, w, h);
-    if (k === 'bush' || k === 'snowbush') {
-      r(0, 3 * s, 6 * s, 3 * s); r(s, 4 * s, 3 * s, s); r(2 * s, 5 * s, s, s);
-      if (k === 'snowbush') { ctx.fillStyle = SNOW; r(s, 5 * s, 4 * s, s); }
-    } else if (k === 'rock') {
-      r(0, 2, 4, 2); r(1, 4, 2, 2);
-    } else if (k === 'leaf') {
+    if (k === 'rock') { r(0, 2, 4, 2); r(1, 4, 2, 2); }
+    else if (k === 'rock2') { r(0, 2, 6, 2); r(1, 4, 4, 2); r(2, 6, 2, 2); }
+    else if (k === 'leaf') { // Laubbaum, runde Krone
       r(2 * s, 5 * s, 1.5 * s, 5 * s);
       R(o.x, groundY - 11 * s, 6 * s, 5 * s);
       R(o.x + s, groundY - 12 * s, 4 * s, s);
       R(o.x - 0.5 * s, groundY - 9 * s, s, 2 * s);
       R(o.x + 5.5 * s, groundY - 9 * s, s, 2 * s);
-    } else if (k === 'fir') {
+    } else if (k === 'leaf2') { // breiter, niedriger Baum
+      r(3 * s, 4 * s, 1.5 * s, 4 * s);
+      R(o.x - s, groundY - 9 * s, 8 * s, 4 * s);
+      R(o.x + s, groundY - 10 * s, 4 * s, s);
+    } else if (k === 'pine') { // Nadelbaum (Urzeit-Konifere), kein Schnee
       r(2.5 * s, 4 * s, 1.5 * s, 4 * s);
-      for (let i = 0; i < 3; i++) {
-        const wdt = (6 - i * 1.2) * s, gy = (10 - i * 2.2) * s;
+      for (let i = 0; i < 4; i++) {
+        const wdt = (7 - i * 1.4) * s, gy = (12 - i * 2.3) * s;
         R(o.x + (6 * s - wdt) / 2, groundY - gy, wdt, 2 * s);
       }
-      ctx.fillStyle = SNOW;
-      R(o.x + s, groundY - 8.2 * s, 4 * s, 1); R(o.x + 1.6 * s, groundY - 10.2 * s, 2.8 * s, 1);
-    } else if (k === 'grass' || k === 'fern') {
+    } else if (k === 'shrub') { // Busch
+      r(0, 3 * s, 6 * s, 3 * s); r(s, 4 * s, 4 * s, s); r(2 * s, 5 * s, 2 * s, s);
+    } else if (k === 'grass') {
       r(0, 3 * s, s, 3 * s); r(1.5 * s, 4 * s, s, 4 * s); r(3 * s, 3 * s, s, 3 * s);
-      if (k === 'fern') { r(-1 * s, 3 * s, s, 3 * s); r(4 * s, 3.5 * s, s, 3.5 * s); }
-    } else if (k === 'palm') {
-      r(2 * s, 14 * s, 1.5 * s, 14 * s);
-      const ty = 14 * s;
-      R(o.x - 3 * s, groundY - ty, 4 * s, s); R(o.x + 2.5 * s, groundY - ty, 4 * s, s);
-      R(o.x - 2 * s, groundY - ty - 1.5 * s, 3 * s, s); R(o.x + 2 * s, groundY - ty - 1.5 * s, 3 * s, s);
-      R(o.x + s, groundY - ty - 2.5 * s, 1.5 * s, s);
+    } else if (k === 'tallgrass') {
+      r(0, 5 * s, s, 5 * s); r(1.6 * s, 6 * s, s, 6 * s); r(3.2 * s, 4 * s, s, 4 * s); r(4.6 * s, 5 * s, s, 5 * s);
+    } else if (k === 'fern') {
+      r(0, 3 * s, s, 3 * s); r(1.5 * s, 4 * s, s, 4 * s); r(3 * s, 3 * s, s, 3 * s);
+      r(-1 * s, 3 * s, s, 3 * s); r(4 * s, 3.5 * s, s, 3.5 * s);
+    } else if (k === 'reed') { // Schilf
+      r(0.5 * s, 7 * s, s, 7 * s); r(2 * s, 8 * s, s, 8 * s); r(3.5 * s, 6 * s, s, 6 * s);
+      R(o.x + 0.3 * s, groundY - 8 * s, 1.4 * s, 1.4 * s); R(o.x + 1.8 * s, groundY - 9 * s, 1.4 * s, 1.4 * s);
+    } else if (k === 'flower') { // Blume
+      r(1.5 * s, 4 * s, s, 4 * s);
+      R(o.x, groundY - 6 * s, s, s); R(o.x + 2 * s, groundY - 6 * s, s, s);
+      R(o.x + s, groundY - 7 * s, s, s); R(o.x + s, groundY - 5 * s, s, s);
+    } else if (k === 'mushroom') { // Pilz
+      r(1.5 * s, 3 * s, s, 3 * s); R(o.x, groundY - 4 * s, 4 * s, s); R(o.x + 0.5 * s, groundY - 5 * s, 3 * s, s);
+    } else if (k === 'log') { // liegender Stamm
+      R(o.x, groundY - 2 * s, 8 * s, 2 * s); R(o.x + 7 * s, groundY - 2.5 * s, s, 2.5 * s);
+    } else if (k === 'sapling') { // Setzling
+      r(1.5 * s, 4 * s, s, 4 * s); R(o.x, groundY - 5 * s, s, s); R(o.x + 2 * s, groundY - 6 * s, s, s);
     }
   }
   // Dreiecks-Berg als EIN deckendes Polygon (kein Spalten-Antialiasing -> kein Flackern)
@@ -2325,40 +2333,14 @@ const DINO = (() => {
   function hill(o, base, color) {
     ctx.fillStyle = color; ctx.beginPath();
     ctx.moveTo(Math.round(o.x), base);
-    const peak = o.kind === 'dune' ? o.h * 0.65 : o.h;
-    for (let i = 0; i <= o.w; i += 2) ctx.lineTo(Math.round(o.x + i), Math.round(base - peak * Math.sin((i / o.w) * Math.PI)));
+    for (let i = 0; i <= o.w; i += 2) ctx.lineTo(Math.round(o.x + i), Math.round(base - o.h * Math.sin((i / o.w) * Math.PI)));
     ctx.lineTo(Math.round(o.x + o.w), base); ctx.closePath(); ctx.fill();
   }
   function drawMount(o, base, far) {
     const k = o.kind;
-    if (k === 'hill' || k === 'jhill' || k === 'dune') { hill(o, base, far ? FAR : NEAR); return; }
+    if (k === 'hill') { hill(o, base, far ? FAR : NEAR); return; }
     if (k === 'mountain') { tri(o.x, o.x + o.w, o.h, base, far ? FAR : NEAR); return; }
-    if (k === 'snowmount') {
-      tri(o.x, o.x + o.w, o.h, base, FAR);
-      const cx = o.x + o.w / 2, capH = o.h * 0.4, hw = (capH / o.h) * (o.w / 2);
-      ctx.fillStyle = SNOW; ctx.beginPath();
-      ctx.moveTo(Math.round(cx), Math.round(base - o.h));
-      ctx.lineTo(Math.round(cx - hw), Math.round(base - o.h + capH));
-      ctx.lineTo(Math.round(cx + hw), Math.round(base - o.h + capH));
-      ctx.closePath(); ctx.fill(); return;
-    }
-    if (k === 'pyramid') { // Highlight Wüste
-      tri(o.x, o.x + o.w, o.h, base, SAND);
-      ctx.fillStyle = '#b8a274';
-      R(o.x + o.w / 2, base - o.h, 1, o.h); return;
-    }
-    if (k === 'maya') { // Highlight Dschungel: Stufenpyramide
-      const tiers = 4, hh = Math.max(2, Math.round(o.h / (tiers + 1)));
-      for (let t = 0; t < tiers; t++) {
-        const ww = Math.round(o.w * (1 - t * 0.18)), x = Math.round(o.x + (o.w - ww) / 2);
-        ctx.fillStyle = t % 2 ? STONE : STONE2;
-        R(x, base - hh * (t + 1), ww, hh);
-      }
-      const tw = Math.round(o.w * 0.22);
-      ctx.fillStyle = STONE; R(o.x + (o.w - tw) / 2, base - hh * (tiers + 1), tw, hh);
-      ctx.fillStyle = '#7d8288'; R(o.x + o.w / 2 - 1, base - hh * tiers, 2, hh * tiers); return;
-    }
-    if (k === 'volcano') { // Highlight Urzeit: rauchend (KEIN Ausbruch)
+    if (k === 'volcano') { // rauchend (KEIN Ausbruch), nur Grautöne
       const x0 = Math.round(o.x), x1 = Math.round(o.x + o.w), top = Math.round(base - o.h);
       const tl = Math.round(o.x + o.w * 0.38), tr = Math.round(o.x + o.w * 0.62);
       ctx.fillStyle = FAR; ctx.beginPath();
@@ -2391,16 +2373,13 @@ const DINO = (() => {
     ctx.fillStyle = INK2; // Dreck unter dem Weg (abgebrochener Vordergrund)
     for (let x = 0; x < w; x++) { const wx = Math.floor(x + gx); if (rnd(wx * 0.5 + 5) > 0.94) ctx.fillRect(x, base + 2 + Math.floor(rnd(wx) * 4), 1, 1); }
   }
-  function setBiome(idx) {
-    biomeIdx = (idx + BIOME_KEYS.length) % BIOME_KEYS.length;
-    biome = BIOME_KEYS[biomeIdx];
-    plants = []; farM = []; nearM = []; hiM = null; // sichtbar neu aufbauen
+  function seedScene() {
+    plants = []; farM = []; nearM = []; hiM = null;
     const w = cv.clientWidth || 300;
-    for (let i = 0; i < 3; i++) spawnPlant(Math.random() * w);
+    for (let i = 0; i < 5; i++) spawnPlant(Math.random() * w); // viele Pflanzen
     for (let i = 0; i < 2; i++) spawnFar(Math.random() * w);
     for (let i = 0; i < 2; i++) spawnNear(Math.random() * w);
     spawnHi(w * 0.5 + Math.random() * w * 0.4);
-    const lbl = document.getElementById('dinoBiome'); if (lbl) lbl.textContent = BIOMES[biome].name;
   }
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
@@ -2411,9 +2390,8 @@ const DINO = (() => {
     const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts;
     if (running) {
       gx += 16 * dt;
-      if (ts > nextBiome) { if (nextBiome) setBiome(biomeIdx + 1); nextBiome = ts + 75000 + Math.random() * 45000; }
       if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
-      if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 3000 + Math.random() * 4500; }
+      if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 1600 + Math.random() * 2600; } // dichter bewachsen
       if (ts > nextCloud) { spawnCloud(w + 10); nextCloud = ts + 7000 + Math.random() * 9000; }
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
       if (ts > nextFar) { spawnFar(w + 30); nextFar = ts + 11000 + Math.random() * 14000; }
@@ -2456,15 +2434,13 @@ const DINO = (() => {
       started = true; lastTs = performance.now();
       nextSpawn = lastTs + 800; nextPlant = lastTs + 400; nextCloud = lastTs + 800;
       nextBird = lastTs + 6000; nextFar = lastTs + 3000; nextNear = lastTs + 1500; nextUfo = lastTs + 40000; nextHi = lastTs + 2000;
-      nextBiome = lastTs + 75000 + Math.random() * 45000;
-      setBiome((Math.random() * BIOME_KEYS.length) | 0);
+      seedScene();
       spawnCloud(30 + Math.random() * 200);
       rafId = requestAnimationFrame(frame);
     },
     stop() { started = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; },
     resume() { running = true; spawnAnimal(true); },
     pause() { running = false; },
-    next() { setBiome(biomeIdx + 1); },
     running: () => running,
   };
 })();
@@ -2477,7 +2453,6 @@ function applyGimmick() {
 let dinoHidden = false;
 document.getElementById('dinoStart').onclick = () => { if (dinoHidden) toggleDinoEye(); DINO.resume(); };
 document.getElementById('dinoPause').onclick = () => DINO.pause();
-document.getElementById('dinoNext').onclick = () => DINO.next();
 function toggleDinoEye() {
   dinoHidden = !dinoHidden;
   document.getElementById('dinoCv').style.visibility = dinoHidden ? 'hidden' : 'visible';
