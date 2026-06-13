@@ -143,8 +143,10 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
   color:var(--text-weak); font-size:15px; line-height:1; padding:1px 5px; border-radius:4px;
 }
 .card-menu:hover{background:var(--blue-bg); color:var(--blue)}
+/* Karte mit offenem ⋯-Menü liegt über allem (Plus/Geisterticket darf nicht drüber) */
+.card.menu-open{z-index:140}
 .card-menu-pop{
-  position:absolute; top:22px; right:4px; min-width:130px; z-index:60;
+  position:absolute; top:22px; right:4px; min-width:130px; z-index:150;
   background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
   box-shadow:0 6px 18px rgba(0,0,0,.18); display:grid; padding:4px;
 }
@@ -991,12 +993,16 @@ function cardEl(t) {
 }
 
 /* ⋯-Menü: Duplizieren / Löschen direkt auf der Kachel */
-function closeCardMenus() { document.querySelectorAll('.card-menu-pop').forEach(m => m.remove()); }
+function closeCardMenus() {
+  document.querySelectorAll('.card-menu-pop').forEach(m => m.remove());
+  document.querySelectorAll('.card.menu-open').forEach(c => c.classList.remove('menu-open'));
+}
 document.addEventListener('click', closeCardMenus);
 function toggleCardMenu(cardEl, id) {
   const wasOpen = cardEl.querySelector('.card-menu-pop');
   closeCardMenus();
   if (wasOpen) return;
+  cardEl.classList.add('menu-open'); // Karte über Plus/Geisterticket heben
   const m = document.createElement('div');
   m.className = 'card-menu-pop';
   m.innerHTML = '<button data-act="dup">⧉ Duplizieren</button>' +
@@ -2370,15 +2376,19 @@ const DINO = (() => {
   function drawGround(w, base) {
     ctx.fillStyle = INK;
     for (let x = 0; x < w; x++) { const wx = Math.floor(x + gx); ctx.fillRect(x, base - groundBump(wx), 1, 1); }
-    ctx.fillStyle = INK2; // Dreck unter dem Weg (abgebrochener Vordergrund)
-    for (let x = 0; x < w; x++) { const wx = Math.floor(x + gx); if (rnd(wx * 0.5 + 5) > 0.94) ctx.fillRect(x, base + 2 + Math.floor(rnd(wx) * 4), 1, 1); }
+    ctx.fillStyle = INK2; // Vordergrund-Dreck: Punkte UND kurze Striche (mehr Variation)
+    for (let x = 0; x < w; x++) {
+      const wx = Math.floor(x + gx);
+      if (rnd(wx * 0.5 + 5) > 0.94) ctx.fillRect(x, base + 2 + Math.floor(rnd(wx) * 4), 1, 1); // Punkt
+      if (rnd(wx * 0.31 + 11) > 0.975) ctx.fillRect(x, base + 2 + Math.floor(rnd(wx + 3) * 4), 2 + Math.floor(rnd(wx + 7) * 2), 1); // kurzer Strich
+    }
   }
   function seedScene() {
     plants = []; farM = []; nearM = []; hiM = null;
     const w = cv.clientWidth || 300;
     for (let i = 0; i < 5; i++) spawnPlant(Math.random() * w); // viele Pflanzen
-    for (let i = 0; i < 2; i++) spawnFar(Math.random() * w);
-    for (let i = 0; i < 2; i++) spawnNear(Math.random() * w);
+    spawnFar(Math.random() * w);   // nur 1 Berg
+    spawnNear(Math.random() * w);  // nur 1 Hügel
     spawnHi(w * 0.5 + Math.random() * w * 0.4);
   }
   function frame(ts) {
@@ -2394,8 +2404,8 @@ const DINO = (() => {
       if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 1600 + Math.random() * 2600; } // dichter bewachsen
       if (ts > nextCloud) { spawnCloud(w + 10); nextCloud = ts + 7000 + Math.random() * 9000; }
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
-      if (ts > nextFar) { spawnFar(w + 30); nextFar = ts + 11000 + Math.random() * 14000; }
-      if (ts > nextNear) { spawnNear(w + 20); nextNear = ts + 7000 + Math.random() * 10000; }
+      if (ts > nextFar) { if (farM.length < 2) spawnFar(w + 30); nextFar = ts + 22000 + Math.random() * 28000; }
+      if (ts > nextNear) { if (nearM.length < 2) spawnNear(w + 20); nextNear = ts + 16000 + Math.random() * 20000; }
       if (ts > nextHi) { spawnHi(w + 30); nextHi = ts + 6000; } // füllt nach, wenn keiner da
       if (ts > nextUfo) { if (Math.random() < 0.5) spawnUfo(); nextUfo = ts + 45000 + Math.random() * 60000; }
       farM.forEach(m => m.x -= 3 * dt);   // Hintergrund-Ebene: langsam
@@ -2568,34 +2578,37 @@ const TIPS = [
 ];
 let tipPool = [], tipTimer = null, bubbleTimer = null;
 
-/* Astronaut zeichnen (Pixel-Art, einfache Schwebe per CSS) */
+/* Astronaut zeichnen (Pixel-Art, süß, mit Visier-Glanz; Schwebe per CSS) */
 (function drawAstronaut() {
   const ctx = document.getElementById('astroCv').getContext('2d');
   const P = 4;
   const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x * P, y * P, P, P); };
-  const W = '#ffffff', G = '#c7ccd6', D = '#9aa1b0', V = '#7fd4ff', O = '#E45826';
-  // 14x16-Raster: Helm, Visier, Körper, Arme, Beine, Lebenserhaltung
+  const K = '#1b1b1b', W = '#f3f5fa', G = '#cdd2dc', D = '#a6adba',
+        V = '#54cdee', H = '#c4f0ff', O = '#c0623a';
+  // 14×16-Raster: runder Helm, großes Visier mit Glanz, Orange-Brust + Handschuhe
   const map = [
-    '....DDDD....',
-    '...DWWWWD...',
-    '..DWWWWWWD..',
-    '..DWVVVVWD..',
-    '..DWVVVVWD..',
-    '..DWWWWWWD..',
-    '...DWWWWD...',
-    '..GGWWWWGG..',
-    '.GGGWWWWGGG.',
-    'GG.GWWWWG.GG',
-    'O..GWWWWG..O',
-    '...GWWWWG...',
-    '...GG..GG...',
-    '..GG....GG..',
-    '..DD....DD..',
-    '.DDD....DDD.',
+    '....KKKKKK....',
+    '...KWWWWWWK...',
+    '..KWWWWWWWWK..',
+    '..KWVVVVVVWK..',
+    '..KWVVVVVVWK..',
+    '..KWHHVVVVWK..',
+    '..KWVVVVVVWK..',
+    '..KWWWWWWWWK..',
+    '...KWWWWWWK...',
+    '.KOKWWWWWWKOK.',
+    'KOOKWGOOGWKOOK',
+    '.KKWWGOOGWWKK.',
+    '..KWWWWWWWWK..',
+    '..KWWWKKWWWK..',
+    '..KWWK..KWWK..',
+    '..KKKK..KKKK..',
   ];
-  const col = { D, W, G, V, O };
-  map.forEach((row, y) => [...row].forEach((ch, x) => { if (col[ch]) px(x + 1, y, col[ch]); }));
+  const col = { K, W, G, D, V, H, O };
+  map.forEach((row, y) => [...row].forEach((ch, x) => { if (col[ch]) px(x, y, col[ch]); }));
 })();
+// Bei Fensterfokus immer einen frischen Tipp zeigen
+window.addEventListener('focus', () => { if (state.settings.tips !== false) speakTip(); });
 
 function nextTip() {
   if (!tipPool.length) tipPool = [...TIPS].sort(() => Math.random() - 0.5);
@@ -2666,7 +2679,13 @@ function makeStickyEl(note) {
   const ta = el.querySelector('textarea'); ta.value = note.text || '';
   ta.addEventListener('input', () => { note.text = ta.value; persistNotes(); });
   el.querySelector('button').onclick = () => removeNote(note.id);
-  el.querySelector('.sticky-head').addEventListener('mousedown', e => startDragNote(e, el, note));
+  // Von ÜBERALL greifbar: Klick = tippen, Ziehen = bewegen (außer Schließen-Knopf + Resize-Ecke)
+  el.addEventListener('mousedown', e => {
+    if (e.button !== 0 || e.target.tagName === 'BUTTON') return;
+    const r = el.getBoundingClientRect();
+    if (e.clientX > r.right - 16 && e.clientY > r.bottom - 16) return; // Resize-Ecke nativ lassen
+    startDragNote(e, el, note);
+  });
   // Rechtsklick: leer -> sofort weg; mit Inhalt -> Dialog (Verwerfen/Behalten/Abbrechen)
   el.addEventListener('contextmenu', e => {
     e.preventDefault();
@@ -2693,11 +2712,13 @@ document.getElementById('stickyDiscard').onclick = () => {
 document.getElementById('stickyCancel').onclick = document.getElementById('stickyKeep').onclick = () => {
   document.getElementById('stickyDlg').classList.remove('open'); stickyDlgNote = null;
 };
-function addNote(x, y) {
+function addNote(x, y, w, h) {
   ensureNotes();
-  const note = { id: uid(),
-    x: Math.max(4, Math.min(x, innerWidth - 210)),
-    y: Math.max(58, Math.min(y, innerHeight - 190)), text: '' };
+  w = Math.max(140, Math.round(w || 200)); // Größe = gezogenes Rechteck (mit Minimum)
+  h = Math.max(110, Math.round(h || 170));
+  const note = { id: uid(), w, h,
+    x: Math.max(4, Math.min(x, innerWidth - w - 4)),
+    y: Math.max(58, Math.min(y, innerHeight - h - 4)), text: '' };
   state.notes.push(note); save(); makeStickyEl(note);
   const el = document.querySelector('.sticky[data-id="' + note.id + '"]');
   if (el) el.querySelector('textarea').focus();
@@ -2717,15 +2738,33 @@ function columnAddUnder(x, y) {
   return null;
 }
 function clearNoteTarget(t) { if (t) t.classList.remove('note-target'); }
+/* Notiz in ein Ticket umwandeln — mit kleiner Einsaug-Animation Richtung „+“ */
+function convertNoteToTicket(note, el, status) {
+  pendingNoteId = note.id;
+  el.style.pointerEvents = 'none';
+  el.style.transition = 'transform .28s ease, opacity .28s ease';
+  el.style.transformOrigin = 'center';
+  requestAnimationFrame(() => { el.style.transform = 'scale(.1) rotate(-8deg)'; el.style.opacity = '0'; });
+  setTimeout(() => {
+    el.style.display = 'none';
+    el.style.transform = ''; el.style.opacity = ''; el.style.transition = ''; el.style.pointerEvents = '';
+    openModal(null, status, note.text);
+  }, 280);
+}
 function startDragNote(e, el, note) {
-  if (e.button !== 0) return; // nur linke Maustaste zieht (Rechtsklick = Dialog)
-  e.preventDefault();
+  if (e.button !== 0) return;
+  const startX = e.clientX, startY = e.clientY;
   const r = el.getBoundingClientRect();
-  const ox = e.clientX - r.left, oy = e.clientY - r.top;
-  el.querySelector('.sticky-head').style.cursor = 'grabbing';
-  el.style.pointerEvents = 'none'; // damit elementFromPoint die Spalte darunter sieht
-  let target = null;
+  const ox = startX - r.left, oy = startY - r.top;
+  let dragging = false, target = null;
   function move(ev) {
+    if (!dragging) {
+      if (Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) < 5) return; // erst ab Bewegung ziehen (sonst = Klick zum Tippen)
+      dragging = true;
+      try { getSelection().removeAllRanges(); } catch (_) {}
+      const ta = el.querySelector('textarea'); if (ta) ta.blur();
+      el.style.pointerEvents = 'none'; el.style.cursor = 'grabbing';
+    }
     el.style.left = (ev.clientX - ox) + 'px';
     el.style.top = (ev.clientY - oy) + 'px';
     clearNoteTarget(target); target = null;
@@ -2740,20 +2779,15 @@ function startDragNote(e, el, note) {
   function up(ev) {
     document.removeEventListener('mousemove', move);
     document.removeEventListener('mouseup', up);
-    el.querySelector('.sticky-head').style.cursor = 'grab';
-    el.style.pointerEvents = '';
+    el.style.pointerEvents = ''; el.style.cursor = '';
     el.classList.remove('drag-over-col');
     clearNoteTarget(target);
+    if (!dragging) return; // war nur ein Klick -> Textarea bekommt normal den Fokus
     if (ev.clientX < 8 || ev.clientY < 8 || ev.clientX > innerWidth - 8 || ev.clientY > innerHeight - 8) {
       removeNote(note.id); return; // an den Rand gezogen = verwerfen
     }
     const status = columnAddUnder(ev.clientX, ev.clientY);
-    if (status) {
-      // Notiz bleibt erhalten, bis das Ticket wirklich gespeichert ist
-      pendingNoteId = note.id; el.style.display = 'none';
-      openModal(null, status, note.text);
-      return;
-    }
+    if (status) { convertNoteToTicket(note, el, status); return; }
     note.x = parseInt(el.style.left) || note.x;
     note.y = parseInt(el.style.top) || note.y;
     save();
@@ -2779,8 +2813,8 @@ document.addEventListener('mousedown', e => {
     document.removeEventListener('mousemove', move);
     document.removeEventListener('mouseup', up);
     sel.style.display = 'none';
-    if (Math.abs(ev.clientX - sx) > 25 && Math.abs(ev.clientY - sy) > 25)
-      addNote(Math.min(ev.clientX, sx), Math.min(ev.clientY, sy));
+    const w = Math.abs(ev.clientX - sx), h = Math.abs(ev.clientY - sy);
+    if (w > 25 && h > 25) addNote(Math.min(ev.clientX, sx), Math.min(ev.clientY, sy), w, h);
   }
   document.addEventListener('mousemove', move);
   document.addEventListener('mouseup', up);
