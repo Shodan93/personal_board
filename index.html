@@ -155,6 +155,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 #dinoWrap{display:flex; align-items:flex-end; gap:1px; flex:1; min-width:160px; height:34px}
 #dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:11px; padding:0 3px 2px; cursor:pointer}
 #dinoWrap button:hover{color:var(--blue)}
+#dinoBiome{font-size:10px; color:#b9b7b4; white-space:nowrap; padding:0 2px}
 #dinoCv{flex:1; width:100%; height:34px}
 
 /* Astronaut */
@@ -182,11 +183,14 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 /* Sticky Notes */
 #noteSel{position:fixed; border:2px dashed var(--yellow); background:rgba(255,183,93,.15);
   z-index:95; pointer-events:none; display:none; border-radius:4px}
-.sticky{position:fixed; width:200px; height:180px; z-index:96;
-  background:#FFF7C4; border:1px solid #E8D98A; border-radius:3px;
-  box-shadow:0 5px 16px rgba(0,0,0,.22); display:flex; flex-direction:column;
-  transform:rotate(-1.2deg)}
-.sticky.drag-over-col{outline:3px solid var(--blue); outline-offset:2px}
+.sticky{position:fixed; width:200px; height:170px; z-index:96; min-width:140px; min-height:110px;
+  background:#FFF7C4; border:1px solid #E8D98A; border-radius:3px; resize:both; overflow:hidden;
+  box-shadow:0 5px 16px rgba(0,0,0,.22); display:flex; flex-direction:column}
+.sticky.drag-over-col{outline:3px solid var(--blue); outline-offset:2px; transform:scale(1.04)}
+/* Plus-Ziel pulsiert, wenn eine Notiz darüber schwebt */
+.col-add.note-target,.ghost-card.note-target{color:var(--blue); opacity:1}
+.col-add.note-target span,.ghost-card.note-target span{animation:plusPulse .5s ease-in-out infinite}
+@keyframes plusPulse{0%,100%{transform:translate(-0%,0) scale(1)} 50%{transform:scale(1.35)}}
 .sticky-head{height:22px; background:#FBE98A; cursor:grab; border-radius:3px 3px 0 0;
   display:flex; align-items:center; justify-content:space-between; padding:0 4px 0 8px;
   font-size:11px; color:#7a6a1f; user-select:none}
@@ -402,7 +406,9 @@ tr.row.done-final td{opacity:.4}
   <div id="dinoWrap">
     <button id="dinoStart" title="Neues Tier losschicken">▶</button>
     <button id="dinoPause" title="Pause">⏸</button>
+    <button id="dinoNext" title="Nächstes Biom">⏭</button>
     <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
+    <span id="dinoBiome" title="Aktuelles Biom"></span>
     <canvas id="dinoCv" height="34"></canvas>
   </div>
   <div id="globalCat" title="Nach Kategorie filtern"></div>
@@ -673,6 +679,19 @@ tr.row.done-final td{opacity:.4}
 </div>
 
 <div id="noteSel"></div>
+
+<!-- Sticky-Notiz-Dialog (bei Rechtsklick auf eine Notiz mit Inhalt) -->
+<div class="overlay" id="stickyDlg" style="z-index:260">
+  <div class="modal" role="alertdialog" aria-modal="true" style="max-width:380px">
+    <div class="modal-head"><h2>Notiz verwerfen?</h2></div>
+    <div class="modal-body"><p style="font-size:13px">Diese Notiz enthält Text. Möchtest du sie behalten oder verwerfen?</p></div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="stickyDiscard" style="margin-right:auto">Verwerfen</button>
+      <button class="btn" id="stickyCancel">Abbrechen</button>
+      <button class="btn btn-primary" id="stickyKeep">Behalten</button>
+    </div>
+  </div>
+</div>
 
 <!-- Astronaut mit Office-Tipps -->
 <div id="astro" title="Klick mich für einen Tipp!">
@@ -949,6 +968,7 @@ function cardEl(t) {
       '<span class="deadline">📅 ' + fmtDate(t.deadline) + '</span>' +
       (collectIds(t).length ? '<span class="deadline">📎 ' + collectIds(t).length + '</span>' : '') + tags +
     '</div>' +
+    (t.createdAt ? '<div class="meta" style="margin-top:2px"><span class="deadline" style="font-size:10px" title="Erstellt am">🗓 erstellt ' + fmtDate(t.createdAt) + '</span></div>' : '') +
     '<div class="card-foot">' +
       '<select class="quick-status" title="Status ändern">' +
         STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>').join('') +
@@ -1178,6 +1198,12 @@ function closeModal() {
   sessionNewImgs = [];
   attUrls.forEach(u => URL.revokeObjectURL(u)); attUrls = [];
   overlay.classList.remove('open'); editingId = null;
+  // Eine zum Ticket gezogene Notiz wurde NICHT gespeichert -> wieder einblenden
+  if (pendingNoteId) {
+    const el = document.querySelector('.sticky[data-id="' + pendingNoteId + '"]');
+    if (el) el.style.display = '';
+    pendingNoteId = null;
+  }
 }
 
 /* Kategorie-Chips + Pickliste im Modal */
@@ -1241,6 +1267,8 @@ function saveTicket() {
   oldIds.filter(id => !newIds.has(id)).forEach(id => { imgDel(id).catch(() => {}); cloudDelFile(id); });
   sessionNewImgs.filter(id => !newIds.has(id)).forEach(id => { imgDel(id).catch(() => {}); cloudDelFile(id); });
   sessionNewImgs = [];
+  // Ticket aus Notiz gespeichert -> Notiz jetzt entfernen (vor closeModal, damit sie nicht zurückkommt)
+  if (pendingNoteId) { removeNote(pendingNoteId); pendingNoteId = null; }
   save(); closeModal(); render();
 }
 function deleteTicket() {
@@ -2207,33 +2235,42 @@ const DINO = (() => {
   const VARIANTS = [];
   SPRITES.forEach(sp => [2, 3].forEach(px => [INK, INK2].forEach(c => VARIANTS.push({ sp, px, c }))));
 
-  // Biome: prähistorisch (Standard), Wüste, Winter, Dschungel — wechseln alle 1–2 Min
+  // Biome: Urzeit (prähistorisch), Wüste, Winter, Dschungel
+  // far = ferne Berge (Hintergrund-Ebene), near = Hügel/Dünen (Vordergrund-Ebene),
+  // hi  = EIN Highlight pro Biom (max. eines gleichzeitig auf dem Canvas)
   const BIOMES = {
-    prehistoric: { plants: ['leaf', 'fern', 'rock', 'grass'], mounts: ['hill', 'mountain', 'volcano', 'erupt'] },
-    desert:      { plants: ['cactus', 'cactus2', 'bush'],      mounts: ['dune', 'dune', 'pyramid'] },
-    winter:      { plants: ['fir', 'fir', 'snowbush'],         mounts: ['snowmount', 'snowmount', 'hill'] },
-    jungle:      { plants: ['palm', 'palm', 'fern', 'grass'],  mounts: ['hill', 'jhill'] },
+    prehistoric: { name: 'Urzeit',    plants: ['leaf', 'fern', 'rock', 'grass'], far: ['mountain'],   near: ['hill'],            hi: 'volcano' },
+    desert:      { name: 'Wüste',     plants: ['bush', 'rock'],                   far: [],             near: ['dune'],            hi: 'pyramid' },
+    winter:      { name: 'Winter',    plants: ['fir', 'snowbush'],                far: ['snowmount'],  near: ['hill'],            hi: null },
+    jungle:      { name: 'Dschungel', plants: ['palm', 'fern', 'grass'],          far: [],             near: ['hill', 'jhill'],   hi: 'maya' },
   };
   const BIOME_KEYS = Object.keys(BIOMES);
-  let biome = 'prehistoric', nextBiome = 0;
+  let biomeIdx = 0, biome = BIOME_KEYS[0], nextBiome = 0;
+
+  // Farben (alle deckend, damit Überschneidungen die Helligkeit nicht ändern)
+  const FAR = '#cdcdcd', NEAR = '#b4b1ac', STONE = '#9aa0a6', STONE2 = '#a9aeb4', SAND = '#cbb88c';
 
   let running = true, started = false, rafId = null, lastTs = 0;
-  let animals = [], scenery = [], clouds = [], birds = [], mounts = [], ufos = [];
-  let nextSpawn = 0, nextScenery = 0, nextCloud = 0, nextBird = 0, nextMount = 0, nextUfo = 0;
+  let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [];
+  let hiM = null, gx = 0;
+  let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
+  const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  function rnd(n) { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); }
+
   function spawnAnimal(force) {
-    if (!force && animals.length >= 3) return; // nicht zu viele auf einmal
+    if (!force && animals.length >= 5) return;
     const v = VARIANTS[(Math.random() * VARIANTS.length) | 0];
-    animals.push({ v, x: -40, speed: 14 + Math.random() * 22, ft: 0, frame: 0 });
+    animals.push({ v, x: -40, speed: 16 + Math.random() * 26, ft: 0, frame: 0 });
   }
-  const spawnScenery = x => scenery.push({ kind: pick(BIOMES[biome].plants), x, s: 1 + Math.random() });
+  const spawnPlant = x => { if (BIOMES[biome].plants.length) plants.push({ kind: pick(BIOMES[biome].plants), x, s: 1 + Math.random() }); };
   const spawnCloud = x => clouds.push({ x, y: 2 + Math.random() * 8, w: 16 + Math.random() * 16 });
   const spawnBird = x => birds.push({ x, y: 4 + Math.random() * 8, ft: 0, frame: 0 });
-  const spawnMount = x => {
-    mounts.push({ x, w: 34 + Math.random() * 56, h: 10 + Math.random() * 15, kind: pick(BIOMES[biome].mounts) });
-  };
-  const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42, ph: Math.random() * 6 });
+  const spawnFar = x => { const f = BIOMES[biome].far; if (f.length) farM.push({ kind: pick(f), x, w: 50 + Math.random() * 70, h: 15 + Math.random() * 12 }); };
+  const spawnNear = x => { const n = BIOMES[biome].near; if (n.length) nearM.push({ kind: pick(n), x, w: 34 + Math.random() * 46, h: 7 + Math.random() * 7 }); };
+  const spawnHi = x => { if (BIOMES[biome].hi && !hiM) hiM = { kind: BIOMES[biome].hi, x, w: 44 + Math.random() * 22, h: 16 + Math.random() * 8 }; };
+  const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42 });
 
   function drawAnimal(a, groundY) {
     const rows = a.v.sp, p = a.v.px, top = groundY - rows.length * p;
@@ -2241,180 +2278,193 @@ const DINO = (() => {
     for (let r = 0; r < rows.length; r++) for (let c = 0; c < rows[r].length; c++) {
       const ch = rows[r][c];
       if (ch === '#' || (ch === 'a' && a.frame === 0) || (ch === 'b' && a.frame === 1))
-        ctx.fillRect(a.x + c * p, top + r * p, p, p);
+        R(a.x + c * p, top + r * p, p, p);
     }
   }
-  function drawScenery(o, groundY) {
+  function drawPlant(o, groundY) {
     ctx.fillStyle = INK2;
     const s = o.s, k = o.kind;
-    const r = (gx, gy, w, h) => ctx.fillRect(o.x + gx, groundY - gy, w, h);
-    if (k === 'cactus') {
-      r(0, 8 * s, 2 * s, 8 * s);
-      r(-2 * s, 6 * s, 2 * s, 2 * s); r(-2 * s, 6 * s, 1.5 * s, 4 * s);
-      r(2 * s, 5 * s, 2 * s, 2 * s); r(3.5 * s, 5 * s, 1.5 * s, 3 * s);
-    } else if (k === 'cactus2') {
-      r(0, 5 * s, 1.5 * s, 5 * s); r(-1.5 * s, 4 * s, 1.5 * s, 1.5 * s);
-    } else if (k === 'bush' || k === 'snowbush') {
+    const r = (gx2, gy, w, h) => R(o.x + gx2, groundY - gy, w, h);
+    if (k === 'bush' || k === 'snowbush') {
       r(0, 3 * s, 6 * s, 3 * s); r(s, 4 * s, 3 * s, s); r(2 * s, 5 * s, s, s);
       if (k === 'snowbush') { ctx.fillStyle = SNOW; r(s, 5 * s, 4 * s, s); }
     } else if (k === 'rock') {
       r(0, 2, 4, 2); r(1, 4, 2, 2);
-    } else if (k === 'leaf') { // Laubbaum: runde Krone
+    } else if (k === 'leaf') {
       r(2 * s, 5 * s, 1.5 * s, 5 * s);
-      ctx.fillRect(o.x, groundY - 11 * s, 6 * s, 5 * s);
-      ctx.fillRect(o.x + s, groundY - 12 * s, 4 * s, s);
-      ctx.fillRect(o.x - 0.5 * s, groundY - 9 * s, s, 2 * s);
-      ctx.fillRect(o.x + 5.5 * s, groundY - 9 * s, s, 2 * s);
-    } else if (k === 'fir') { // Tanne (Dreieck)
+      R(o.x, groundY - 11 * s, 6 * s, 5 * s);
+      R(o.x + s, groundY - 12 * s, 4 * s, s);
+      R(o.x - 0.5 * s, groundY - 9 * s, s, 2 * s);
+      R(o.x + 5.5 * s, groundY - 9 * s, s, 2 * s);
+    } else if (k === 'fir') {
       r(2.5 * s, 4 * s, 1.5 * s, 4 * s);
       for (let i = 0; i < 3; i++) {
         const wdt = (6 - i * 1.2) * s, gy = (10 - i * 2.2) * s;
-        ctx.fillRect(o.x + (6 * s - wdt) / 2, groundY - gy, wdt, 2 * s);
+        R(o.x + (6 * s - wdt) / 2, groundY - gy, wdt, 2 * s);
       }
-      ctx.fillStyle = SNOW; // Schnee auf den Zweigen
-      ctx.fillRect(o.x + s, groundY - 8.2 * s, 4 * s, 0.8 * s);
-      ctx.fillRect(o.x + 1.6 * s, groundY - 10.2 * s, 2.8 * s, 0.8 * s);
+      ctx.fillStyle = SNOW;
+      R(o.x + s, groundY - 8.2 * s, 4 * s, 1); R(o.x + 1.6 * s, groundY - 10.2 * s, 2.8 * s, 1);
     } else if (k === 'grass' || k === 'fern') {
       r(0, 3 * s, s, 3 * s); r(1.5 * s, 4 * s, s, 4 * s); r(3 * s, 3 * s, s, 3 * s);
       if (k === 'fern') { r(-1 * s, 3 * s, s, 3 * s); r(4 * s, 3.5 * s, s, 3.5 * s); }
-    } else if (k === 'palm') { // Palme: hoher Stamm + Wedel
+    } else if (k === 'palm') {
       r(2 * s, 14 * s, 1.5 * s, 14 * s);
       const ty = 14 * s;
-      ctx.fillRect(o.x - 3 * s, groundY - ty, 4 * s, s);
-      ctx.fillRect(o.x + 2.5 * s, groundY - ty, 4 * s, s);
-      ctx.fillRect(o.x - 2 * s, groundY - ty - 1.5 * s, 3 * s, s);
-      ctx.fillRect(o.x + 2 * s, groundY - ty - 1.5 * s, 3 * s, s);
-      ctx.fillRect(o.x + s, groundY - ty - 2.5 * s, 1.5 * s, s);
+      R(o.x - 3 * s, groundY - ty, 4 * s, s); R(o.x + 2.5 * s, groundY - ty, 4 * s, s);
+      R(o.x - 2 * s, groundY - ty - 1.5 * s, 3 * s, s); R(o.x + 2 * s, groundY - ty - 1.5 * s, 3 * s, s);
+      R(o.x + s, groundY - ty - 2.5 * s, 1.5 * s, s);
     }
   }
-  function drawMount(o, groundY) {
-    const k = o.kind, cx = o.x + o.w / 2, base = groundY;
-    if (k === 'dune' || k === 'hill' || k === 'jhill') {
-      ctx.fillStyle = SKY;
-      for (let i = 0; i < o.w; i++) {
-        const yy = (k === 'dune' ? o.h * 0.6 : o.h) * Math.sin((i / o.w) * Math.PI);
-        ctx.fillRect(o.x + i, base - yy, 1, yy);
-      }
-      return;
-    }
-    if (k === 'pyramid') {
-      ctx.fillStyle = SKY;
-      for (let i = 0; i < o.w; i++) {
-        const yy = o.h * (1 - Math.abs(i - o.w / 2) / (o.w / 2));
-        ctx.fillRect(o.x + i, base - yy, 1, yy);
-      }
-      ctx.fillStyle = '#b4b1ac'; // angedeutete Kante
-      ctx.fillRect(cx, base - o.h, 1, o.h);
-      return;
-    }
+  // Dreiecks-Berg als EIN deckendes Polygon (kein Spalten-Antialiasing -> kein Flackern)
+  function tri(x0, x1, h, base, color) {
+    ctx.fillStyle = color; ctx.beginPath();
+    ctx.moveTo(Math.round(x0), base);
+    ctx.lineTo(Math.round((x0 + x1) / 2), Math.round(base - h));
+    ctx.lineTo(Math.round(x1), base); ctx.closePath(); ctx.fill();
+  }
+  function hill(o, base, color) {
+    ctx.fillStyle = color; ctx.beginPath();
+    ctx.moveTo(Math.round(o.x), base);
+    const peak = o.kind === 'dune' ? o.h * 0.65 : o.h;
+    for (let i = 0; i <= o.w; i += 2) ctx.lineTo(Math.round(o.x + i), Math.round(base - peak * Math.sin((i / o.w) * Math.PI)));
+    ctx.lineTo(Math.round(o.x + o.w), base); ctx.closePath(); ctx.fill();
+  }
+  function drawMount(o, base, far) {
+    const k = o.kind;
+    if (k === 'hill' || k === 'jhill' || k === 'dune') { hill(o, base, far ? FAR : NEAR); return; }
+    if (k === 'mountain') { tri(o.x, o.x + o.w, o.h, base, far ? FAR : NEAR); return; }
     if (k === 'snowmount') {
-      ctx.fillStyle = SKY;
-      for (let i = 0; i < o.w; i++) {
-        const yy = o.h * (1 - Math.abs(i - o.w / 2) / (o.w / 2));
-        ctx.fillRect(o.x + i, base - yy, 1, yy);
-      }
-      ctx.fillStyle = SNOW; // Schneekappe
-      for (let i = 0; i < o.w; i++) {
-        const d = Math.abs(i - o.w / 2) / (o.w / 2);
-        const yy = o.h * (1 - d);
-        if (yy > o.h * 0.62) ctx.fillRect(o.x + i, base - yy, 1, yy - o.h * 0.62);
-      }
-      return;
+      tri(o.x, o.x + o.w, o.h, base, FAR);
+      const cx = o.x + o.w / 2, capH = o.h * 0.4, hw = (capH / o.h) * (o.w / 2);
+      ctx.fillStyle = SNOW; ctx.beginPath();
+      ctx.moveTo(Math.round(cx), Math.round(base - o.h));
+      ctx.lineTo(Math.round(cx - hw), Math.round(base - o.h + capH));
+      ctx.lineTo(Math.round(cx + hw), Math.round(base - o.h + capH));
+      ctx.closePath(); ctx.fill(); return;
     }
-    // mountain / volcano / erupt
-    ctx.fillStyle = SKY;
-    for (let i = 0; i < o.w; i++) {
-      const d = Math.abs(i - o.w / 2) / (o.w / 2);
-      let yy = o.h * (1 - d);
-      if ((k === 'volcano' || k === 'erupt') && Math.abs(i - o.w / 2) < o.w * 0.12) yy = o.h * 0.7;
-      ctx.fillRect(o.x + i, base - yy, 1, yy);
+    if (k === 'pyramid') { // Highlight Wüste
+      tri(o.x, o.x + o.w, o.h, base, SAND);
+      ctx.fillStyle = '#b8a274';
+      R(o.x + o.w / 2, base - o.h, 1, o.h); return;
     }
-    if (k === 'volcano') { // rauchend
-      ctx.fillStyle = '#d98c3c';
-      ctx.fillRect(cx - o.w * 0.1, base - o.h * 0.72, o.w * 0.2, 2);
-      ctx.fillStyle = SKY;
-      ctx.fillRect(cx - 1, base - o.h - 4, 2, 2); ctx.fillRect(cx + 1, base - o.h - 7, 2, 2);
-    } else if (k === 'erupt') { // ausbrechend: Lava-Fontäne + Funken
-      ctx.fillStyle = '#E45826';
-      ctx.fillRect(cx - o.w * 0.12, base - o.h * 0.72, o.w * 0.24, 3);
-      ctx.fillRect(cx - 1, base - o.h - 8, 2, 8);
-      ctx.fillStyle = '#FFB75D';
-      ctx.fillRect(cx - 4, base - o.h - 6, 1, 1); ctx.fillRect(cx + 4, base - o.h - 9, 1, 1);
-      ctx.fillRect(cx - 6, base - o.h - 3, 1, 1); ctx.fillRect(cx + 5, base - o.h - 4, 1, 1);
+    if (k === 'maya') { // Highlight Dschungel: Stufenpyramide
+      const tiers = 4, hh = Math.max(2, Math.round(o.h / (tiers + 1)));
+      for (let t = 0; t < tiers; t++) {
+        const ww = Math.round(o.w * (1 - t * 0.18)), x = Math.round(o.x + (o.w - ww) / 2);
+        ctx.fillStyle = t % 2 ? STONE : STONE2;
+        R(x, base - hh * (t + 1), ww, hh);
+      }
+      const tw = Math.round(o.w * 0.22);
+      ctx.fillStyle = STONE; R(o.x + (o.w - tw) / 2, base - hh * (tiers + 1), tw, hh);
+      ctx.fillStyle = '#7d8288'; R(o.x + o.w / 2 - 1, base - hh * tiers, 2, hh * tiers); return;
+    }
+    if (k === 'volcano') { // Highlight Urzeit: rauchend (KEIN Ausbruch)
+      const x0 = Math.round(o.x), x1 = Math.round(o.x + o.w), top = Math.round(base - o.h);
+      const tl = Math.round(o.x + o.w * 0.38), tr = Math.round(o.x + o.w * 0.62);
+      ctx.fillStyle = FAR; ctx.beginPath();
+      ctx.moveTo(x0, base); ctx.lineTo(tl, top); ctx.lineTo(tr, top); ctx.lineTo(x1, base); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#9a9a9a'; R(tl, top, tr - tl, 2);
+      ctx.fillStyle = '#bdbdbd'; const cx = Math.round(o.x + o.w / 2);
+      R(cx - 1, top - 4, 2, 2); R(cx + 1, top - 8, 2, 2); R(cx - 2, top - 12, 2, 2);
     }
   }
   function drawUfo(u, groundY) {
-    const x = u.x, y = groundY - u.y - 14;
-    ctx.fillStyle = INK;
-    ctx.fillRect(x - 5, y + 2, 10, 2);   // Untertasse
-    ctx.fillRect(x - 3, y, 6, 2);        // Kuppel
+    const x = Math.round(u.x), y = groundY - u.y - 14;
+    ctx.fillStyle = INK; R(x - 5, y + 2, 10, 2); R(x - 3, y, 6, 2);
     ctx.fillStyle = INK2;
     const blink = (Math.sin(u.x * 0.3) > 0) ? 1 : 0;
-    ctx.fillRect(x - 4 + blink * 7, y + 2, 1, 1); // blinkende Lichter
-    ctx.fillRect(x + 3 - blink * 7, y + 2, 1, 1);
+    R(x - 4 + blink * 7, y + 2, 1, 1); R(x + 3 - blink * 7, y + 2, 1, 1);
+  }
+  // Boden: leicht variierende Linie (kleine Hügelchen) + Dreck/Specks im Vordergrund
+  function groundBump(wx) {
+    let y = 0; const P = 46;
+    for (let k = Math.floor((wx - 14) / P); k <= Math.floor((wx + 14) / P); k++) {
+      const c = k * P + Math.round(rnd(k) * 26 - 13), hw = 6 + Math.floor(rnd(k + 7) * 6), hh = 1 + Math.floor(rnd(k + 3) * 2);
+      const d = Math.abs(wx - c);
+      if (d < hw) { const yy = Math.round((1 - d / hw) * hh); if (yy > y) y = yy; }
+    }
+    return y;
+  }
+  function drawGround(w, base) {
+    ctx.fillStyle = INK;
+    for (let x = 0; x < w; x++) { const wx = Math.floor(x + gx); ctx.fillRect(x, base - groundBump(wx), 1, 1); }
+    ctx.fillStyle = INK2; // Dreck unter dem Weg (abgebrochener Vordergrund)
+    for (let x = 0; x < w; x++) { const wx = Math.floor(x + gx); if (rnd(wx * 0.5 + 5) > 0.94) ctx.fillRect(x, base + 2 + Math.floor(rnd(wx) * 4), 1, 1); }
+  }
+  function setBiome(idx) {
+    biomeIdx = (idx + BIOME_KEYS.length) % BIOME_KEYS.length;
+    biome = BIOME_KEYS[biomeIdx];
+    plants = []; farM = []; nearM = []; hiM = null; // sichtbar neu aufbauen
+    const w = cv.clientWidth || 300;
+    for (let i = 0; i < 3; i++) spawnPlant(Math.random() * w);
+    for (let i = 0; i < 2; i++) spawnFar(Math.random() * w);
+    for (let i = 0; i < 2; i++) spawnNear(Math.random() * w);
+    spawnHi(w * 0.5 + Math.random() * w * 0.4);
+    const lbl = document.getElementById('dinoBiome'); if (lbl) lbl.textContent = BIOMES[biome].name;
   }
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
     if (document.hidden) { lastTs = ts; return; }
     const w = cv.clientWidth || 200;
     if (cv.width !== w) cv.width = w;
-    const h = cv.height, groundY = h - 5;
+    const h = cv.height, groundY = h - 6;
     const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts;
     if (running) {
-      if (ts > nextBiome) { // Biom alle 1–2 Minuten wechseln
-        if (nextBiome) { let b; do { b = pick(BIOME_KEYS); } while (b === biome); biome = b; }
-        nextBiome = ts + 60000 + Math.random() * 60000;
-      }
-      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 7000 + Math.random() * 11000; }
-      if (ts > nextScenery) { spawnScenery(w + 10); nextScenery = ts + 3500 + Math.random() * 5500; }
+      gx += 16 * dt;
+      if (ts > nextBiome) { if (nextBiome) setBiome(biomeIdx + 1); nextBiome = ts + 75000 + Math.random() * 45000; }
+      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
+      if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 3000 + Math.random() * 4500; }
       if (ts > nextCloud) { spawnCloud(w + 10); nextCloud = ts + 7000 + Math.random() * 9000; }
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
-      if (ts > nextMount) { spawnMount(w + 20); nextMount = ts + 9000 + Math.random() * 13000; }
-      if (ts > nextUfo) { if (Math.random() < 0.5) spawnUfo(); nextUfo = ts + 45000 + Math.random() * 60000; } // selten, Easter Egg
-      mounts.forEach(m => m.x -= 3 * dt);   // Parallax: Berge langsam
-      scenery.forEach(o => o.x -= 12 * dt);
+      if (ts > nextFar) { spawnFar(w + 30); nextFar = ts + 11000 + Math.random() * 14000; }
+      if (ts > nextNear) { spawnNear(w + 20); nextNear = ts + 7000 + Math.random() * 10000; }
+      if (ts > nextHi) { spawnHi(w + 30); nextHi = ts + 6000; } // füllt nach, wenn keiner da
+      if (ts > nextUfo) { if (Math.random() < 0.5) spawnUfo(); nextUfo = ts + 45000 + Math.random() * 60000; }
+      farM.forEach(m => m.x -= 3 * dt);   // Hintergrund-Ebene: langsam
+      if (hiM) hiM.x -= 3 * dt;
+      nearM.forEach(m => m.x -= 6 * dt);  // Vordergrund-Ebene: schneller
+      plants.forEach(o => o.x -= 16 * dt);
       clouds.forEach(c => c.x -= 4 * dt);
       birds.forEach(b => { b.x -= 28 * dt; b.ft += dt; if (b.ft > 0.25) { b.ft = 0; b.frame = 1 - b.frame; } });
-      ufos.forEach(u => { u.x += u.speed * dt; });
+      ufos.forEach(u => u.x += u.speed * dt);
       animals.forEach(a => { a.x += a.speed * dt; a.ft += dt; if (a.ft > 0.22) { a.ft = 0; a.frame = 1 - a.frame; } });
-      mounts = mounts.filter(m => m.x + m.w > -10);
-      scenery = scenery.filter(o => o.x > -30);
+      farM = farM.filter(m => m.x + m.w > -10);
+      nearM = nearM.filter(m => m.x + m.w > -10);
+      if (hiM && hiM.x + hiM.w < -10) hiM = null;
+      plants = plants.filter(o => o.x > -40);
       clouds = clouds.filter(c => c.x > -40);
       birds = birds.filter(b => b.x > -20);
       ufos = ufos.filter(u => u.x < w + 40);
       animals = animals.filter(a => a.x < w + 60);
     }
     ctx.clearRect(0, 0, w, h);
-    mounts.forEach(m => drawMount(m, groundY)); // Hintergrund zuerst
+    farM.forEach(m => drawMount(m, groundY, true));      // Ebene 1: ferne Berge
+    if (hiM) drawMount(hiM, groundY, true);              // Highlight (eines)
+    nearM.forEach(m => drawMount(m, groundY, false));    // Ebene 2: Hügel/Dünen
     ctx.fillStyle = SKY;
-    clouds.forEach(c => { ctx.fillRect(c.x, c.y + 3, c.w, 2); ctx.fillRect(c.x + 4, c.y, c.w * 0.5, 3); });
+    clouds.forEach(c => { R(c.x, c.y + 3, c.w, 2); R(c.x + 4, c.y, c.w * 0.5, 3); });
     ufos.forEach(u => drawUfo(u, groundY));
     ctx.fillStyle = INK2;
-    birds.forEach(b => { // simpler Flügelschlag: ~ / v
-      ctx.fillRect(b.x, b.y + (b.frame ? 0 : 2), 3, 1); ctx.fillRect(b.x + 3, b.y + 1, 2, 1);
-      ctx.fillRect(b.x + 5, b.y + (b.frame ? 0 : 2), 3, 1);
-    });
-    ctx.fillStyle = INK; ctx.fillRect(0, groundY, w, 1);
-    scenery.forEach(o => drawScenery(o, groundY));
+    birds.forEach(b => { R(b.x, b.y + (b.frame ? 0 : 2), 3, 1); R(b.x + 3, b.y + 1, 2, 1); R(b.x + 5, b.y + (b.frame ? 0 : 2), 3, 1); });
+    drawGround(w, groundY);
+    plants.forEach(o => drawPlant(o, groundY));
     animals.forEach(a => drawAnimal(a, groundY));
   }
   return {
     start() {
       if (started) return;
       started = true; lastTs = performance.now();
-      nextSpawn = lastTs + 1200; nextScenery = lastTs + 500; nextCloud = lastTs + 800;
-      nextBird = lastTs + 6000; nextMount = lastTs + 400; nextUfo = lastTs + 40000;
-      nextBiome = lastTs + 60000 + Math.random() * 60000;
-      biome = pick(BIOME_KEYS);
-      const w = cv.clientWidth || 300;
-      for (let i = 0; i < 3; i++) spawnScenery(Math.random() * w);
-      for (let i = 0; i < 2; i++) spawnMount(Math.random() * w);
-      spawnCloud(30 + Math.random() * w * 0.6);
+      nextSpawn = lastTs + 800; nextPlant = lastTs + 400; nextCloud = lastTs + 800;
+      nextBird = lastTs + 6000; nextFar = lastTs + 3000; nextNear = lastTs + 1500; nextUfo = lastTs + 40000; nextHi = lastTs + 2000;
+      nextBiome = lastTs + 75000 + Math.random() * 45000;
+      setBiome((Math.random() * BIOME_KEYS.length) | 0);
+      spawnCloud(30 + Math.random() * 200);
       rafId = requestAnimationFrame(frame);
     },
     stop() { started = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; },
     resume() { running = true; spawnAnimal(true); },
     pause() { running = false; },
+    next() { setBiome(biomeIdx + 1); },
     running: () => running,
   };
 })();
@@ -2427,6 +2477,7 @@ function applyGimmick() {
 let dinoHidden = false;
 document.getElementById('dinoStart').onclick = () => { if (dinoHidden) toggleDinoEye(); DINO.resume(); };
 document.getElementById('dinoPause').onclick = () => DINO.pause();
+document.getElementById('dinoNext').onclick = () => DINO.next();
 function toggleDinoEye() {
   dinoHidden = !dinoHidden;
   document.getElementById('dinoCv').style.visibility = dinoHidden ? 'hidden' : 'visible';
@@ -2632,16 +2683,41 @@ function makeStickyEl(note) {
   const el = document.createElement('div');
   el.className = 'sticky'; el.dataset.id = note.id;
   el.style.left = note.x + 'px'; el.style.top = note.y + 'px';
+  if (note.w) el.style.width = note.w + 'px';
+  if (note.h) el.style.height = note.h + 'px';
   el.innerHTML =
     '<div class="sticky-head"><span class="grip">⠿ Notiz</span><button title="Verwerfen">✕</button></div>' +
-    '<textarea placeholder="Schnellnotiz…"></textarea>' +
-    '<div class="sticky-foot">in ein „+“ ziehen → Ticket · an den Rand → weg</div>';
+    '<textarea placeholder="Schnellnotiz…"></textarea>';
   const ta = el.querySelector('textarea'); ta.value = note.text || '';
   ta.addEventListener('input', () => { note.text = ta.value; persistNotes(); });
   el.querySelector('button').onclick = () => removeNote(note.id);
   el.querySelector('.sticky-head').addEventListener('mousedown', e => startDragNote(e, el, note));
+  // Rechtsklick: leer -> sofort weg; mit Inhalt -> Dialog (Verwerfen/Behalten/Abbrechen)
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (!(note.text || '').trim()) { removeNote(note.id); return; }
+    stickyDlgNote = note.id;
+    document.getElementById('stickyDlg').classList.add('open');
+  });
+  // Größe beibehalten, wie der Nutzer sie eingestellt hat
+  if (window.ResizeObserver) {
+    let firstRO = true;
+    new ResizeObserver(() => {
+      if (firstRO) { firstRO = false; return; } // initiale Messung ignorieren
+      note.w = el.offsetWidth; note.h = el.offsetHeight; persistNotes();
+    }).observe(el);
+  }
   document.body.appendChild(el);
 }
+let stickyDlgNote = null;
+document.getElementById('stickyDiscard').onclick = () => {
+  document.getElementById('stickyDlg').classList.remove('open');
+  if (stickyDlgNote) removeNote(stickyDlgNote);
+  stickyDlgNote = null;
+};
+document.getElementById('stickyCancel').onclick = document.getElementById('stickyKeep').onclick = () => {
+  document.getElementById('stickyDlg').classList.remove('open'); stickyDlgNote = null;
+};
 function addNote(x, y) {
   ensureNotes();
   const note = { id: uid(),
@@ -2665,16 +2741,26 @@ function columnAddUnder(x, y) {
   }
   return null;
 }
+function clearNoteTarget(t) { if (t) t.classList.remove('note-target'); }
 function startDragNote(e, el, note) {
+  if (e.button !== 0) return; // nur linke Maustaste zieht (Rechtsklick = Dialog)
   e.preventDefault();
   const r = el.getBoundingClientRect();
   const ox = e.clientX - r.left, oy = e.clientY - r.top;
   el.querySelector('.sticky-head').style.cursor = 'grabbing';
   el.style.pointerEvents = 'none'; // damit elementFromPoint die Spalte darunter sieht
+  let target = null;
   function move(ev) {
     el.style.left = (ev.clientX - ox) + 'px';
     el.style.top = (ev.clientY - oy) + 'px';
-    el.classList.toggle('drag-over-col', !!columnAddUnder(ev.clientX, ev.clientY));
+    clearNoteTarget(target); target = null;
+    if (columnAddUnder(ev.clientX, ev.clientY)) {
+      for (const node of document.elementsFromPoint(ev.clientX, ev.clientY)) {
+        const c = node.closest && node.closest('.col-add, .ghost-card');
+        if (c) { c.classList.add('note-target'); target = c; break; }
+      }
+      el.classList.add('drag-over-col');
+    } else el.classList.remove('drag-over-col');
   }
   function up(ev) {
     document.removeEventListener('mousemove', move);
@@ -2682,11 +2768,17 @@ function startDragNote(e, el, note) {
     el.querySelector('.sticky-head').style.cursor = 'grab';
     el.style.pointerEvents = '';
     el.classList.remove('drag-over-col');
+    clearNoteTarget(target);
     if (ev.clientX < 8 || ev.clientY < 8 || ev.clientX > innerWidth - 8 || ev.clientY > innerHeight - 8) {
       removeNote(note.id); return; // an den Rand gezogen = verwerfen
     }
     const status = columnAddUnder(ev.clientX, ev.clientY);
-    if (status) { const txt = note.text; removeNote(note.id); openModal(null, status, txt); return; }
+    if (status) {
+      // Notiz bleibt erhalten, bis das Ticket wirklich gespeichert ist
+      pendingNoteId = note.id; el.style.display = 'none';
+      openModal(null, status, note.text);
+      return;
+    }
     note.x = parseInt(el.style.left) || note.x;
     note.y = parseInt(el.style.top) || note.y;
     save();
@@ -2694,10 +2786,10 @@ function startDragNote(e, el, note) {
   document.addEventListener('mousemove', move);
   document.addEventListener('mouseup', up);
 }
-// Aufziehen eines Rechtecks auf leerer Board-Fläche erzeugt eine Notiz
-document.getElementById('kanban').addEventListener('mousedown', e => {
+// Aufziehen eines Rechtecks irgendwo auf der UI erzeugt eine Notiz
+document.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
-  if (e.target.closest('.card, button, a, select, input, textarea, .col-add, .ghost-card, .card-menu-pop, .sticky')) return;
+  if (e.target.closest('.card, button, a, select, input, textarea, .col-add, .ghost-card, .card-menu-pop, .sticky, .overlay, header, #astro, #dinoWrap, .list-wrap, .toolbar, label, .rt-toolbar')) return;
   const sx = e.clientX, sy = e.clientY;
   const sel = document.getElementById('noteSel');
   sel.style.display = 'block'; sel.style.left = sx + 'px'; sel.style.top = sy + 'px';
