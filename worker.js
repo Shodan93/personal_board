@@ -118,20 +118,28 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
 
     const path = new URL(request.url).pathname;
-    let users = {};
-    try { users = JSON.parse(env.USER_KEYS || '{}'); } catch (e) {}
+    let users = {}, usersErr = null;
+    try {
+      const parsed = JSON.parse(env.USER_KEYS || '{}');
+      for (const [k, v] of Object.entries(parsed)) users[String(k).trim()] = String(v).trim().toLowerCase();
+    } catch (e) { usersErr = 'USER_KEYS ist kein gültiges JSON — Secret in den Worker-Settings prüfen.'; }
     const profileFor = u => ({ user: u, ...(PROFILES[u] || PROFILES._default) });
+
+    // Schneller Funktionscheck im Browser: /version aufrufen
+    if (path.endsWith('/version')) return json({ version: 5, usersConfigured: Object.keys(users).length, usersError: usersErr });
 
     // Login: Schlüssel im Body, Profil zurück
     if (path.endsWith('/login') && request.method === 'POST') {
+      if (usersErr) return json({ error: usersErr }, 500);
+      if (!Object.keys(users).length) return json({ error: 'USER_KEYS ist leer — Secret in den Worker-Settings anlegen.' }, 500);
       const { key } = await request.json().catch(() => ({}));
-      const user = users[key];
+      const user = users[String(key || '').trim()];
       if (!user) return json({ error: 'Ungültiger Schlüssel' }, 401);
       return json(profileFor(user));
     }
 
     // Alle anderen Endpunkte: Schlüssel im Header
-    const user = users[request.headers.get('X-Board-Key')];
+    const user = users[String(request.headers.get('X-Board-Key') || '').trim()];
     if (!user) return json({ error: 'Nicht angemeldet' }, 401);
     const profile = profileFor(user);
     const needsKV = path.endsWith('/data') || path.endsWith('/usage') || /\/file\//.test(path);

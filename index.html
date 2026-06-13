@@ -157,6 +157,28 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 #dinoWrap button:hover{color:var(--blue)}
 #dinoCv{flex:1; width:100%; height:34px}
 
+/* Astronaut */
+#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:56px; cursor:pointer; display:none;
+  animation:astroFloat 4s ease-in-out infinite}
+@keyframes astroFloat{0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)}}
+#astroCv{display:block; filter:drop-shadow(0 3px 5px rgba(0,0,0,.25))}
+#astroBubble{position:absolute; bottom:70px; right:0; width:230px; max-width:62vw;
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
+  animation:astroPop .2s ease}
+#astroBubble::after{content:''; position:absolute; bottom:-7px; right:18px; width:12px; height:12px;
+  background:var(--card); border-right:1px solid var(--border); border-bottom:1px solid var(--border);
+  transform:rotate(45deg)}
+@keyframes astroPop{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
+#astroGear{position:absolute; top:-4px; right:-6px; width:20px; height:20px; border-radius:50%;
+  border:1px solid var(--border); background:var(--card); font-size:11px; line-height:1; padding:0;
+  opacity:0; transition:opacity .15s}
+#astro:hover #astroGear{opacity:1}
+#astroMenu{position:absolute; bottom:70px; right:0; background:var(--card); border:1px solid var(--border);
+  border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px; display:grid; gap:8px; width:210px; font-size:12px}
+#astroMenu label{display:flex; align-items:center; gap:6px}
+#astroMenu .btn{padding:5px 8px; font-size:12px}
+
 /* Kategorie-Dropdown mit Farbkreis-Vorschau */
 .csel{position:relative}
 .csel-btn{
@@ -355,16 +377,17 @@ tr.row.done-final td{opacity:.4}
 <header>
   <h1>Control Panel</h1>
   <span class="header-meta" id="todayDate"></span>
-  <span class="header-meta" id="syncDot" title="Cloud-Status"></span>
+  <button class="header-meta" id="syncDot" title="Cloud-Status / Anmelden"
+    style="border:none;background:none;cursor:pointer;padding:0"></button>
   <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: auf diese Woche filtern">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
-  <div id="dinoWrap" hidden>
+  <div id="dinoWrap">
     <button id="dinoStart" title="Neues Tier losschicken">▶</button>
     <button id="dinoPause" title="Pause">⏸</button>
+    <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
     <canvas id="dinoCv" height="34"></canvas>
   </div>
-  <span class="spacer"></span>
   <div id="globalCat" title="Nach Kategorie filtern"></div>
   <button class="btn" id="btnFocus" title="Claude fragen: Worum soll ich mich jetzt kümmern?">🚀 Fokus</button>
   <button class="btn" id="btnReport" title="Claude: Was habe ich erledigt? (nur Status „Erledigt JF“)">📋 JF-Report</button>
@@ -630,6 +653,17 @@ tr.row.done-final td{opacity:.4}
   </div>
 </div>
 
+<!-- Astronaut mit Office-Tipps -->
+<div id="astro" title="Klick mich für einen Tipp!">
+  <div id="astroBubble" hidden><span id="astroText"></span></div>
+  <canvas id="astroCv" width="56" height="64"></canvas>
+  <button id="astroGear" title="Astronaut-Einstellungen">⚙</button>
+  <div id="astroMenu" hidden>
+    <label><input type="checkbox" id="astroAuto"> Tipps von selbst zeigen</label>
+    <button class="btn" id="astroHide">Astronaut ausblenden</button>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox"><img id="lightboxImg" alt="Anhang"></div>
 
 <script>
@@ -661,7 +695,7 @@ let globalCat = '';                          // Globaler Kategorie-Filter (Heade
 function defaultSettings() {
   return { defaultView: 'kanban', kanbanSort: 'deadline', hideDoneAfter: 14,
            remindDays: 7, compact: false, modalWide: false, lastExport: todayStr(),
-           dino: true, tips: true, collapsed: {} };
+           dino: true, tips: true, tipsAuto: true, collapsed: {} };
 }
 
 /* ============================================================
@@ -1706,9 +1740,21 @@ function cloudFetch(p, opts) {
 }
 function setSync(ok) {
   const el = document.getElementById('syncDot');
+  if (!auth || auth.user === 'local') { // lokaler Modus: Klick öffnet den Login
+    el.textContent = '🔑 Anmelden';
+    el.style.color = 'var(--blue)';
+    return;
+  }
   el.textContent = ok ? '☁ synchron' : '⚠ offline';
   el.style.color = ok ? 'var(--green)' : 'var(--red)';
 }
+document.getElementById('syncDot').onclick = () => {
+  if (!auth || auth.user === 'local') {
+    document.getElementById('loginErr').hidden = true;
+    document.getElementById('loginOverlay').classList.add('open');
+    document.getElementById('loginKey').focus();
+  }
+};
 let cloudTimer = null;
 function scheduleCloudSave() {
   if (!auth || auth.user === 'local' || !CLAUDE_WORKER_URL) return;
@@ -1804,7 +1850,11 @@ document.getElementById('btnLogin').onclick = async () => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key })
     });
-    if (!res.ok) { err.textContent = 'Schlüssel ungültig.'; err.hidden = false; return; }
+    if (!res.ok) {
+      let msg = 'Schlüssel ungültig.';
+      try { msg = (await res.json()).error || msg; } catch (e2) {}
+      err.textContent = msg; err.hidden = false; return;
+    }
     const profile = await res.json();
     auth = { key, user: profile.user, profile };
     localStorage.setItem(LS_AUTH, JSON.stringify(auth));
@@ -1815,6 +1865,7 @@ document.getElementById('loginKey').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btnLogin').click();
 });
 document.getElementById('btnLoginOffline').onclick = () => {
+  if (auth) { document.getElementById('loginOverlay').classList.remove('open'); return; } // App läuft schon
   auth = { key: '', user: 'local', profile: OFFLINE_PROFILE };
   localStorage.setItem(LS_AUTH, JSON.stringify(auth));
   startApp();
@@ -1970,20 +2021,44 @@ function celebrate() {
   add(cv.width, cv.height, -Math.PI + Math.PI / 3, 0.8, 22, 170); // Kanone rechts unten (größer)
   add(cv.width / 2, cv.height * 0.25, 0, Math.PI * 2, 11, 140);   // Burst Mitte (größer)
 
-  // Rakete: wirrer Flug von unten links nach oben rechts — jedes Mal leicht anders
+  // Rakete: wirrer Flug von unten links nach oben rechts — jedes Mal anderer Modus
+  const MODES = ['wobble', 'loop', 'zigzag', 'spiral'];
   const R = {
-    t: 0, dur: 2.5,
-    k: 1.3 + Math.random() * 1.4,            // Anzahl/Frequenz der Schleifen
-    ax: 60 + Math.random() * 130,            // Wackel-Amplituden
+    t: 0, dur: 2.3 + Math.random() * 0.5,
+    mode: MODES[(Math.random() * MODES.length) | 0],
+    loops: 1 + (Math.random() < 0.5 ? 0 : 1),  // 1 oder 2 Kreise
+    k: 1.3 + Math.random() * 1.4,
+    ax: 60 + Math.random() * 130,
     ay: 50 + Math.random() * 110,
     ph: Math.random() * Math.PI * 2,
+    dir: Math.random() < 0.5 ? 1 : -1,
   };
   const rocketPos = t => {
-    const bx = -60 + (cv.width + 180) * t;
-    const by = cv.height + 60 - (cv.height + 200) * t;
+    const W = cv.width, H = cv.height;
+    let bx = -60 + (W + 180) * t;
+    let by = H + 60 - (H + 200) * t;
+    if (R.mode === 'loop') {
+      // ein bis zwei saubere Loopings im mittleren Flugdrittel
+      const lr = 34 + Math.random() * 0; // Radius
+      const win = (t > 0.3 && t < 0.7) ? (t - 0.3) / 0.4 : -1;
+      if (win >= 0) {
+        const a = win * Math.PI * 2 * R.loops * R.dir;
+        bx += lr * Math.sin(a); by += lr * (Math.cos(a) - 1);
+      }
+      return [bx + 18 * Math.sin(6 * t), by];
+    }
+    if (R.mode === 'zigzag') {
+      return [bx, by + R.ay * 0.8 * Math.sin(2 * Math.PI * 3 * t + R.ph) * R.dir];
+    }
+    if (R.mode === 'spiral') {
+      const rad = (1 - t) * R.ay;
+      const a = 2 * Math.PI * (1.5 + R.loops) * t * R.dir;
+      return [bx + rad * Math.cos(a), by + rad * 0.6 * Math.sin(a)];
+    }
+    // wobble (Default): weiches Wackeln + eingebaute Schleifen
     return [
       bx + R.ax * Math.sin(2 * Math.PI * R.k * t + R.ph),
-      by + R.ay * Math.cos(2 * Math.PI * R.k * 1.3 * t + R.ph),
+      by + R.ay * Math.cos(2 * Math.PI * R.k * 1.3 * t + R.ph) * R.dir,
     ];
   };
   function drawRocket(x, y, ang) {
@@ -2089,23 +2164,30 @@ const DINO = (() => {
     ['.....#.#', '.....###', '.....##.', '..####..', '.#####..', '..a.b...', '.a...b..'],                                                                        // Hase
     ['.....####', '#..######', '.########', '..######.', '..a#.#b..', '..a..#b..'],                                                                              // Wildschwein
     ['...####..#', '..#######.', '.########.', '.a#....#b.'],                                                                                                    // Schildkröte
-    ['..###...', '.#####.#', '.#####.#', '.######.', '########'],                                                                                                // Schnecke
+    ['......#.#', '......##.', '......##.', '..#####..', '..####...', '..a#.#b..', '..a...b..'],                                                                 // Reh
     ['......##', '......##', '......#.', '...####.', '..#####.', '....#...', '...a.b..', '...a.b..'],                                                            // Strauß
   ];
   const VARIANTS = [];
   SPRITES.forEach(sp => [2, 3].forEach(px => [INK, INK2].forEach(c => VARIANTS.push({ sp, px, c }))));
 
   let running = true, started = false, rafId = null, lastTs = 0;
-  let animals = [], scenery = [], clouds = [], birds = [];
-  let nextSpawn = 0, nextScenery = 0, nextCloud = 0, nextBird = 0;
+  let animals = [], scenery = [], clouds = [], birds = [], mounts = [], ufos = [];
+  let nextSpawn = 0, nextScenery = 0, nextCloud = 0, nextBird = 0, nextMount = 0, nextUfo = 0;
 
-  function spawnAnimal() {
+  function spawnAnimal(force) {
+    if (!force && animals.length >= 3) return; // nicht zu viele auf einmal
     const v = VARIANTS[(Math.random() * VARIANTS.length) | 0];
     animals.push({ v, x: -40, speed: 14 + Math.random() * 22, ft: 0, frame: 0 });
   }
-  const spawnScenery = x => scenery.push({ type: (Math.random() * 3) | 0, x, s: 1 + Math.random() });
+  const spawnScenery = x => scenery.push({ type: (Math.random() * 7) | 0, x, s: 1 + Math.random() });
   const spawnCloud = x => clouds.push({ x, y: 2 + Math.random() * 8, w: 16 + Math.random() * 16 });
   const spawnBird = x => birds.push({ x, y: 4 + Math.random() * 8, ft: 0, frame: 0 });
+  const spawnMount = x => {
+    const r = Math.random();
+    mounts.push({ x, w: 34 + Math.random() * 56, h: 10 + Math.random() * 15,
+      type: r < 0.15 ? 'volcano' : (r < 0.55 ? 'mountain' : 'hill') });
+  };
+  const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42, ph: Math.random() * 6 });
 
   function drawAnimal(a, groundY) {
     const rows = a.v.sp, p = a.v.px, top = groundY - rows.length * p;
@@ -2119,14 +2201,65 @@ const DINO = (() => {
   function drawScenery(o, groundY) {
     ctx.fillStyle = INK2;
     const s = o.s;
+    const r = (gx, gy, w, h) => ctx.fillRect(o.x + gx, groundY - gy, w, h);
     if (o.type === 0) { // Kaktus
-      ctx.fillRect(o.x, groundY - 8 * s, 2 * s, 8 * s);
-      ctx.fillRect(o.x - 2 * s, groundY - 6 * s, 2 * s, 2 * s);
-      ctx.fillRect(o.x + 2 * s, groundY - 5 * s, 2 * s, 2 * s);
+      r(0, 8 * s, 2 * s, 8 * s);
+      r(-2 * s, 6 * s, 2 * s, 2 * s); r(-2 * s, 6 * s, 1.5 * s, 4 * s);
+      r(2 * s, 5 * s, 2 * s, 2 * s); r(3.5 * s, 5 * s, 1.5 * s, 3 * s);
     } else if (o.type === 1) { // Busch
-      ctx.fillRect(o.x, groundY - 3 * s, 6 * s, 3 * s);
-      ctx.fillRect(o.x + s, groundY - 4 * s, 3 * s, s);
-    } else ctx.fillRect(o.x, groundY - 2, 4, 2); // Stein
+      r(0, 3 * s, 6 * s, 3 * s); r(s, 4 * s, 3 * s, s); r(2 * s, 5 * s, s, s);
+    } else if (o.type === 2) { // Stein
+      r(0, 2, 4, 2); r(1, 4, 2, 2);
+    } else if (o.type === 3) { // Laubbaum: Stamm + runde Krone (kein Kreuz!)
+      r(2 * s, 5 * s, 1.5 * s, 5 * s);
+      ctx.fillRect(o.x, groundY - 11 * s, 6 * s, 5 * s);
+      ctx.fillRect(o.x + s, groundY - 12 * s, 4 * s, s);
+      ctx.fillRect(o.x - 0.5 * s, groundY - 9 * s, s, 2 * s);
+      ctx.fillRect(o.x + 5.5 * s, groundY - 9 * s, s, 2 * s);
+    } else if (o.type === 4) { // Nadelbaum: Tannen-Dreieck (kein Kreuz!)
+      r(2.5 * s, 4 * s, 1.5 * s, 4 * s);
+      for (let i = 0; i < 3; i++) {
+        const wdt = (6 - i * 1.2) * s, gy = (10 - i * 2.2) * s;
+        ctx.fillRect(o.x + (6 * s - wdt) / 2, groundY - gy, wdt, 2 * s);
+      }
+    } else if (o.type === 5) { // Grasbüschel
+      r(0, 3 * s, s, 3 * s); r(1.5 * s, 4 * s, s, 4 * s); r(3 * s, 3 * s, s, 3 * s);
+    } else { // kleiner Kaktus
+      r(0, 5 * s, 1.5 * s, 5 * s); r(-1.5 * s, 4 * s, 1.5 * s, 1.5 * s);
+    }
+  }
+  function drawMount(o, groundY) {
+    ctx.fillStyle = SKY;
+    const cx = o.x + o.w / 2, base = groundY;
+    if (o.type === 'hill') {
+      for (let i = 0; i < o.w; i++) {
+        const yy = o.h * Math.sin((i / o.w) * Math.PI);
+        ctx.fillRect(o.x + i, base - yy, 1, yy);
+      }
+    } else { // mountain / volcano: Dreieck
+      for (let i = 0; i < o.w; i++) {
+        const d = Math.abs(i - o.w / 2) / (o.w / 2);
+        let yy = o.h * (1 - d);
+        if (o.type === 'volcano' && Math.abs(i - o.w / 2) < o.w * 0.12) yy = o.h * 0.7; // Krater
+        ctx.fillRect(o.x + i, base - yy, 1, yy);
+      }
+      if (o.type === 'volcano') { // Lava + Rauch
+        ctx.fillStyle = '#d98c3c';
+        ctx.fillRect(cx - o.w * 0.1, base - o.h * 0.72, o.w * 0.2, 2);
+        ctx.fillStyle = SKY;
+        ctx.fillRect(cx - 1, base - o.h - 4, 2, 2); ctx.fillRect(cx + 1, base - o.h - 7, 2, 2);
+      }
+    }
+  }
+  function drawUfo(u, groundY) {
+    const x = u.x, y = groundY - u.y - 14;
+    ctx.fillStyle = INK;
+    ctx.fillRect(x - 5, y + 2, 10, 2);   // Untertasse
+    ctx.fillRect(x - 3, y, 6, 2);        // Kuppel
+    ctx.fillStyle = INK2;
+    const blink = (Math.sin(u.x * 0.3) > 0) ? 1 : 0;
+    ctx.fillRect(x - 4 + blink * 7, y + 2, 1, 1); // blinkende Lichter
+    ctx.fillRect(x + 3 - blink * 7, y + 2, 1, 1);
   }
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
@@ -2136,22 +2269,30 @@ const DINO = (() => {
     const h = cv.height, groundY = h - 5;
     const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts;
     if (running) {
-      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 5000 + Math.random() * 10000; }
-      if (ts > nextScenery) { spawnScenery(w + 10); nextScenery = ts + 2500 + Math.random() * 4500; }
+      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 7000 + Math.random() * 11000; }
+      if (ts > nextScenery) { spawnScenery(w + 10); nextScenery = ts + 3500 + Math.random() * 5500; }
       if (ts > nextCloud) { spawnCloud(w + 10); nextCloud = ts + 7000 + Math.random() * 9000; }
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
+      if (ts > nextMount) { spawnMount(w + 20); nextMount = ts + 9000 + Math.random() * 13000; }
+      if (ts > nextUfo) { if (Math.random() < 0.5) spawnUfo(); nextUfo = ts + 45000 + Math.random() * 60000; } // selten, Easter Egg
+      mounts.forEach(m => m.x -= 3 * dt);   // Parallax: Berge langsam
       scenery.forEach(o => o.x -= 12 * dt);
       clouds.forEach(c => c.x -= 4 * dt);
       birds.forEach(b => { b.x -= 28 * dt; b.ft += dt; if (b.ft > 0.25) { b.ft = 0; b.frame = 1 - b.frame; } });
+      ufos.forEach(u => { u.x += u.speed * dt; });
       animals.forEach(a => { a.x += a.speed * dt; a.ft += dt; if (a.ft > 0.22) { a.ft = 0; a.frame = 1 - a.frame; } });
+      mounts = mounts.filter(m => m.x + m.w > -10);
       scenery = scenery.filter(o => o.x > -30);
       clouds = clouds.filter(c => c.x > -40);
       birds = birds.filter(b => b.x > -20);
+      ufos = ufos.filter(u => u.x < w + 40);
       animals = animals.filter(a => a.x < w + 60);
     }
     ctx.clearRect(0, 0, w, h);
+    mounts.forEach(m => drawMount(m, groundY)); // Hintergrund zuerst
     ctx.fillStyle = SKY;
     clouds.forEach(c => { ctx.fillRect(c.x, c.y + 3, c.w, 2); ctx.fillRect(c.x + 4, c.y, c.w * 0.5, 3); });
+    ufos.forEach(u => drawUfo(u, groundY));
     ctx.fillStyle = INK2;
     birds.forEach(b => { // simpler Flügelschlag: ~ / v
       ctx.fillRect(b.x, b.y + (b.frame ? 0 : 2), 3, 1); ctx.fillRect(b.x + 3, b.y + 1, 2, 1);
@@ -2165,15 +2306,18 @@ const DINO = (() => {
     start() {
       if (started) return;
       started = true; lastTs = performance.now();
-      nextSpawn = lastTs + 1200; nextScenery = lastTs + 500; nextCloud = lastTs + 800; nextBird = lastTs + 6000;
+      nextSpawn = lastTs + 1200; nextScenery = lastTs + 500; nextCloud = lastTs + 800;
+      nextBird = lastTs + 6000; nextMount = lastTs + 400; nextUfo = lastTs + 40000;
       const w = cv.clientWidth || 300;
-      for (let i = 0; i < 4; i++) spawnScenery(Math.random() * w);
+      for (let i = 0; i < 3; i++) spawnScenery(Math.random() * w);
+      for (let i = 0; i < 2; i++) spawnMount(Math.random() * w);
       spawnCloud(30 + Math.random() * w * 0.6);
       rafId = requestAnimationFrame(frame);
     },
     stop() { started = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; },
-    resume() { running = true; spawnAnimal(); },
+    resume() { running = true; spawnAnimal(true); },
     pause() { running = false; },
+    running: () => running,
   };
 })();
 function applyGimmick() {
@@ -2181,8 +2325,16 @@ function applyGimmick() {
   document.getElementById('dinoWrap').hidden = !on;
   if (on) DINO.start(); else DINO.stop();
 }
-document.getElementById('dinoStart').onclick = () => DINO.resume();
+// Quick-Toggle (Auge): blendet nur die Animation aus, Buttons bleiben
+let dinoHidden = false;
+document.getElementById('dinoStart').onclick = () => { if (dinoHidden) toggleDinoEye(); DINO.resume(); };
 document.getElementById('dinoPause').onclick = () => DINO.pause();
+function toggleDinoEye() {
+  dinoHidden = !dinoHidden;
+  document.getElementById('dinoCv').style.visibility = dinoHidden ? 'hidden' : 'visible';
+  if (dinoHidden) DINO.pause(); else DINO.resume();
+}
+document.getElementById('dinoEye').onclick = toggleDinoEye;
 
 /* ============================================================
    OFFICE-TIPPS — Gesundheit, Haltung, Motivation, Humor
@@ -2290,28 +2442,82 @@ const TIPS = [
   'Heute schon bewusst gelächelt, gestreckt UND Wasser getrunken? Triple-Win!',
   'Und zum Schluss: Du machst das besser, als du denkst. Weiter so. 🚀',
 ];
-let tipPool = [], tipTimer = null;
-function showTip() {
-  if (state.settings.tips === false) return;
+let tipPool = [], tipTimer = null, bubbleTimer = null;
+
+/* Astronaut zeichnen (Pixel-Art, einfache Schwebe per CSS) */
+(function drawAstronaut() {
+  const ctx = document.getElementById('astroCv').getContext('2d');
+  const P = 4;
+  const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x * P, y * P, P, P); };
+  const W = '#ffffff', G = '#c7ccd6', D = '#9aa1b0', V = '#7fd4ff', O = '#E45826';
+  // 14x16-Raster: Helm, Visier, Körper, Arme, Beine, Lebenserhaltung
+  const map = [
+    '....DDDD....',
+    '...DWWWWD...',
+    '..DWWWWWWD..',
+    '..DWVVVVWD..',
+    '..DWVVVVWD..',
+    '..DWWWWWWD..',
+    '...DWWWWD...',
+    '..GGWWWWGG..',
+    '.GGGWWWWGGG.',
+    'GG.GWWWWG.GG',
+    'O..GWWWWG..O',
+    '...GWWWWG...',
+    '...GG..GG...',
+    '..GG....GG..',
+    '..DD....DD..',
+    '.DDD....DDD.',
+  ];
+  const col = { D, W, G, V, O };
+  map.forEach((row, y) => [...row].forEach((ch, x) => { if (col[ch]) px(x + 1, y, col[ch]); }));
+})();
+
+function nextTip() {
   if (!tipPool.length) tipPool = [...TIPS].sort(() => Math.random() - 0.5);
-  document.getElementById('tipText').textContent = tipPool.pop();
-  document.getElementById('tipBar').hidden = false;
+  return tipPool.pop();
+}
+function speakTip(text) {
+  const b = document.getElementById('astroBubble');
+  document.getElementById('astroMenu').hidden = true;
+  document.getElementById('astroText').textContent = text || nextTip();
+  b.hidden = false;
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => { b.hidden = true; }, 12000);
+}
+function scheduleAutoTip() {
   clearTimeout(tipTimer);
-  tipTimer = setTimeout(() => {
-    document.getElementById('tipBar').hidden = true;
-    tipTimer = setTimeout(showTip, 6 * 60 * 1000); // alle ~6 Minuten ein neuer
-  }, 45000); // 45 Sekunden sichtbar
+  if (state.settings.tips === false || state.settings.tipsAuto === false) return;
+  tipTimer = setTimeout(function run() {
+    if (state.settings.tips !== false && state.settings.tipsAuto !== false) speakTip();
+    tipTimer = setTimeout(run, 5 * 60 * 1000 + Math.random() * 4 * 60 * 1000); // alle 5–9 Min
+  }, 18000); // erster Tipp nach 18 Sekunden
 }
 function applyTips() {
-  clearTimeout(tipTimer);
-  if (state.settings.tips === false) { document.getElementById('tipBar').hidden = true; return; }
-  tipTimer = setTimeout(showTip, 20000); // erster Tipp nach 20 Sekunden
+  const on = state.settings.tips !== false;
+  document.getElementById('astro').style.display = on ? 'block' : 'none';
+  document.getElementById('astroAuto').checked = state.settings.tipsAuto !== false;
+  document.getElementById('tipBar').hidden = true; // alte Leiste deaktiviert
+  scheduleAutoTip();
 }
-document.getElementById('btnTipClose').onclick = () => {
-  document.getElementById('tipBar').hidden = true;
-  clearTimeout(tipTimer);
-  tipTimer = setTimeout(showTip, 6 * 60 * 1000);
+document.getElementById('astroCv').onclick = () => speakTip();
+document.getElementById('astroGear').onclick = e => {
+  e.stopPropagation();
+  document.getElementById('astroBubble').hidden = true;
+  const m = document.getElementById('astroMenu');
+  m.hidden = !m.hidden;
 };
+document.getElementById('astroAuto').onchange = e => {
+  state.settings.tipsAuto = e.target.checked; save(); scheduleAutoTip();
+};
+document.getElementById('astroHide').onclick = () => {
+  state.settings.tips = false; save();
+  document.getElementById('astroMenu').hidden = true;
+  document.getElementById('astro').style.display = 'none';
+  document.getElementById('setTips').checked = false;
+  toast('Astronaut ausgeblendet — in den Einstellungen wieder aktivierbar');
+};
+document.getElementById('btnTipClose').onclick = () => document.getElementById('tipBar').hidden = true;
 
 /* Init */
 idbOpen().then(db => { idb = db; }).catch(() => { idb = null; console.warn('IndexedDB nicht verfügbar — Anhänge deaktiviert.'); });
