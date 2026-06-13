@@ -179,23 +179,6 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 #astroMenu label{display:flex; align-items:center; gap:6px}
 #astroMenu .btn{padding:5px 8px; font-size:12px}
 
-/* Sticky Notes */
-#noteSel{position:fixed; border:2px dashed var(--yellow); background:rgba(255,183,93,.15);
-  z-index:95; pointer-events:none; display:none; border-radius:4px}
-.sticky{position:fixed; width:200px; height:180px; z-index:96;
-  background:#FFF7C4; border:1px solid #E8D98A; border-radius:3px;
-  box-shadow:0 5px 16px rgba(0,0,0,.22); display:flex; flex-direction:column;
-  transform:rotate(-1.2deg)}
-.sticky.drag-over-col{outline:3px solid var(--blue); outline-offset:2px}
-.sticky-head{height:22px; background:#FBE98A; cursor:grab; border-radius:3px 3px 0 0;
-  display:flex; align-items:center; justify-content:space-between; padding:0 4px 0 8px;
-  font-size:11px; color:#7a6a1f; user-select:none}
-.sticky-head .grip{letter-spacing:1px}
-.sticky-head button{border:none; background:none; font-size:13px; color:#7a6a1f; cursor:pointer; line-height:1}
-.sticky textarea{flex:1; border:none; background:transparent; resize:none; outline:none;
-  padding:8px; font-size:13px; font-family:inherit; color:#4a431a}
-.sticky-foot{font-size:10px; color:#a89a52; text-align:center; padding:0 0 4px; user-select:none}
-
 /* Kategorie-Dropdown mit Farbkreis-Vorschau */
 .csel{position:relative}
 .csel-btn{
@@ -662,17 +645,13 @@ tr.row.done-final td{opacity:.4}
       <input id="loginKey" type="password" placeholder="Zugangsschlüssel"
         style="width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-size:14px">
       <div id="loginErr" style="color:var(--red);font-size:12px" hidden></div>
-      <div id="loginDiag" style="font-size:11px;color:var(--text-weak)" hidden></div>
     </div>
     <div class="modal-foot">
       <button class="btn" id="btnLoginOffline" style="margin-right:auto" title="Nur auf diesem Gerät speichern">Ohne Cloud weiter</button>
-      <button class="btn" id="btnLoginTest" title="Worker-Verbindung prüfen">Verbindung testen</button>
       <button class="btn btn-primary" id="btnLogin">Anmelden</button>
     </div>
   </div>
 </div>
-
-<div id="noteSel"></div>
 
 <!-- Astronaut mit Office-Tipps -->
 <div id="astro" title="Klick mich für einen Tipp!">
@@ -1139,7 +1118,7 @@ function modalFingerprint() {
 }
 function isModalDirty() { return modalFingerprint() !== modalSnapshot; }
 
-function openModal(id, presetStatus, presetDesc) {
+function openModal(id, presetStatus) {
   editingId = id || null;
   const t = id ? state.tickets.find(x => x.id === id) : null;
   document.getElementById('modalTitle').textContent = t ? 'Ticket bearbeiten' : 'Neues Ticket';
@@ -1158,7 +1137,7 @@ function openModal(id, presetStatus, presetDesc) {
   renderAttachments();
   modalSnapshot = modalFingerprint();
   Promise.all([htmlWithSrcs(t ? t.desc : ''), htmlWithSrcs(t ? t.note : '')]).then(([d, n]) => {
-    document.getElementById('fDesc').innerHTML = presetDesc ? esc(presetDesc).replace(/\n/g, '<br>') : d;
+    document.getElementById('fDesc').innerHTML = d;
     document.getElementById('fNote').innerHTML = n;
     modalSnapshot = modalFingerprint(); // Basis erst nach dem (async) Befüllen setzen
   });
@@ -1806,7 +1785,7 @@ async function cloudLoad() {
       try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
       kanbanSortKey = state.settings.kanbanSort;
       document.getElementById('kanbanSort').value = kanbanSortKey;
-      refreshFilters(); render(); applyGimmick(); applyTips(); renderNotes();
+      refreshFilters(); render(); applyGimmick(); applyTips();
     } else if (state.tickets.length) scheduleCloudSave();
     setSync(true);
   } catch (e) {
@@ -1858,7 +1837,7 @@ function startApp() {
       (new Date(todayStr()) - new Date(state.settings.lastExport || todayStr())) / 86400000 >= state.settings.remindDays)
     document.getElementById('exportBanner').hidden = false;
   setView(state.settings.defaultView || 'kanban');
-  applyGimmick(); applyTips(); renderNotes();
+  applyGimmick(); applyTips();
   if (auth.user !== 'local') cloudLoad(); else setSync(false);
 }
 document.getElementById('btnLogin').onclick = async () => {
@@ -1885,22 +1864,6 @@ document.getElementById('btnLogin').onclick = async () => {
 document.getElementById('loginKey').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btnLogin').click();
 });
-document.getElementById('btnLoginTest').onclick = async () => {
-  const d = document.getElementById('loginDiag');
-  d.hidden = false; d.style.color = 'var(--text-weak)'; d.textContent = 'Teste…';
-  if (!CLAUDE_WORKER_URL) { d.textContent = '⚠ Keine Worker-URL im Code hinterlegt.'; return; }
-  try {
-    const res = await fetch(CLAUDE_WORKER_URL + '/version');
-    if (!res.ok) { d.style.color = 'var(--red)'; d.textContent = '⚠ Worker antwortet, aber /version fehlt — alte worker.js? Bitte die neue worker.js deployen.'; return; }
-    const v = await res.json();
-    if (v.usersError) { d.style.color = 'var(--red)'; d.textContent = '⚠ ' + v.usersError; return; }
-    if (!v.usersConfigured) { d.style.color = 'var(--red)'; d.textContent = '⚠ Worker läuft (v' + v.version + '), aber das Secret USER_KEYS ist leer/fehlt. In den Worker-Settings als Secret anlegen.'; return; }
-    d.style.color = 'var(--green)'; d.textContent = '✓ Worker v' + v.version + ' erreichbar, ' + v.usersConfigured + ' Schlüssel hinterlegt. Schlüssel oben eingeben.';
-  } catch (e) {
-    d.style.color = 'var(--red)';
-    d.textContent = '⚠ Worker nicht erreichbar (' + e.message + '). URL/Deploy prüfen.';
-  }
-};
 document.getElementById('btnLoginOffline').onclick = () => {
   if (auth) { document.getElementById('loginOverlay').classList.remove('open'); return; } // App läuft schon
   auth = { key: '', user: 'local', profile: OFFLINE_PROFILE };
@@ -2188,7 +2151,7 @@ document.addEventListener('keydown', e => {
 const DINO = (() => {
   const cv = document.getElementById('dinoCv');
   const ctx = cv.getContext('2d');
-  const INK = '#535353', INK2 = '#7a7a7a', SKY = '#c9c9c9', SNOW = '#a9cce8';
+  const INK = '#535353', INK2 = '#7a7a7a', SKY = '#c9c9c9';
   const SPRITES = [
     ['......####', '......#.##', '......####', '......##..', '#....####.', '##..#####.', '.########.', '..######..', '...####...', '...a#.b#..', '...a..b...'], // T-Rex
     ['.......###', '......####', '......##..', '#.....###.', '.#..####..', '..######..', '...####...', '...a..b...', '..aa..b...'],                               // Raptor
@@ -2207,31 +2170,22 @@ const DINO = (() => {
   const VARIANTS = [];
   SPRITES.forEach(sp => [2, 3].forEach(px => [INK, INK2].forEach(c => VARIANTS.push({ sp, px, c }))));
 
-  // Biome: prähistorisch (Standard), Wüste, Winter, Dschungel — wechseln alle 1–2 Min
-  const BIOMES = {
-    prehistoric: { plants: ['leaf', 'fern', 'rock', 'grass'], mounts: ['hill', 'mountain', 'volcano', 'erupt'] },
-    desert:      { plants: ['cactus', 'cactus2', 'bush'],      mounts: ['dune', 'dune', 'pyramid'] },
-    winter:      { plants: ['fir', 'fir', 'snowbush'],         mounts: ['snowmount', 'snowmount', 'hill'] },
-    jungle:      { plants: ['palm', 'palm', 'fern', 'grass'],  mounts: ['hill', 'jhill'] },
-  };
-  const BIOME_KEYS = Object.keys(BIOMES);
-  let biome = 'prehistoric', nextBiome = 0;
-
   let running = true, started = false, rafId = null, lastTs = 0;
   let animals = [], scenery = [], clouds = [], birds = [], mounts = [], ufos = [];
   let nextSpawn = 0, nextScenery = 0, nextCloud = 0, nextBird = 0, nextMount = 0, nextUfo = 0;
 
-  const pick = arr => arr[(Math.random() * arr.length) | 0];
   function spawnAnimal(force) {
     if (!force && animals.length >= 3) return; // nicht zu viele auf einmal
     const v = VARIANTS[(Math.random() * VARIANTS.length) | 0];
     animals.push({ v, x: -40, speed: 14 + Math.random() * 22, ft: 0, frame: 0 });
   }
-  const spawnScenery = x => scenery.push({ kind: pick(BIOMES[biome].plants), x, s: 1 + Math.random() });
+  const spawnScenery = x => scenery.push({ type: (Math.random() * 7) | 0, x, s: 1 + Math.random() });
   const spawnCloud = x => clouds.push({ x, y: 2 + Math.random() * 8, w: 16 + Math.random() * 16 });
   const spawnBird = x => birds.push({ x, y: 4 + Math.random() * 8, ft: 0, frame: 0 });
   const spawnMount = x => {
-    mounts.push({ x, w: 34 + Math.random() * 56, h: 10 + Math.random() * 15, kind: pick(BIOMES[biome].mounts) });
+    const r = Math.random();
+    mounts.push({ x, w: 34 + Math.random() * 56, h: 10 + Math.random() * 15,
+      type: r < 0.15 ? 'volcano' : (r < 0.55 ? 'mountain' : 'hill') });
   };
   const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42, ph: Math.random() * 6 });
 
@@ -2246,101 +2200,55 @@ const DINO = (() => {
   }
   function drawScenery(o, groundY) {
     ctx.fillStyle = INK2;
-    const s = o.s, k = o.kind;
+    const s = o.s;
     const r = (gx, gy, w, h) => ctx.fillRect(o.x + gx, groundY - gy, w, h);
-    if (k === 'cactus') {
+    if (o.type === 0) { // Kaktus
       r(0, 8 * s, 2 * s, 8 * s);
       r(-2 * s, 6 * s, 2 * s, 2 * s); r(-2 * s, 6 * s, 1.5 * s, 4 * s);
       r(2 * s, 5 * s, 2 * s, 2 * s); r(3.5 * s, 5 * s, 1.5 * s, 3 * s);
-    } else if (k === 'cactus2') {
-      r(0, 5 * s, 1.5 * s, 5 * s); r(-1.5 * s, 4 * s, 1.5 * s, 1.5 * s);
-    } else if (k === 'bush' || k === 'snowbush') {
+    } else if (o.type === 1) { // Busch
       r(0, 3 * s, 6 * s, 3 * s); r(s, 4 * s, 3 * s, s); r(2 * s, 5 * s, s, s);
-      if (k === 'snowbush') { ctx.fillStyle = SNOW; r(s, 5 * s, 4 * s, s); }
-    } else if (k === 'rock') {
+    } else if (o.type === 2) { // Stein
       r(0, 2, 4, 2); r(1, 4, 2, 2);
-    } else if (k === 'leaf') { // Laubbaum: runde Krone
+    } else if (o.type === 3) { // Laubbaum: Stamm + runde Krone (kein Kreuz!)
       r(2 * s, 5 * s, 1.5 * s, 5 * s);
       ctx.fillRect(o.x, groundY - 11 * s, 6 * s, 5 * s);
       ctx.fillRect(o.x + s, groundY - 12 * s, 4 * s, s);
       ctx.fillRect(o.x - 0.5 * s, groundY - 9 * s, s, 2 * s);
       ctx.fillRect(o.x + 5.5 * s, groundY - 9 * s, s, 2 * s);
-    } else if (k === 'fir') { // Tanne (Dreieck)
+    } else if (o.type === 4) { // Nadelbaum: Tannen-Dreieck (kein Kreuz!)
       r(2.5 * s, 4 * s, 1.5 * s, 4 * s);
       for (let i = 0; i < 3; i++) {
         const wdt = (6 - i * 1.2) * s, gy = (10 - i * 2.2) * s;
         ctx.fillRect(o.x + (6 * s - wdt) / 2, groundY - gy, wdt, 2 * s);
       }
-      ctx.fillStyle = SNOW; // Schnee auf den Zweigen
-      ctx.fillRect(o.x + s, groundY - 8.2 * s, 4 * s, 0.8 * s);
-      ctx.fillRect(o.x + 1.6 * s, groundY - 10.2 * s, 2.8 * s, 0.8 * s);
-    } else if (k === 'grass' || k === 'fern') {
+    } else if (o.type === 5) { // Grasbüschel
       r(0, 3 * s, s, 3 * s); r(1.5 * s, 4 * s, s, 4 * s); r(3 * s, 3 * s, s, 3 * s);
-      if (k === 'fern') { r(-1 * s, 3 * s, s, 3 * s); r(4 * s, 3.5 * s, s, 3.5 * s); }
-    } else if (k === 'palm') { // Palme: hoher Stamm + Wedel
-      r(2 * s, 14 * s, 1.5 * s, 14 * s);
-      const ty = 14 * s;
-      ctx.fillRect(o.x - 3 * s, groundY - ty, 4 * s, s);
-      ctx.fillRect(o.x + 2.5 * s, groundY - ty, 4 * s, s);
-      ctx.fillRect(o.x - 2 * s, groundY - ty - 1.5 * s, 3 * s, s);
-      ctx.fillRect(o.x + 2 * s, groundY - ty - 1.5 * s, 3 * s, s);
-      ctx.fillRect(o.x + s, groundY - ty - 2.5 * s, 1.5 * s, s);
+    } else { // kleiner Kaktus
+      r(0, 5 * s, 1.5 * s, 5 * s); r(-1.5 * s, 4 * s, 1.5 * s, 1.5 * s);
     }
   }
   function drawMount(o, groundY) {
-    const k = o.kind, cx = o.x + o.w / 2, base = groundY;
-    if (k === 'dune' || k === 'hill' || k === 'jhill') {
-      ctx.fillStyle = SKY;
+    ctx.fillStyle = SKY;
+    const cx = o.x + o.w / 2, base = groundY;
+    if (o.type === 'hill') {
       for (let i = 0; i < o.w; i++) {
-        const yy = (k === 'dune' ? o.h * 0.6 : o.h) * Math.sin((i / o.w) * Math.PI);
+        const yy = o.h * Math.sin((i / o.w) * Math.PI);
         ctx.fillRect(o.x + i, base - yy, 1, yy);
       }
-      return;
-    }
-    if (k === 'pyramid') {
-      ctx.fillStyle = SKY;
-      for (let i = 0; i < o.w; i++) {
-        const yy = o.h * (1 - Math.abs(i - o.w / 2) / (o.w / 2));
-        ctx.fillRect(o.x + i, base - yy, 1, yy);
-      }
-      ctx.fillStyle = '#b4b1ac'; // angedeutete Kante
-      ctx.fillRect(cx, base - o.h, 1, o.h);
-      return;
-    }
-    if (k === 'snowmount') {
-      ctx.fillStyle = SKY;
-      for (let i = 0; i < o.w; i++) {
-        const yy = o.h * (1 - Math.abs(i - o.w / 2) / (o.w / 2));
-        ctx.fillRect(o.x + i, base - yy, 1, yy);
-      }
-      ctx.fillStyle = SNOW; // Schneekappe
+    } else { // mountain / volcano: Dreieck
       for (let i = 0; i < o.w; i++) {
         const d = Math.abs(i - o.w / 2) / (o.w / 2);
-        const yy = o.h * (1 - d);
-        if (yy > o.h * 0.62) ctx.fillRect(o.x + i, base - yy, 1, yy - o.h * 0.62);
+        let yy = o.h * (1 - d);
+        if (o.type === 'volcano' && Math.abs(i - o.w / 2) < o.w * 0.12) yy = o.h * 0.7; // Krater
+        ctx.fillRect(o.x + i, base - yy, 1, yy);
       }
-      return;
-    }
-    // mountain / volcano / erupt
-    ctx.fillStyle = SKY;
-    for (let i = 0; i < o.w; i++) {
-      const d = Math.abs(i - o.w / 2) / (o.w / 2);
-      let yy = o.h * (1 - d);
-      if ((k === 'volcano' || k === 'erupt') && Math.abs(i - o.w / 2) < o.w * 0.12) yy = o.h * 0.7;
-      ctx.fillRect(o.x + i, base - yy, 1, yy);
-    }
-    if (k === 'volcano') { // rauchend
-      ctx.fillStyle = '#d98c3c';
-      ctx.fillRect(cx - o.w * 0.1, base - o.h * 0.72, o.w * 0.2, 2);
-      ctx.fillStyle = SKY;
-      ctx.fillRect(cx - 1, base - o.h - 4, 2, 2); ctx.fillRect(cx + 1, base - o.h - 7, 2, 2);
-    } else if (k === 'erupt') { // ausbrechend: Lava-Fontäne + Funken
-      ctx.fillStyle = '#E45826';
-      ctx.fillRect(cx - o.w * 0.12, base - o.h * 0.72, o.w * 0.24, 3);
-      ctx.fillRect(cx - 1, base - o.h - 8, 2, 8);
-      ctx.fillStyle = '#FFB75D';
-      ctx.fillRect(cx - 4, base - o.h - 6, 1, 1); ctx.fillRect(cx + 4, base - o.h - 9, 1, 1);
-      ctx.fillRect(cx - 6, base - o.h - 3, 1, 1); ctx.fillRect(cx + 5, base - o.h - 4, 1, 1);
+      if (o.type === 'volcano') { // Lava + Rauch
+        ctx.fillStyle = '#d98c3c';
+        ctx.fillRect(cx - o.w * 0.1, base - o.h * 0.72, o.w * 0.2, 2);
+        ctx.fillStyle = SKY;
+        ctx.fillRect(cx - 1, base - o.h - 4, 2, 2); ctx.fillRect(cx + 1, base - o.h - 7, 2, 2);
+      }
     }
   }
   function drawUfo(u, groundY) {
@@ -2361,10 +2269,6 @@ const DINO = (() => {
     const h = cv.height, groundY = h - 5;
     const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts;
     if (running) {
-      if (ts > nextBiome) { // Biom alle 1–2 Minuten wechseln
-        if (nextBiome) { let b; do { b = pick(BIOME_KEYS); } while (b === biome); biome = b; }
-        nextBiome = ts + 60000 + Math.random() * 60000;
-      }
       if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 7000 + Math.random() * 11000; }
       if (ts > nextScenery) { spawnScenery(w + 10); nextScenery = ts + 3500 + Math.random() * 5500; }
       if (ts > nextCloud) { spawnCloud(w + 10); nextCloud = ts + 7000 + Math.random() * 9000; }
@@ -2404,8 +2308,6 @@ const DINO = (() => {
       started = true; lastTs = performance.now();
       nextSpawn = lastTs + 1200; nextScenery = lastTs + 500; nextCloud = lastTs + 800;
       nextBird = lastTs + 6000; nextMount = lastTs + 400; nextUfo = lastTs + 40000;
-      nextBiome = lastTs + 60000 + Math.random() * 60000;
-      biome = pick(BIOME_KEYS);
       const w = cv.clientWidth || 300;
       for (let i = 0; i < 3; i++) spawnScenery(Math.random() * w);
       for (let i = 0; i < 2; i++) spawnMount(Math.random() * w);
@@ -2616,108 +2518,6 @@ document.getElementById('astroHide').onclick = () => {
   toast('Astronaut ausgeblendet — in den Einstellungen wieder aktivierbar');
 };
 document.getElementById('btnTipClose').onclick = () => document.getElementById('tipBar').hidden = true;
-
-/* ============================================================
-   STICKY NOTES — Schnellnotiz per Aufziehen, Drag&Drop ins Board
-   ============================================================ */
-function ensureNotes() { if (!Array.isArray(state.notes)) state.notes = []; }
-let noteSaveT = null;
-function persistNotes() { clearTimeout(noteSaveT); noteSaveT = setTimeout(save, 500); }
-function renderNotes() {
-  ensureNotes();
-  document.querySelectorAll('.sticky').forEach(n => n.remove());
-  state.notes.forEach(makeStickyEl);
-}
-function makeStickyEl(note) {
-  const el = document.createElement('div');
-  el.className = 'sticky'; el.dataset.id = note.id;
-  el.style.left = note.x + 'px'; el.style.top = note.y + 'px';
-  el.innerHTML =
-    '<div class="sticky-head"><span class="grip">⠿ Notiz</span><button title="Verwerfen">✕</button></div>' +
-    '<textarea placeholder="Schnellnotiz…"></textarea>' +
-    '<div class="sticky-foot">in ein „+“ ziehen → Ticket · an den Rand → weg</div>';
-  const ta = el.querySelector('textarea'); ta.value = note.text || '';
-  ta.addEventListener('input', () => { note.text = ta.value; persistNotes(); });
-  el.querySelector('button').onclick = () => removeNote(note.id);
-  el.querySelector('.sticky-head').addEventListener('mousedown', e => startDragNote(e, el, note));
-  document.body.appendChild(el);
-}
-function addNote(x, y) {
-  ensureNotes();
-  const note = { id: uid(),
-    x: Math.max(4, Math.min(x, innerWidth - 210)),
-    y: Math.max(58, Math.min(y, innerHeight - 190)), text: '' };
-  state.notes.push(note); save(); makeStickyEl(note);
-  const el = document.querySelector('.sticky[data-id="' + note.id + '"]');
-  if (el) el.querySelector('textarea').focus();
-}
-function removeNote(id) {
-  ensureNotes();
-  state.notes = state.notes.filter(n => n.id !== id); save();
-  const el = document.querySelector('.sticky[data-id="' + id + '"]');
-  if (el) el.remove();
-}
-function columnAddUnder(x, y) {
-  const stack = document.elementsFromPoint(x, y);
-  for (const node of stack) {
-    const c = node.closest && node.closest('.col-add, .ghost-card');
-    if (c) { const col = c.closest('.col'); if (col) return col.dataset.status; }
-  }
-  return null;
-}
-function startDragNote(e, el, note) {
-  e.preventDefault();
-  const r = el.getBoundingClientRect();
-  const ox = e.clientX - r.left, oy = e.clientY - r.top;
-  el.querySelector('.sticky-head').style.cursor = 'grabbing';
-  el.style.pointerEvents = 'none'; // damit elementFromPoint die Spalte darunter sieht
-  function move(ev) {
-    el.style.left = (ev.clientX - ox) + 'px';
-    el.style.top = (ev.clientY - oy) + 'px';
-    el.classList.toggle('drag-over-col', !!columnAddUnder(ev.clientX, ev.clientY));
-  }
-  function up(ev) {
-    document.removeEventListener('mousemove', move);
-    document.removeEventListener('mouseup', up);
-    el.querySelector('.sticky-head').style.cursor = 'grab';
-    el.style.pointerEvents = '';
-    el.classList.remove('drag-over-col');
-    if (ev.clientX < 8 || ev.clientY < 8 || ev.clientX > innerWidth - 8 || ev.clientY > innerHeight - 8) {
-      removeNote(note.id); return; // an den Rand gezogen = verwerfen
-    }
-    const status = columnAddUnder(ev.clientX, ev.clientY);
-    if (status) { const txt = note.text; removeNote(note.id); openModal(null, status, txt); return; }
-    note.x = parseInt(el.style.left) || note.x;
-    note.y = parseInt(el.style.top) || note.y;
-    save();
-  }
-  document.addEventListener('mousemove', move);
-  document.addEventListener('mouseup', up);
-}
-// Aufziehen eines Rechtecks auf leerer Board-Fläche erzeugt eine Notiz
-document.getElementById('kanban').addEventListener('mousedown', e => {
-  if (e.button !== 0) return;
-  if (e.target.closest('.card, button, a, select, input, textarea, .col-add, .ghost-card, .card-menu-pop, .sticky')) return;
-  const sx = e.clientX, sy = e.clientY;
-  const sel = document.getElementById('noteSel');
-  sel.style.display = 'block'; sel.style.left = sx + 'px'; sel.style.top = sy + 'px';
-  sel.style.width = '0px'; sel.style.height = '0px';
-  function move(ev) {
-    sel.style.left = Math.min(ev.clientX, sx) + 'px';
-    sel.style.top = Math.min(ev.clientY, sy) + 'px';
-    sel.style.width = Math.abs(ev.clientX - sx) + 'px';
-    sel.style.height = Math.abs(ev.clientY - sy) + 'px';
-  }
-  function up(ev) {
-    document.removeEventListener('mousemove', move);
-    document.removeEventListener('mouseup', up);
-    sel.style.display = 'none';
-    if (Math.abs(ev.clientX - sx) > 25 && Math.abs(ev.clientY - sy) > 25)
-      addNote(Math.min(ev.clientX, sx), Math.min(ev.clientY, sy));
-  }
-  document.addEventListener('mousemove', move);
-  document.addEventListener('mouseup', up);
-});
 
 /* Init */
 idbOpen().then(db => { idb = db; }).catch(() => { idb = null; console.warn('IndexedDB nicht verfügbar — Anhänge deaktiviert.'); });
