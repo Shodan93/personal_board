@@ -1994,7 +1994,17 @@ async function startSupabase(session) {
   document.getElementById('loginOverlay').classList.remove('open');
   applyProfile(OFFLINE_PROFILE);
   try { await ensureBoards(); setActiveBoard(myBoards[0].id); }
-  catch (e) { toast('⚠ Daten konnten nicht geladen werden — Supabase-Schema/Policies prüfen.'); console.warn(e); setSync(false); }
+  catch (e) {
+    console.warn('ensureBoards/setActiveBoard:', e);
+    toast('⚠ Cloud-Daten nicht erreichbar (' + (e.message || e) + ') — Supabase-Schema prüfen. Zeige lokales Board.');
+    // Trotzdem ein nutzbares Board zeigen, damit Säulen + UI immer da sind
+    load(); applyBoardConfig();
+    kanbanSortKey = state.settings.kanbanSort;
+    document.getElementById('kanbanSort').value = kanbanSortKey;
+    setView(state.settings.defaultView || 'kanban');
+    applyGimmick(); applyTips(); renderNotes();
+    setSync(false);
+  }
 }
 function startOffline() {
   if (appStarted) { document.getElementById('loginOverlay').classList.remove('open'); return; }
