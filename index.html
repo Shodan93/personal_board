@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Control Panel</title>
+<title>Orbit</title>
 <style>
 /* ============================================================
    CONTROL PANEL v2 — Salesforce Lightning Stil, Single-User
@@ -398,7 +398,7 @@ tr.row.done-final td{opacity:.4}
 <body>
 
 <header>
-  <h1 id="boardTitle">Control Panel</h1>
+  <h1 id="boardTitle">🪐 Orbit</h1>
   <span class="header-meta" id="todayDate"></span>
   <button class="header-meta" id="syncDot" title="Cloud-Status / Anmelden"
     style="border:none;background:none;cursor:pointer;padding:0"></button>
@@ -413,8 +413,7 @@ tr.row.done-final td{opacity:.4}
   </div>
   <div id="globalCat" title="Nach Kategorie filtern"></div>
   <button class="btn" id="btnFocus" title="Claude fragen: Worum soll ich mich jetzt kümmern?">🚀 Fokus</button>
-  <button class="btn" id="btnReport" title="Claude: Was habe ich erledigt? (nur Status „Erledigt JF“)">📋 JF-Report</button>
-  <button class="btn" id="btnReportAll" title="Claude: Gesamt-Report über alle erledigten Tickets">🗂 Gesamt-Report</button>
+  <button class="btn" id="btnReportAll" title="Claude fasst alle ERLEDIGTEN Tickets zusammen (letzte Säule)">🗂 Report: Erledigtes</button>
   <div class="toggle">
     <button id="btnKanban" class="active">Kanban</button>
     <button id="btnList">Liste</button>
@@ -589,6 +588,15 @@ tr.row.done-final td{opacity:.4}
       <button class="modal-close" data-close-settings aria-label="Schließen">✕</button>
     </div>
     <div class="modal-body">
+      <div class="settings-section" style="border-top:none;padding-top:0">
+        <h3>Mein Board</h3>
+        <div class="set-row">
+          <label>Boardname</label>
+          <input type="text" id="setBoardTitle" maxlength="40" style="width:160px">
+        </div>
+        <div style="font-size:11px;color:var(--text-weak);margin:6px 0 4px">Säulen benennen (die letzte gilt als „erledigt"):</div>
+        <div id="setColumns" style="display:grid;gap:6px"></div>
+      </div>
       <div class="set-row">
         <label>Standardansicht beim Start</label>
         <select id="setView"><option value="kanban">Kanban</option><option value="list">Liste</option></select>
@@ -640,7 +648,7 @@ tr.row.done-final td{opacity:.4}
   </div>
 </div>
 
-<!-- JF-Report-Modal -->
+<!-- Report-Modal -->
 <div class="overlay" id="reportOverlay">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modal-head">
@@ -660,13 +668,15 @@ tr.row.done-final td{opacity:.4}
 <!-- Login -->
 <div class="overlay" id="loginOverlay" style="z-index:250">
   <div class="modal" role="dialog" aria-modal="true" style="max-width:380px">
-    <div class="modal-head"><h2>Control Panel — Anmelden</h2></div>
+    <div class="modal-head"><h2>🪐 Orbit — Anmelden</h2></div>
     <div class="modal-body">
       <p style="font-size:12px;color:var(--text-weak)">
-        Zugangsschlüssel eingeben — das Board lädt dann deine Daten aus der Cloud
-        und speichert Änderungen automatisch dorthin.
+        Mit E-Mail und Passwort anmelden — dein Board wird aus der Cloud geladen und
+        Änderungen automatisch gespeichert.
       </p>
-      <input id="loginKey" type="password" placeholder="Zugangsschlüssel"
+      <input id="loginEmail" type="email" autocomplete="username" placeholder="E-Mail"
+        style="width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-size:14px">
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="Passwort"
         style="width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-size:14px">
       <div id="loginErr" style="color:var(--red);font-size:12px" hidden></div>
       <div id="loginDiag" style="font-size:11px;color:var(--text-weak)" hidden></div>
@@ -714,9 +724,11 @@ tr.row.done-final td{opacity:.4}
 const LS_KEY = 'controlPanel.v2';
 const LS_KEY_V1 = 'controlPanel.tickets.v1'; // Migration aus v1
 // Workflow wird pro Nutzerprofil gesetzt (applyProfile) — Default: voller Workflow
-let STATUSES = ['Themenspeicher', 'Blocked / Wartend', 'In Arbeit', 'Erledigt JF', 'Erledigt'];
-let DONE = ['Erledigt JF', 'Erledigt'];
-let COLLAPSIBLE = ['Themenspeicher', 'Blocked / Wartend', 'Erledigt'];
+// Standard-Säulen (frei umbenennbar; im Board gespeichert). Die LETZTE Säule gilt als „erledigt".
+const DEFAULT_STATUSES = ['Themenspeicher', 'Geplant', 'In Arbeit', 'Review', 'Erledigt'];
+let STATUSES = DEFAULT_STATUSES.slice();
+let DONE = ['Erledigt'];
+let COLLAPSIBLE = ['Themenspeicher', 'Erledigt'];
 const PRIO_ORDER = { 'Hoch': 0, 'Mittel': 1, 'Niedrig': 2 };
 const PALETTE = ['#0176D3','#2E844A','#C23934','#9050E9','#06A59A','#B25D00',
                  '#5867E8','#AA309F','#3BA755','#CA8501','#0D9DDA','#7F2D7B'];
@@ -737,7 +749,27 @@ let globalCat = '';                          // Globaler Kategorie-Filter (Heade
 function defaultSettings() {
   return { defaultView: 'kanban', kanbanSort: 'deadline', hideDoneAfter: 14,
            remindDays: 7, compact: false, modalWide: false, lastExport: todayStr(),
-           dino: true, tips: true, tipsAuto: true, collapsed: {} };
+           dino: true, tips: true, tipsAuto: true, collapsed: {},
+           statuses: DEFAULT_STATUSES.slice(), boardTitle: 'Mein Board' };
+}
+/* Säulen aus den (board-eigenen) Einstellungen übernehmen — letzte Säule = erledigt */
+function setColumnsFromSettings() {
+  let st = (state.settings && Array.isArray(state.settings.statuses) && state.settings.statuses.length)
+    ? state.settings.statuses.slice() : DEFAULT_STATUSES.slice();
+  st = st.map(s => String(s || '').trim()).filter(Boolean);
+  while (st.length < 2) st.push('Spalte ' + (st.length + 1));
+  STATUSES = st;
+  DONE = [st[st.length - 1]];
+  COLLAPSIBLE = STATUSES.filter(s => s === STATUSES[0] || /block|wart/i.test(s) || s === DONE[0]);
+}
+/* Board-Aussehen anwenden: Säulen, Titel, Spaltenzahl, Auswahllisten */
+function applyBoardConfig() {
+  setColumnsFromSettings();
+  document.getElementById('boardTitle').textContent = state.settings.boardTitle || 'Mein Board';
+  document.title = (state.settings.boardTitle || 'Orbit') + ' · Orbit';
+  document.getElementById('kanban').style.setProperty('--ncols', STATUSES.length);
+  refreshStatusOptions();
+  refreshFilters();
 }
 
 /* ============================================================
@@ -751,18 +783,18 @@ function load() {
       state.tickets = data.tickets || [];
       state.categories = data.categories || [];
       state.settings = Object.assign(defaultSettings(), data.settings || {});
-      migrateTickets(); ensureCategories();
+      setColumnsFromSettings(); migrateTickets(); ensureCategories();
       return;
     }
     const rawV1 = localStorage.getItem(LS_KEY_V1); // v1 -> v2 Migration
     if (rawV1) {
       state.tickets = JSON.parse(rawV1);
-      migrateTickets(); ensureCategories(); save();
+      setColumnsFromSettings(); migrateTickets(); ensureCategories(); save();
       return;
     }
   } catch (e) { console.warn('localStorage nicht lesbar:', e); }
   state.tickets = []; // Leere Version — Daten per JSON-Import laden
-  migrateTickets(); ensureCategories(); save();
+  setColumnsFromSettings(); migrateTickets(); ensureCategories(); save();
 }
 function save() {
   try { localStorage.setItem(lsKey(), JSON.stringify(state)); }
@@ -1296,6 +1328,11 @@ const settingsOverlay = document.getElementById('settingsOverlay');
 
 function openSettings() {
   const s = state.settings;
+  document.getElementById('setBoardTitle').value = s.boardTitle || 'Mein Board';
+  // Säulen-Eingabefelder (eines pro aktueller Säule)
+  document.getElementById('setColumns').innerHTML = STATUSES.map((name, i) =>
+    '<div class="set-row"><label>Säule ' + (i + 1) + (i === STATUSES.length - 1 ? ' (erledigt)' : '') +
+    '</label><input type="text" class="set-col" maxlength="30" value="' + esc(name) + '" style="width:160px"></div>').join('');
   document.getElementById('setView').value = s.defaultView;
   document.getElementById('setKanbanSort').value = s.kanbanSort;
   document.getElementById('setHideDone').value = s.hideDoneAfter;
@@ -1316,6 +1353,18 @@ function openSettings() {
 }
 function closeSettings() {
   const s = state.settings;
+  s.boardTitle = (document.getElementById('setBoardTitle').value.trim() || 'Mein Board').slice(0, 40);
+  // Säulen einlesen + Tickets per Index auf die neuen Namen umziehen (keine verlieren)
+  const oldStatuses = STATUSES.slice();
+  let newStatuses = [...document.querySelectorAll('#setColumns .set-col')]
+    .map((inp, i) => inp.value.trim() || ('Säule ' + (i + 1)));
+  newStatuses = newStatuses.map((n, i) => newStatuses.indexOf(n) === i ? n : n + ' ' + (i + 1)); // eindeutig
+  state.tickets.forEach(t => {
+    const i = oldStatuses.indexOf(t.status);
+    if (i >= 0) t.status = newStatuses[Math.min(i, newStatuses.length - 1)];
+    else if (!newStatuses.includes(t.status)) t.status = newStatuses[0];
+  });
+  s.statuses = newStatuses;
   s.defaultView = document.getElementById('setView').value;
   s.kanbanSort = document.getElementById('setKanbanSort').value;
   s.hideDoneAfter = Math.max(0, +document.getElementById('setHideDone').value || 0);
@@ -1324,7 +1373,7 @@ function closeSettings() {
   s.dino = document.getElementById('setDino').checked;
   s.tips = document.getElementById('setTips').checked;
   save(); settingsOverlay.classList.remove('open');
-  refreshFilters(); render(); applyGimmick(); applyTips();
+  applyBoardConfig(); render(); applyGimmick(); applyTips();
 }
 
 /* Kategorien verwalten: umbenennen (Tickets folgen), Farbe, löschen */
@@ -1409,8 +1458,11 @@ function importJSON(file) {
           } catch (e) { console.warn('Bild nicht importierbar:', rec.id); }
         }
       }
-      migrateTickets(); ensureCategories(); save(); refreshFilters(); render();
-      alert(state.tickets.length + ' Tickets importiert. Bestehende Daten wurden ersetzt.');
+      setColumnsFromSettings(); migrateTickets(); ensureCategories(); save();
+      kanbanSortKey = state.settings.kanbanSort;
+      document.getElementById('kanbanSort').value = kanbanSortKey;
+      applyBoardConfig(); render(); applyGimmick(); applyTips(); renderNotes();
+      alert(state.tickets.length + ' Tickets importiert — inkl. Säulen, Boardname und Voreinstellungen. Bestehende Daten wurden ersetzt.');
     } catch (e) { alert('Import fehlgeschlagen: keine gültige JSON-Datei.'); }
   };
   reader.readAsText(file);
@@ -1763,33 +1815,20 @@ const CLAUDE_WORKER_URL = 'https://billowing-sunset-d43c.davidmumelter9.workers.
    ein Profil (Spalten/Features) und einen eigenen Cloud-Speicher zu.
    localStorage bleibt als Offline-Cache pro Nutzer erhalten.
    ============================================================ */
-const LS_AUTH = 'controlPanel.auth';
+const LS_AUTH = 'orbit.auth';
 let auth = null;
-const OFFLINE_PROFILE = {
-  user: 'local', title: 'Control Panel',
-  statuses: ['Themenspeicher', 'Blocked / Wartend', 'In Arbeit', 'Erledigt JF', 'Erledigt'],
-  done: ['Erledigt JF', 'Erledigt'],
-  focus: true, reportJF: true, reportAll: true, housekeeper: true
-};
+const OFFLINE_PROFILE = { focus: true, reportAll: true, housekeeper: true };
 function loadAuth() {
   try { auth = JSON.parse(localStorage.getItem(LS_AUTH)); } catch (e) { auth = null; }
-  if (auth && (!auth.profile || !Array.isArray(auth.profile.statuses))) auth = null;
+  if (auth && (!auth.profile || typeof auth.user !== 'string')) auth = null;
 }
 function lsKey() { return LS_KEY + (auth && auth.user ? ':' + auth.user : ''); }
 
+/* Funktionen (Buttons) je nach Profil — Säulen/Titel kommen aus applyBoardConfig */
 function applyProfile(p) {
-  STATUSES = [...p.statuses];
-  DONE = [...p.done];
-  // Einklappbar: Themenspeicher, alle Blocked-Varianten und der Erledigt-/fertig-Status
-  COLLAPSIBLE = STATUSES.filter(s => s === 'Themenspeicher' || /^blocked/i.test(s) || s === DONE[DONE.length - 1]);
-  document.getElementById('boardTitle').textContent = p.title || 'Control Panel';
-  document.title = p.title || 'Control Panel';
-  document.getElementById('kanban').style.setProperty('--ncols', STATUSES.length);
   document.getElementById('btnFocus').hidden = !p.focus;
-  document.getElementById('btnReport').hidden = !p.reportJF;
   document.getElementById('btnReportAll').hidden = !p.reportAll;
   document.getElementById('btnHousekeeper').hidden = !p.housekeeper;
-  refreshStatusOptions();
 }
 function refreshStatusOptions() {
   document.getElementById('fStatus').innerHTML = STATUSES.map(s => '<option>' + s + '</option>').join('');
@@ -1797,7 +1836,7 @@ function refreshStatusOptions() {
 
 function cloudFetch(p, opts) {
   opts = opts || {};
-  opts.headers = Object.assign({ 'X-Board-Key': auth ? auth.key : '' }, opts.headers || {});
+  opts.headers = Object.assign({ 'X-Auth': auth ? (auth.auth || '') : '' }, opts.headers || {});
   return fetch(CLAUDE_WORKER_URL + p, opts);
 }
 function setSync(ok) {
@@ -1814,7 +1853,7 @@ document.getElementById('syncDot').onclick = () => {
   if (!auth || auth.user === 'local') {
     document.getElementById('loginErr').hidden = true;
     document.getElementById('loginOverlay').classList.add('open');
-    document.getElementById('loginKey').focus();
+    document.getElementById('loginEmail').focus();
   }
 };
 let cloudTimer = null;
@@ -1843,11 +1882,11 @@ async function cloudLoad() {
       state.tickets = data.tickets;
       state.categories = data.categories || [];
       state.settings = Object.assign(defaultSettings(), data.settings || {});
-      migrateTickets(); ensureCategories();
+      setColumnsFromSettings(); migrateTickets(); ensureCategories();
       try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
       kanbanSortKey = state.settings.kanbanSort;
       document.getElementById('kanbanSort').value = kanbanSortKey;
-      refreshFilters(); render(); applyGimmick(); applyTips(); renderNotes();
+      applyBoardConfig(); render(); applyGimmick(); applyTips(); renderNotes();
     } else if (state.tickets.length) scheduleCloudSave();
     setSync(true);
   } catch (e) {
@@ -1871,15 +1910,19 @@ async function cloudRefresh() {
     if (!res.ok || res.status === 204) { setSync(res.ok || res.status === 204); return; }
     const data = await res.json();
     if (!data || !Array.isArray(data.tickets)) { setSync(true); return; }
-    const inc = JSON.stringify([data.tickets, data.categories || [], data.notes || []]);
-    const cur = JSON.stringify([state.tickets, state.categories, state.notes || []]);
+    const ds = data.settings || {};
+    const inc = JSON.stringify([data.tickets, data.categories || [], data.notes || [], ds.statuses || [], ds.boardTitle || '']);
+    const cur = JSON.stringify([state.tickets, state.categories, state.notes || [], state.settings.statuses || [], state.settings.boardTitle || '']);
     if (inc !== cur) {
       state.tickets = data.tickets;
       state.categories = data.categories || [];
       state.notes = data.notes || [];
-      migrateTickets(); ensureCategories();
+      // Strukturelle Board-Einstellungen mitziehen (Säulen + Titel), UI-Prefs lokal lassen
+      if (Array.isArray(ds.statuses) && ds.statuses.length) state.settings.statuses = ds.statuses;
+      if (ds.boardTitle) state.settings.boardTitle = ds.boardTitle;
+      setColumnsFromSettings(); migrateTickets(); ensureCategories();
       try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
-      refreshFilters(); render(); renderNotes();
+      applyBoardConfig(); render(); renderNotes();
     }
     setSync(true);
   } catch (e) { setSync(false); }
@@ -1923,7 +1966,7 @@ function startApp() {
   document.getElementById('loginOverlay').classList.remove('open');
   applyProfile(auth.profile);
   load();
-  refreshFilters();
+  applyBoardConfig();
   kanbanSortKey = state.settings.kanbanSort;
   document.getElementById('kanbanSort').value = kanbanSortKey;
   if (state.settings.remindDays > 0 &&
@@ -1934,27 +1977,29 @@ function startApp() {
   if (auth.user !== 'local') cloudLoad(); else setSync(false);
 }
 document.getElementById('btnLogin').onclick = async () => {
-  const key = document.getElementById('loginKey').value.trim();
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
   const err = document.getElementById('loginErr');
-  if (!key) return;
+  if (!email || !password) { err.textContent = 'Bitte E-Mail und Passwort eingeben.'; err.hidden = false; return; }
   if (!CLAUDE_WORKER_URL) { err.textContent = 'Worker-URL fehlt im Code.'; err.hidden = false; return; }
   try {
     const res = await fetch(CLAUDE_WORKER_URL + '/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key })
+      body: JSON.stringify({ email, password })
     });
     if (!res.ok) {
-      let msg = 'Schlüssel ungültig.';
+      let msg = 'E-Mail oder Passwort falsch.';
       try { msg = (await res.json()).error || msg; } catch (e2) {}
       err.textContent = msg; err.hidden = false; return;
     }
     const profile = await res.json();
-    auth = { key, user: profile.user, profile };
+    auth = { user: profile.email, auth: btoa(email + ':' + password), name: profile.name,
+             profile: { focus: profile.focus, reportAll: profile.reportAll, housekeeper: profile.housekeeper } };
     localStorage.setItem(LS_AUTH, JSON.stringify(auth));
     startApp();
   } catch (e) { err.textContent = 'Cloud nicht erreichbar — „Ohne Cloud weiter“ nutzen.'; err.hidden = false; }
 };
-document.getElementById('loginKey').addEventListener('keydown', e => {
+document.getElementById('loginPass').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btnLogin').click();
 });
 document.getElementById('btnLoginTest').onclick = async () => {
@@ -1966,8 +2011,8 @@ document.getElementById('btnLoginTest').onclick = async () => {
     if (!res.ok) { d.style.color = 'var(--red)'; d.textContent = '⚠ Worker antwortet, aber /version fehlt — alte worker.js? Bitte die neue worker.js deployen.'; return; }
     const v = await res.json();
     if (v.usersError) { d.style.color = 'var(--red)'; d.textContent = '⚠ ' + v.usersError; return; }
-    if (!v.usersConfigured) { d.style.color = 'var(--red)'; d.textContent = '⚠ Worker läuft (v' + v.version + '), aber das Secret USER_KEYS ist leer/fehlt. In den Worker-Settings als Secret anlegen.'; return; }
-    d.style.color = 'var(--green)'; d.textContent = '✓ Worker v' + v.version + ' erreichbar, ' + v.usersConfigured + ' Schlüssel hinterlegt. Schlüssel oben eingeben.';
+    if (!v.usersConfigured) { d.style.color = 'var(--red)'; d.textContent = '⚠ Worker läuft (v' + v.version + '), aber das Secret USERS ist leer/fehlt. In den Worker-Settings als Secret anlegen.'; return; }
+    d.style.color = 'var(--green)'; d.textContent = '✓ Worker v' + v.version + ' erreichbar, ' + v.usersConfigured + ' Konten hinterlegt. E-Mail & Passwort oben eingeben.';
   } catch (e) {
     d.style.color = 'var(--red)';
     d.textContent = '⚠ Worker nicht erreichbar (' + e.message + '). URL/Deploy prüfen.';
@@ -1975,14 +2020,14 @@ document.getElementById('btnLoginTest').onclick = async () => {
 };
 document.getElementById('btnLoginOffline').onclick = () => {
   if (auth) { document.getElementById('loginOverlay').classList.remove('open'); return; } // App läuft schon
-  auth = { key: '', user: 'local', profile: OFFLINE_PROFILE };
+  auth = { user: 'local', auth: '', name: '', profile: OFFLINE_PROFILE };
   localStorage.setItem(LS_AUTH, JSON.stringify(auth));
   startApp();
 };
 
 function claudeReady() {
   if (!CLAUDE_WORKER_URL) { alert('Die Claude-Anbindung ist noch nicht konfiguriert (CLAUDE_WORKER_URL).'); return false; }
-  if (!auth || auth.user === 'local') { alert('Dafür bitte mit Zugangsschlüssel anmelden.'); return false; }
+  if (!auth || auth.user === 'local') { alert('Dafür bitte mit E-Mail und Passwort anmelden.'); return false; }
   return true;
 }
 
@@ -2052,7 +2097,7 @@ async function runFocus() {
 document.getElementById('btnFocus').onclick = runFocus;
 document.getElementById('btnFocusClose').onclick = () => document.getElementById('focusBanner').hidden = true;
 
-/* Reports: JF-Report (nur "Erledigt JF") und Gesamt-Report (alles Erledigte) */
+/* Report: fasst ausschließlich erledigte Tickets (letzte Säule) zusammen */
 const reportOverlay = document.getElementById('reportOverlay');
 async function fetchReport(btnId, route, tickets, title) {
   const btn = document.getElementById(btnId);
@@ -2077,19 +2122,13 @@ async function fetchReport(btnId, route, tickets, title) {
     btn.disabled = false; btn.textContent = orig;
   }
 }
-document.getElementById('btnReport').onclick = () => fetchReport('btnReport', '/report',
-  state.tickets.filter(t => t.status === 'Erledigt JF').map(t => ({
-    titel: t.title, prio: t.prio, kategorien: t.cats, deadline: t.deadline,
-    beschreibung: stripHtml(t.desc).slice(0, 400),
-    verlauf: stripHtml(t.note).slice(0, 300)
-  })), '📋 JF-Report — Erledigt JF');
 document.getElementById('btnReportAll').onclick = () => fetchReport('btnReportAll', '/report-all',
   state.tickets.filter(t => DONE.includes(t.status)).map(t => ({
     titel: t.title, kategorien: t.cats,
     beschreibung: stripHtml(t.desc).slice(0, 250),
     offenTage: (t.createdAt && t.completedAt)
       ? Math.max(0, Math.round((new Date(t.completedAt) - new Date(t.createdAt)) / 86400000)) : null
-  })), '🗂 Gesamt-Report — alle erledigten Tickets');
+  })), '🗂 Report — nur erledigte Tickets (Säule „' + DONE[0] + '“)');
 document.querySelectorAll('[data-close-report]').forEach(b => b.onclick = () => reportOverlay.classList.remove('open'));
 reportOverlay.addEventListener('click', e => { if (e.target === reportOverlay) reportOverlay.classList.remove('open'); });
 document.getElementById('btnReportCopy').onclick = () => {
