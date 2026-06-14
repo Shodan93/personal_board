@@ -49,6 +49,17 @@ create policy members_manage on public.board_members for all
   using      (exists (select 1 from public.boards where id = board_id and owner = auth.uid()))
   with check (exists (select 1 from public.boards where id = board_id and owner = auth.uid()));
 
+-- Board anlegen (umgeht die Insert-Policy zuverlässig; Besitzer = aktueller Nutzer)
+create or replace function public.create_board(p_title text, p_data jsonb)
+returns public.boards language plpgsql security definer set search_path = public as $$
+declare b public.boards;
+begin
+  insert into public.boards (owner, title, data)
+  values (auth.uid(), coalesce(nullif(p_title, ''), 'Mein Board'), coalesce(p_data, '{}'::jsonb))
+  returning * into b;
+  return b;
+end; $$;
+
 -- Board per Team-Code beitreten (fügt den aktuellen Nutzer als Mitglied hinzu)
 create or replace function public.join_board(code text)
 returns uuid language plpgsql security definer set search_path = public as $$

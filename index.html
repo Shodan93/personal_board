@@ -1986,9 +1986,10 @@ async function ensureBoards() {
   if (error) throw error;
   myBoards = data || [];
   if (!myBoards.length) {
-    const { data: created, error: e2 } = await sb.from('boards')
-      .insert({ owner: sbSession.user.id, title: 'Mein Board', data: { tickets: [], categories: [], settings: defaultSettings(), notes: [] } })
-      .select().single();
+    const { data: created, error: e2 } = await sb.rpc('create_board', {
+      p_title: 'Mein Board',
+      p_data: { tickets: [], categories: [], settings: defaultSettings(), notes: [] }
+    });
     if (e2) throw e2;
     myBoards = [created];
   }
@@ -2114,9 +2115,10 @@ async function joinBoardByCode() {
 }
 async function createBoard() {
   if (!sb) { alert('Bitte zuerst anmelden.'); return; }
-  const { data, error } = await sb.from('boards')
-    .insert({ owner: sbSession.user.id, title: 'Neues Board', data: { tickets: [], categories: [], settings: defaultSettings(), notes: [] } })
-    .select().single();
+  const { data, error } = await sb.rpc('create_board', {
+    p_title: 'Neues Board',
+    p_data: { tickets: [], categories: [], settings: defaultSettings(), notes: [] }
+  });
   if (error) { alert('Anlegen fehlgeschlagen: ' + error.message); return; }
   await ensureBoards(); renderBoardSwitch();
   closeSettings(); setActiveBoard(data.id);
