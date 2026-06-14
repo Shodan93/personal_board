@@ -72,6 +72,13 @@ begin
   return bid;
 end; $$;
 
+-- Geteiltes Board verlassen (entfernt nur die eigene Mitgliedschaft, löscht keine Daten)
+create or replace function public.leave_board(b uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.board_members where board_id = b and user_id = auth.uid();
+end; $$;
+
 -- Realtime für Boards einschalten (Live-Sync) — idempotent, ignoriert "schon vorhanden"
 do $$
 begin

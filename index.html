@@ -156,7 +156,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 .card-menu-pop button:hover{background:var(--blue-bg)}
 
 /* Pixel-Lauf (Gimmick) in der Kopfzeile */
-#dinoWrap{display:flex; align-items:flex-end; gap:1px; flex:1 1 220px; min-width:150px; max-width:560px; height:34px}
+#dinoWrap{display:flex; align-items:flex-end; gap:1px; flex:1 1 200px; min-width:150px; height:34px}
 #dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:11px; padding:0 3px 2px; cursor:pointer}
 #dinoWrap button:hover{color:var(--blue)}
 #dinoBiome{font-size:10px; color:#b9b7b4; white-space:nowrap; padding:0 2px}
@@ -356,9 +356,6 @@ tr.row.done-final td{opacity:.4}
 .set-row select,.set-row input,#setColumns input,#setBoardTitle,#setJoinCode{
   border:1px solid var(--border); border-radius:var(--radius); padding:5px 8px; font-size:13px; background:var(--card); color:var(--text);
 }
-/* Werte in den Einstellungen (bis zum Kategorien-Block) rechtsbündig */
-.set-row input[type=text],.set-row input[type=number],.set-row select,#setColumns input,#setBoardTitle{text-align:right}
-.set-row input[type=checkbox]{text-align:initial}
 .set-row select,.set-row input[type=number]{width:130px}
 #setColumns input,#setBoardTitle{width:170px}
 #setColumns .set-row label{color:var(--text-weak)}
@@ -656,6 +653,7 @@ tr.row.done-final td{opacity:.4}
         </div>
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnNewBoard">+ Neues Board</button>
+          <button type="button" class="btn" id="btnLeaveBoard" hidden>Board verlassen</button>
           <button type="button" class="btn btn-danger" id="btnDeleteBoard">Board löschen…</button>
         </div>
       </div>
@@ -1389,15 +1387,17 @@ function openSettings() {
     team.hidden = false;
     const b = myBoards.find(x => x.id === boardId);
     document.getElementById('setShareCode').textContent = (b && b.share_code) || '–';
-    // Nur der Besitzer darf das Board löschen — eingeladene Mitglieder nicht
+    // Besitzer darf löschen; eingeladene Mitglieder können das Board nur verlassen
     const isOwner = !!(b && sbSession && b.owner === sbSession.user.id);
     document.getElementById('btnDeleteBoard').hidden = !isOwner;
+    document.getElementById('btnLeaveBoard').hidden = isOwner;
   } else team.hidden = true;
   settingsOverlay.classList.add('open');
 }
 document.getElementById('btnJoinBoard').onclick = joinBoardByCode;
 document.getElementById('btnNewBoard').onclick = createBoard;
 document.getElementById('btnDeleteBoard').onclick = deleteBoard;
+document.getElementById('btnLeaveBoard').onclick = leaveBoard;
 function closeSettings() {
   const s = state.settings;
   s.boardTitle = (document.getElementById('setBoardTitle').value.trim() || 'Mein Board').slice(0, 40);
@@ -2141,6 +2141,22 @@ async function deleteBoard() {
   toast('Board gelöscht');
 }
 
+async function leaveBoard() {
+  if (!sb || !boardId) { alert('Kein Board zum Verlassen.'); return; }
+  const b = myBoards.find(x => x.id === boardId);
+  if (!b) return;
+  if (b.owner === sbSession.user.id) { alert('Du bist Besitzer dieses Boards — du kannst es nur löschen, nicht verlassen.'); return; }
+  if (!confirm('Board „' + (b.title || 'dieses Board') + '" verlassen? Du siehst es danach nicht mehr (die Daten bleiben für die anderen erhalten).')) return;
+  const { error } = await sb.rpc('leave_board', { b: boardId });
+  if (error) { alert('Verlassen fehlgeschlagen: ' + error.message); return; }
+  if (boardChannel) { sb.removeChannel(boardChannel); boardChannel = null; }
+  boardId = null;
+  closeSettings();
+  await ensureBoards();          // legt bei Bedarf automatisch ein neues eigenes Board an
+  setActiveBoard(myBoards[0].id);
+  toast('Board verlassen');
+}
+
 async function runHousekeeper() {
   const btn = document.getElementById('btnHousekeeper');
   if (!claudeReady()) return;
@@ -2801,27 +2817,27 @@ let tipPool = [], tipTimer = null, bubbleTimer = null;
   const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x * P, y * P, P, P); };
   const K = '#1b1b1b', W = '#f3f5fa', G = '#cdd2dc', D = '#8a93a8',
         V = '#54cdee', H = '#c4f0ff', O = '#c0623a';
-  // 15×18-Raster: springender Astronaut (Lauf-Pose) — Visier mit Glanz,
-  // Orange-Brust + Handschuhe, ein Arm hoch, Beine im Schritt (nach Vorlage)
+  // 15×18-Raster: freundlicher, frontaler Astronaut (schwebend) —
+  // runder Helm mit Visier-Glanz, weißer Anzug, orange Brust + Stiefel
   const map = [
-    '....KKKKK......',
-    '...KWWWWWK.....',
-    '..KWVVVVVWK....',
-    '..KVHHVVVWK.KK.',
-    '..KVVVVVVWKKOK.',
-    '..KWVVVVWKKOOK.',
-    '...KWWWWKDK.K..',
-    '...KGWWWWDK....',
-    '..KGWWOOWWDK...',
-    '.KOKWWOOWWDK...',
-    'KOOKWWWWWWDK...',
-    '.KKWWWWWWDK....',
-    '...KWWWWWDK....',
-    '...KWWKKWDK....',
-    '...KWK.KWDK....',
-    '..KWK..KDDK....',
-    '..KK....KKDK...',
-    '.........KKK...',
+    '.....KKKKK.....',
+    '...KKWWWWWKK...',
+    '..KWWWWWWWWWK..',
+    '..KWVVVVVVVWK..',
+    '..KWVHHVVVVWK..',
+    '..KWVVVVVVVWK..',
+    '..KWWVVVVVWWK..',
+    '...KWWWWWWWK...',
+    '.....KWWWK.....',
+    '...KWWWWWWWK...',
+    '..KWWWWWWWWWK..',
+    '..KWWWOOOWWWK..',
+    '..KWWWWWWWWWK..',
+    '...KWWWWWWWK...',
+    '...KWWWWWWWK...',
+    '...KWWK.KWWK...',
+    '...KWWK.KWWK...',
+    '...KOOK.KOOK...',
   ];
   const col = { K, W, G, D, V, H, O };
   map.forEach((row, y) => [...row].forEach((ch, x) => { if (col[ch]) px(x, y, col[ch]); }));
