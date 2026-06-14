@@ -356,6 +356,9 @@ tr.row.done-final td{opacity:.4}
 .set-row select,.set-row input,#setColumns input,#setBoardTitle,#setJoinCode{
   border:1px solid var(--border); border-radius:var(--radius); padding:5px 8px; font-size:13px; background:var(--card); color:var(--text);
 }
+/* Werte in den Einstellungen (bis zum Kategorien-Block) rechtsbündig */
+.set-row input[type=text],.set-row input[type=number],.set-row select,#setColumns input,#setBoardTitle{text-align:right}
+.set-row input[type=checkbox]{text-align:initial}
 .set-row select,.set-row input[type=number]{width:130px}
 #setColumns input,#setBoardTitle{width:170px}
 #setColumns .set-row label{color:var(--text-weak)}
@@ -1386,6 +1389,9 @@ function openSettings() {
     team.hidden = false;
     const b = myBoards.find(x => x.id === boardId);
     document.getElementById('setShareCode').textContent = (b && b.share_code) || '–';
+    // Nur der Besitzer darf das Board löschen — eingeladene Mitglieder nicht
+    const isOwner = !!(b && sbSession && b.owner === sbSession.user.id);
+    document.getElementById('btnDeleteBoard').hidden = !isOwner;
   } else team.hidden = true;
   settingsOverlay.classList.add('open');
 }
@@ -2119,6 +2125,7 @@ async function createBoard() {
 async function deleteBoard() {
   if (!sb || !boardId) { alert('Kein Board zum Löschen.'); return; }
   const b = myBoards.find(x => x.id === boardId);
+  if (!b || !sbSession || b.owner !== sbSession.user.id) { alert('Nur der Besitzer kann dieses Board löschen.'); return; }
   const name = (b && b.title) || 'dieses Board';
   const eingabe = prompt('Board „' + name + '" und ALLE seine Tickets endgültig löschen?\n\nZum Bestätigen „löschen" eingeben:');
   if ((eingabe || '').trim().toLowerCase() !== 'löschen') { toast('Abgebrochen'); return; }
