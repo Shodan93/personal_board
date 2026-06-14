@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Orbit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='8.5' fill='%230176D3'/%3E%3Ccircle cx='13' cy='13' r='2.6' fill='%234FA8F0'/%3E%3Cellipse cx='16' cy='16' rx='14' ry='4.6' fill='none' stroke='%23014486' stroke-width='2.2' transform='rotate(-22 16 16)'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
@@ -155,14 +156,14 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 .card-menu-pop button:hover{background:var(--blue-bg)}
 
 /* Pixel-Lauf (Gimmick) in der Kopfzeile */
-#dinoWrap{display:flex; align-items:flex-end; gap:1px; flex:1; min-width:160px; height:34px}
+#dinoWrap{display:flex; align-items:flex-end; gap:1px; flex:1 1 220px; min-width:150px; max-width:560px; height:34px}
 #dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:11px; padding:0 3px 2px; cursor:pointer}
 #dinoWrap button:hover{color:var(--blue)}
 #dinoBiome{font-size:10px; color:#b9b7b4; white-space:nowrap; padding:0 2px}
 #dinoCv{flex:1; width:100%; height:34px}
 
 /* Astronaut */
-#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:56px; cursor:pointer; display:none;
+#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:60px; cursor:pointer; display:none;
   animation:astroFloat 4s ease-in-out infinite}
 @keyframes astroFloat{0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)}}
 #astroCv{display:block; filter:drop-shadow(0 3px 5px rgba(0,0,0,.25))}
@@ -351,7 +352,14 @@ tr.row.done-final td{opacity:.4}
 .settings-section h3{font-size:12px; color:var(--blue-dark); margin-bottom:8px; text-transform:uppercase; letter-spacing:.03em}
 .set-row{display:flex; align-items:center; gap:8px; justify-content:space-between}
 .set-row label{font-size:12px}
-.set-row select,.set-row input[type=number]{border:1px solid var(--border); border-radius:var(--radius); padding:4px 6px; width:130px}
+/* einheitliche, runde Eingabefelder in den Einstellungen (CI-konform) */
+.set-row select,.set-row input,#setColumns input,#setBoardTitle,#setJoinCode{
+  border:1px solid var(--border); border-radius:var(--radius); padding:5px 8px; font-size:13px; background:var(--card); color:var(--text);
+}
+.set-row select,.set-row input[type=number]{width:130px}
+#setColumns input,#setBoardTitle{width:170px}
+#setColumns .set-row label{color:var(--text-weak)}
+#setColumns input:focus,#setBoardTitle:focus,#setJoinCode:focus{outline:2px solid var(--blue); outline-offset:-1px}
 
 /* ---------- Rich-Text (Beschreibung/Notiz mit Inline-Bildern) ---------- */
 .richtext{width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:6px 8px;font-size:13px;min-height:72px;max-height:300px;overflow-y:auto;background:var(--card)}
@@ -401,7 +409,7 @@ tr.row.done-final td{opacity:.4}
 <header>
   <h1 id="boardTitle">🪐 Orbit</h1>
   <select id="boardSwitch" title="Board wechseln" hidden
-    style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:160px"></select>
+    style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
   <span class="header-meta" id="todayDate"></span>
   <button class="header-meta" id="syncDot" title="Cloud-Status / Anmelden"
     style="border:none;background:none;cursor:pointer;padding:0"></button>
@@ -421,11 +429,8 @@ tr.row.done-final td{opacity:.4}
     <button id="btnKanban" class="active">Kanban</button>
     <button id="btnList">Liste</button>
   </div>
-  <button class="btn" id="btnExport">Export</button>
-  <button class="btn" id="btnImport">Import</button>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
   <button class="btn btn-icon" id="btnSettings" title="Einstellungen">⚙</button>
-  <button class="btn btn-primary" id="btnNew">+ Neues Ticket</button>
 </header>
 
 <div class="banner" id="exportBanner" hidden>
@@ -646,9 +651,18 @@ tr.row.done-final td{opacity:.4}
           <input id="setJoinCode" placeholder="Team-Code eines anderen Boards…" maxlength="40">
           <button type="button" class="btn" id="btnJoinBoard">Beitreten</button>
         </div>
-        <div style="margin-top:8px">
-          <button type="button" class="btn" id="btnNewBoard">+ Neues Board anlegen</button>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn" id="btnNewBoard">+ Neues Board</button>
+          <button type="button" class="btn btn-danger" id="btnDeleteBoard">Board löschen…</button>
         </div>
+      </div>
+      <div class="settings-section">
+        <h3>Daten</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn" id="btnSetExport">⤓ Export (JSON)</button>
+          <button type="button" class="btn" id="btnSetImport">⤒ Import (JSON)</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Export sichert Tickets, Säulen, Boardname &amp; Voreinstellungen. Import ersetzt das aktuelle Board.</div>
       </div>
       <div class="settings-section">
         <h3>Kategorien</h3>
@@ -725,7 +739,7 @@ tr.row.done-final td{opacity:.4}
 <!-- Astronaut mit Office-Tipps -->
 <div id="astro" title="Klick mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
-  <canvas id="astroCv" width="56" height="64"></canvas>
+  <canvas id="astroCv" width="60" height="72"></canvas>
   <button id="astroGear" title="Astronaut-Einstellungen">⚙</button>
   <div id="astroMenu" hidden>
     <label><input type="checkbox" id="astroAuto"> Tipps von selbst zeigen</label>
@@ -783,9 +797,15 @@ function setColumnsFromSettings() {
 /* Board-Aussehen anwenden: Säulen, Titel, Spaltenzahl, Auswahllisten */
 function applyBoardConfig() {
   setColumnsFromSettings();
-  document.getElementById('boardTitle').textContent = state.settings.boardTitle || 'Mein Board';
+  // Oben links nur die Marke; der Boardname steht in der Pickliste (kein Doppel)
+  document.getElementById('boardTitle').textContent = '🪐 Orbit';
   document.title = (state.settings.boardTitle || 'Orbit') + ' · Orbit';
   document.getElementById('kanban').style.setProperty('--ncols', STATUSES.length);
+  // aktuellen Boardnamen in der Pickliste aktualisieren
+  if (typeof myBoards !== 'undefined' && boardId) {
+    const b = myBoards.find(x => x.id === boardId); if (b) b.title = state.settings.boardTitle;
+    if (typeof renderBoardSwitch === 'function') renderBoardSwitch();
+  }
   refreshStatusOptions();
   refreshFilters();
 }
@@ -1371,6 +1391,7 @@ function openSettings() {
 }
 document.getElementById('btnJoinBoard').onclick = joinBoardByCode;
 document.getElementById('btnNewBoard').onclick = createBoard;
+document.getElementById('btnDeleteBoard').onclick = deleteBoard;
 function closeSettings() {
   const s = state.settings;
   s.boardTitle = (document.getElementById('setBoardTitle').value.trim() || 'Mein Board').slice(0, 40);
@@ -1504,7 +1525,6 @@ function setView(v) {
 
 document.getElementById('btnKanban').onclick = () => setView('kanban');
 document.getElementById('btnList').onclick = () => setView('list');
-document.getElementById('btnNew').onclick = () => openModal(null);
 document.getElementById('btnSave').onclick = saveTicket;
 document.getElementById('btnWide').onclick = () => {
   state.settings.modalWide = !state.settings.modalWide; save();
@@ -1520,14 +1540,15 @@ document.getElementById('btnLogDate').onclick = () => {
   const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
 };
 document.getElementById('btnDelete').onclick = deleteTicket;
-document.getElementById('btnExport').onclick = exportJSON;
 document.getElementById('btnBannerExport').onclick = exportJSON;
 document.getElementById('btnBannerDismiss').onclick = () => document.getElementById('exportBanner').hidden = true;
-document.getElementById('btnImport').onclick = () => document.getElementById('importFile').click();
 document.getElementById('importFile').addEventListener('change', e => {
   if (e.target.files[0] && confirm('Import ersetzt ALLE aktuellen Daten. Fortfahren?')) importJSON(e.target.files[0]);
   e.target.value = '';
 });
+// Export/Import + neues Ticket aus den Einstellungen / per Tastatur (n) / Spalten-„+"
+document.getElementById('btnSetExport').onclick = () => { closeSettings(); exportJSON(); };
+document.getElementById('btnSetImport').onclick = () => document.getElementById('importFile').click();
 document.getElementById('btnSettings').onclick = openSettings;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = requestCloseModal);
 document.querySelectorAll('[data-close-settings]').forEach(b => b.onclick = closeSettings);
@@ -1969,7 +1990,7 @@ async function ensureBoards() {
 function renderBoardSwitch() {
   const sel = document.getElementById('boardSwitch');
   if (!sel) return;
-  if (!sb || myBoards.length <= 1) { sel.hidden = true; return; }
+  if (!sb || !myBoards.length) { sel.hidden = true; return; } // im Login-Modus zeigt die Pickliste den Boardnamen
   sel.hidden = false;
   sel.innerHTML = myBoards.map(b => '<option value="' + b.id + '"' + (b.id === boardId ? ' selected' : '') + '>' + esc(b.title || 'Board') + '</option>').join('');
 }
@@ -2094,6 +2115,21 @@ async function createBoard() {
   await ensureBoards(); renderBoardSwitch();
   closeSettings(); setActiveBoard(data.id);
   toast('Neues Board angelegt');
+}
+async function deleteBoard() {
+  if (!sb || !boardId) { alert('Kein Board zum Löschen.'); return; }
+  const b = myBoards.find(x => x.id === boardId);
+  const name = (b && b.title) || 'dieses Board';
+  const eingabe = prompt('Board „' + name + '" und ALLE seine Tickets endgültig löschen?\n\nZum Bestätigen „löschen" eingeben:');
+  if ((eingabe || '').trim().toLowerCase() !== 'löschen') { toast('Abgebrochen'); return; }
+  const { error } = await sb.from('boards').delete().eq('id', boardId);
+  if (error) { alert('Löschen fehlgeschlagen: ' + error.message); return; }
+  if (boardChannel) { sb.removeChannel(boardChannel); boardChannel = null; }
+  boardId = null;
+  closeSettings();
+  await ensureBoards();          // legt bei Bedarf automatisch ein neues leeres Board an
+  setActiveBoard(myBoards[0].id);
+  toast('Board gelöscht');
 }
 
 async function runHousekeeper() {
@@ -2393,7 +2429,7 @@ const DINO = (() => {
   const FAR = '#cdcdcd', NEAR = '#b4b1ac';
 
   let running = true, started = false, rafId = null, lastTs = 0;
-  let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [];
+  let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [], bursts = [];
   let hiM = null, gx = 0;
   let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
 
@@ -2577,7 +2613,38 @@ const DINO = (() => {
     drawGround(w, groundY);
     plants.forEach(o => drawPlant(o, groundY));
     animals.forEach(a => drawAnimal(a, groundY));
+    // Zerplatzen-Partikel (beim Anklicken eines Tieres)
+    if (bursts.length) {
+      for (const b of bursts) {
+        b.x += b.vx * dt * 60; b.y += b.vy * dt * 60; b.vy += 0.35 * dt * 60; b.life -= dt * 2.2;
+      }
+      bursts = bursts.filter(b => b.life > 0);
+      for (const b of bursts) { ctx.globalAlpha = Math.max(0, b.life); ctx.fillStyle = b.c; R(b.x, b.y, b.s, b.s); }
+      ctx.globalAlpha = 1;
+    }
   }
+  // Tier anklicken -> bleibt stehen und zerplatzt
+  function animalWidth(a) { return a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px; }
+  cv.addEventListener('click', e => {
+    const rect = cv.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * (cv.width / rect.width);
+    const cy = (e.clientY - rect.top) * (cv.height / rect.height);
+    const groundY = cv.height - 6;
+    for (let i = animals.length - 1; i >= 0; i--) {
+      const a = animals[i], h = a.v.sp.length * a.v.px, w = animalWidth(a), top = groundY - h;
+      if (cx >= a.x - 2 && cx <= a.x + w + 2 && cy >= top - 2 && cy <= groundY + 2) {
+        const px0 = a.x + w / 2, py0 = top + h / 2;
+        for (let k = 0; k < 16; k++) {
+          const ang = Math.random() * Math.PI * 2, sp = 0.6 + Math.random() * 1.8;
+          bursts.push({ x: px0, y: py0, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 0.8,
+            s: a.v.px, c: a.v.c, life: 0.8 + Math.random() * 0.4 });
+        }
+        animals.splice(i, 1);
+        break;
+      }
+    }
+  });
+  cv.style.cursor = 'pointer';
   return {
     start() {
       if (started) return;
@@ -2723,26 +2790,29 @@ let tipPool = [], tipTimer = null, bubbleTimer = null;
   const ctx = document.getElementById('astroCv').getContext('2d');
   const P = 4;
   const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x * P, y * P, P, P); };
-  const K = '#1b1b1b', W = '#f3f5fa', G = '#cdd2dc', D = '#a6adba',
+  const K = '#1b1b1b', W = '#f3f5fa', G = '#cdd2dc', D = '#8a93a8',
         V = '#54cdee', H = '#c4f0ff', O = '#c0623a';
-  // 14×16-Raster: runder Helm, großes Visier mit Glanz, Orange-Brust + Handschuhe
+  // 15×18-Raster: springender Astronaut (Lauf-Pose) — Visier mit Glanz,
+  // Orange-Brust + Handschuhe, ein Arm hoch, Beine im Schritt (nach Vorlage)
   const map = [
-    '....KKKKKK....',
-    '...KWWWWWWK...',
-    '..KWWWWWWWWK..',
-    '..KWVVVVVVWK..',
-    '..KWVVVVVVWK..',
-    '..KWHHVVVVWK..',
-    '..KWVVVVVVWK..',
-    '..KWWWWWWWWK..',
-    '...KWWWWWWK...',
-    '.KOKWWWWWWKOK.',
-    'KOOKWGOOGWKOOK',
-    '.KKWWGOOGWWKK.',
-    '..KWWWWWWWWK..',
-    '..KWWWKKWWWK..',
-    '..KWWK..KWWK..',
-    '..KKKK..KKKK..',
+    '....KKKKK......',
+    '...KWWWWWK.....',
+    '..KWVVVVVWK....',
+    '..KVHHVVVWK.KK.',
+    '..KVVVVVVWKKOK.',
+    '..KWVVVVWKKOOK.',
+    '...KWWWWKDK.K..',
+    '...KGWWWWDK....',
+    '..KGWWOOWWDK...',
+    '.KOKWWOOWWDK...',
+    'KOOKWWWWWWDK...',
+    '.KKWWWWWWDK....',
+    '...KWWWWWDK....',
+    '...KWWKKWDK....',
+    '...KWK.KWDK....',
+    '..KWK..KDDK....',
+    '..KK....KKDK...',
+    '.........KKK...',
   ];
   const col = { K, W, G, D, V, H, O };
   map.forEach((row, y) => [...row].forEach((ch, x) => { if (col[ch]) px(x, y, col[ch]); }));
