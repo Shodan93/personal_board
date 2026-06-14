@@ -1826,7 +1826,8 @@ document.getElementById('lightbox').onclick = () => document.getElementById('lig
    Endpunkte: POST /housekeeper {title, desc, note} -> {title, desc, note}
               POST /focus {heute, tickets:[...]}    -> {fokus}
    ============================================================ */
-const CLAUDE_WORKER_URL = 'https://billowing-sunset-d43c.davidmumelter9.workers.dev';
+// Claude-Proxy (Cloudflare Worker). Custom Domain des Workers (siehe Anleitung).
+const CLAUDE_WORKER_URL = 'https://orbit-api.mumelter.org';
 // === Supabase: hier deine Projektwerte eintragen (Project Settings -> API) ===
 const SUPABASE_URL = 'https://eqrzazmdamiplqiizrat.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_z0RG83SZ7ChiPVid-2ojLQ_4sqOJ2Iw'; // publishable key (öffentlich ok; RLS schützt die Daten)

@@ -55,7 +55,7 @@ async function verifyToken(request, env) {
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
-    const allowed = (env.ALLOWED_ORIGINS || 'https://shodan93.github.io').split(',').map(s => s.trim());
+    const allowed = (env.ALLOWED_ORIGINS || 'https://orbit.mumelter.org,https://shodan93.github.io').split(',').map(s => s.trim());
     const cors = {
       'Access-Control-Allow-Origin': allowed.includes(origin) ? origin : allowed[0],
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
