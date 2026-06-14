@@ -61,8 +61,12 @@ begin
   return bid;
 end; $$;
 
--- Realtime für Boards einschalten (Live-Sync)
-alter publication supabase_realtime add table public.boards;
+-- Realtime für Boards einschalten (Live-Sync) — idempotent, ignoriert "schon vorhanden"
+do $$
+begin
+  alter publication supabase_realtime add table public.boards;
+exception when duplicate_object then null;
+end $$;
 
 -- ============================================================
 -- STORAGE — Bucket "attachments" für Anhänge (Pfad: <board_id>/<file_id>)
