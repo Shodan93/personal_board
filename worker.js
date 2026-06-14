@@ -36,11 +36,19 @@ const MAXTOK = { housekeeper: 3000, focus: 250, report: 1200 };
 
 const PROFILES = {
   valeska: {
+    title: 'Control Panel',
     statuses: ['Themenspeicher', 'PRIO', 'Blocked / Wartend', 'In Arbeit', 'Erledigt'],
     done: ['Erledigt'],
     focus: false, reportJF: false, reportAll: true, housekeeper: true,
   },
+  rezepte: { // Gemeinsames Rezeptsammlung-Board (mehrere Personen teilen sich diesen Schlüssel)
+    title: 'Rezeptsammlung',
+    statuses: ['Themenspeicher', 'Blocked', 'In arbeit', 'fertig'],
+    done: ['fertig'],
+    focus: false, reportJF: false, reportAll: false, housekeeper: true,
+  },
   _default: { // david, svenja und alle weiteren
+    title: 'Control Panel',
     statuses: ['Themenspeicher', 'Blocked / Wartend', 'In Arbeit', 'Erledigt JF', 'Erledigt'],
     done: ['Erledigt JF', 'Erledigt'],
     focus: true, reportJF: true, reportAll: true, housekeeper: true,

@@ -87,7 +87,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 
 /* ---------- Kanban ---------- */
 .kanban{
-  display:grid; grid-template-columns:repeat(5,1fr); gap:10px;
+  display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
   padding:10px 16px 24px; align-items:start;
 }
 .col{background:#ECEBEA; border-radius:var(--radius); padding:8px; min-height:140px}
@@ -383,8 +383,8 @@ tr.row.done-final td{opacity:.4}
 .lightbox img{max-width:95vw;max-height:95vh;border-radius:4px}
 
 /* ---------- Responsiv ---------- */
-@media (max-width:1180px){ .kanban{grid-template-columns:repeat(3,1fr)} }
-@media (max-width:860px){ .kanban{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:1180px){ .kanban{grid-template-columns:repeat(min(var(--ncols,5),3),1fr)} }
+@media (max-width:860px){ .kanban{grid-template-columns:repeat(min(var(--ncols,5),2),1fr)} }
 @media (max-width:560px){
   .kanban{grid-template-columns:1fr}
   .grid2{grid-template-columns:1fr}
@@ -398,7 +398,7 @@ tr.row.done-final td{opacity:.4}
 <body>
 
 <header>
-  <h1>Control Panel</h1>
+  <h1 id="boardTitle">Control Panel</h1>
   <span class="header-meta" id="todayDate"></span>
   <button class="header-meta" id="syncDot" title="Cloud-Status / Anmelden"
     style="border:none;background:none;cursor:pointer;padding:0"></button>
@@ -716,7 +716,7 @@ const LS_KEY_V1 = 'controlPanel.tickets.v1'; // Migration aus v1
 // Workflow wird pro Nutzerprofil gesetzt (applyProfile) — Default: voller Workflow
 let STATUSES = ['Themenspeicher', 'Blocked / Wartend', 'In Arbeit', 'Erledigt JF', 'Erledigt'];
 let DONE = ['Erledigt JF', 'Erledigt'];
-const COLLAPSIBLE = ['Themenspeicher', 'Blocked / Wartend', 'Erledigt'];
+let COLLAPSIBLE = ['Themenspeicher', 'Blocked / Wartend', 'Erledigt'];
 const PRIO_ORDER = { 'Hoch': 0, 'Mittel': 1, 'Niedrig': 2 };
 const PALETTE = ['#0176D3','#2E844A','#C23934','#9050E9','#06A59A','#B25D00',
                  '#5867E8','#AA309F','#3BA755','#CA8501','#0D9DDA','#7F2D7B'];
@@ -773,7 +773,8 @@ function save() {
 function migrateTickets() {
   state.tickets.forEach(t => {
     if (t.status === 'Offen') t.status = 'Themenspeicher';
-    if (t.status === 'Blocked') t.status = 'Blocked / Wartend';
+    // 'Blocked' nur auf Boards umbenennen, die 'Blocked / Wartend' nutzen (nicht im Rezept-Board)
+    if (t.status === 'Blocked' && !STATUSES.includes('Blocked') && STATUSES.includes('Blocked / Wartend')) t.status = 'Blocked / Wartend';
     if (!STATUSES.includes(t.status)) t.status = 'Themenspeicher';
     if (!Array.isArray(t.cats)) t.cats = [];
     if (!Array.isArray(t.imgs)) t.imgs = [];
@@ -834,16 +835,15 @@ function isThisWeek(t)  { const [m, s] = weekBounds(); return !DONE.includes(t.s
 function isThisMonth(t) { return !DONE.includes(t.status) && t.deadline.slice(0, 7) === todayStr().slice(0, 7); }
 function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
 function doneClass(t) {
-  if (t.status === 'Erledigt') return 'done done-final';   // final: stark gedimmt
-  if (t.status === 'Erledigt JF') return 'done';           // JF: wartet auf Meeting
-  return '';
+  if (!DONE.includes(t.status)) return '';
+  return t.status === DONE[DONE.length - 1] ? 'done done-final' : 'done'; // letzter Done-Status = final
 }
 /* "Erledigt" nach X Tagen ausblenden (Daten bleiben erhalten) */
 let showHidden = false; // Toggle: ausgeblendete Erledigte einblenden
 function isHidden(t) {
   if (showHidden) return false;
   const days = state.settings.hideDoneAfter;
-  if (!days || t.status !== 'Erledigt' || !t.completedAt) return false;
+  if (!days || t.status !== DONE[DONE.length - 1] || !t.completedAt) return false;
   return (new Date(todayStr()) - new Date(t.completedAt)) / 86400000 > days;
 }
 function setStatus(t, status) {
@@ -910,9 +910,9 @@ function renderKanban() {
       state.settings.collapsed[status] = !collapsed;
       save(); render();
     };
-    // Mini-Auswertung in der Erledigt-Spalte: Anzahl + durchschnittliche Laufzeit
-    if (status === 'Erledigt') {
-      const doneAll = state.tickets.filter(t => t.status === 'Erledigt' && t.createdAt && t.completedAt);
+    // Mini-Auswertung in der letzten Done-Spalte: Anzahl + durchschnittliche Laufzeit
+    if (status === DONE[DONE.length - 1]) {
+      const doneAll = state.tickets.filter(t => t.status === status && t.createdAt && t.completedAt);
       if (doneAll.length) {
         const avg = doneAll.reduce((s, t) => s + Math.max(0, (new Date(t.completedAt) - new Date(t.createdAt)) / 86400000), 0) / doneAll.length;
         const d = document.createElement('div');
@@ -1766,7 +1766,7 @@ const CLAUDE_WORKER_URL = 'https://billowing-sunset-d43c.davidmumelter9.workers.
 const LS_AUTH = 'controlPanel.auth';
 let auth = null;
 const OFFLINE_PROFILE = {
-  user: 'local',
+  user: 'local', title: 'Control Panel',
   statuses: ['Themenspeicher', 'Blocked / Wartend', 'In Arbeit', 'Erledigt JF', 'Erledigt'],
   done: ['Erledigt JF', 'Erledigt'],
   focus: true, reportJF: true, reportAll: true, housekeeper: true
@@ -1780,6 +1780,11 @@ function lsKey() { return LS_KEY + (auth && auth.user ? ':' + auth.user : ''); }
 function applyProfile(p) {
   STATUSES = [...p.statuses];
   DONE = [...p.done];
+  // Einklappbar: Themenspeicher, alle Blocked-Varianten und der Erledigt-/fertig-Status
+  COLLAPSIBLE = STATUSES.filter(s => s === 'Themenspeicher' || /^blocked/i.test(s) || s === DONE[DONE.length - 1]);
+  document.getElementById('boardTitle').textContent = p.title || 'Control Panel';
+  document.title = p.title || 'Control Panel';
+  document.getElementById('kanban').style.setProperty('--ncols', STATUSES.length);
   document.getElementById('btnFocus').hidden = !p.focus;
   document.getElementById('btnReport').hidden = !p.reportJF;
   document.getElementById('btnReportAll').hidden = !p.reportAll;
@@ -1850,6 +1855,37 @@ async function cloudLoad() {
     toast('⚠ Cloud nicht erreichbar — lokale Daten aktiv');
   }
 }
+/* Gemeinsames Arbeiten: regelmäßig (und bei Fenster-Fokus) den Cloud-Stand
+   nachladen, damit zwei Personen mit demselben Schlüssel die Änderungen
+   des anderen sehen. Schützt laufende Bearbeitung: kein Überschreiben, wenn
+   ein Ticket offen ist, eine Notiz fokussiert ist oder lokal noch nicht
+   gespeichert wurde. UI-Einstellungen bleiben lokal. */
+async function cloudRefresh() {
+  if (!auth || auth.user === 'local' || !CLAUDE_WORKER_URL) return;
+  if (cloudTimer) return;                                   // lokale Änderungen warten auf Upload
+  if (overlay.classList.contains('open') || settingsOverlay.classList.contains('open')) return;
+  const ae = document.activeElement;
+  if (ae && ae.closest && ae.closest('.sticky')) return;    // Notiz wird gerade getippt
+  try {
+    const res = await cloudFetch('/data');
+    if (!res.ok || res.status === 204) { setSync(res.ok || res.status === 204); return; }
+    const data = await res.json();
+    if (!data || !Array.isArray(data.tickets)) { setSync(true); return; }
+    const inc = JSON.stringify([data.tickets, data.categories || [], data.notes || []]);
+    const cur = JSON.stringify([state.tickets, state.categories, state.notes || []]);
+    if (inc !== cur) {
+      state.tickets = data.tickets;
+      state.categories = data.categories || [];
+      state.notes = data.notes || [];
+      migrateTickets(); ensureCategories();
+      try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
+      refreshFilters(); render(); renderNotes();
+    }
+    setSync(true);
+  } catch (e) { setSync(false); }
+}
+setInterval(cloudRefresh, 20000);                            // alle 20 s abgleichen
+window.addEventListener('focus', cloudRefresh);              // sofort beim Zurückkommen
 
 /* Anhänge in der Cloud (pro Datei ein Eintrag, lokal gecacht) */
 async function cloudPutFile(id, rec) {
@@ -1984,7 +2020,7 @@ async function runFocus() {
   const btn = document.getElementById('btnFocus');
   if (!claudeReady()) return;
   const tickets = state.tickets
-    .filter(t => t.status !== 'Erledigt')
+    .filter(t => !DONE.includes(t.status))
     .map(t => ({
       titel: t.title,
       status: t.status,
