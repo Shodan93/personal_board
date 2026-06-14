@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Orbit</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
    CONTROL PANEL v2 — Salesforce Lightning Stil, Single-User
@@ -399,6 +400,8 @@ tr.row.done-final td{opacity:.4}
 
 <header>
   <h1 id="boardTitle">🪐 Orbit</h1>
+  <select id="boardSwitch" title="Board wechseln" hidden
+    style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:160px"></select>
   <span class="header-meta" id="todayDate"></span>
   <button class="header-meta" id="syncDot" title="Cloud-Status / Anmelden"
     style="border:none;background:none;cursor:pointer;padding:0"></button>
@@ -631,7 +634,21 @@ tr.row.done-final td{opacity:.4}
       </div>
       <div class="set-row">
         <label>Zugang</label>
-        <button class="btn" id="btnLogout">Abmelden / Schlüssel wechseln</button>
+        <button class="btn" id="btnLogout">Abmelden</button>
+      </div>
+      <div class="settings-section" id="teamSection" hidden>
+        <h3>Team &amp; Boards</h3>
+        <div class="set-row">
+          <label>Team-Code (zum Teilen dieses Boards)</label>
+          <span id="setShareCode" style="font-family:monospace;font-size:13px;user-select:all">–</span>
+        </div>
+        <div class="cat-add" style="margin-top:8px">
+          <input id="setJoinCode" placeholder="Team-Code eines anderen Boards…" maxlength="40">
+          <button type="button" class="btn" id="btnJoinBoard">Beitreten</button>
+        </div>
+        <div style="margin-top:8px">
+          <button type="button" class="btn" id="btnNewBoard">+ Neues Board anlegen</button>
+        </div>
       </div>
       <div class="settings-section">
         <h3>Kategorien</h3>
@@ -682,8 +699,9 @@ tr.row.done-final td{opacity:.4}
       <div id="loginDiag" style="font-size:11px;color:var(--text-weak)" hidden></div>
     </div>
     <div class="modal-foot">
-      <button class="btn" id="btnLoginOffline" style="margin-right:auto" title="Nur auf diesem Gerät speichern">Ohne Cloud weiter</button>
-      <button class="btn" id="btnLoginTest" title="Worker-Verbindung prüfen">Verbindung testen</button>
+      <button class="btn" id="btnLoginOffline" style="margin-right:auto" title="Nur auf diesem Gerät speichern">Ohne Cloud</button>
+      <button class="btn" id="btnLoginTest" title="Verbindung prüfen">Test</button>
+      <button class="btn" id="btnSignup" title="Neues Konto anlegen">Registrieren</button>
       <button class="btn btn-primary" id="btnLogin">Anmelden</button>
     </div>
   </div>
@@ -1341,16 +1359,18 @@ function openSettings() {
   document.getElementById('setDino').checked = s.dino !== false;
   document.getElementById('setTips').checked = s.tips !== false;
   renderCatManager();
-  const u = document.getElementById('setUsage'); u.textContent = '–';
-  if (auth && auth.user !== 'local' && CLAUDE_WORKER_URL) {
-    cloudFetch('/usage').then(r => r.json()).then(({ used, limit }) => {
-      u.textContent = (used / 1048576).toFixed(1) + ' MB von ' + Math.round(limit / 1048576) + ' MB';
-    }).catch(() => { u.textContent = 'Cloud nicht erreichbar'; });
-  } else {
-    u.textContent = 'nur lokal (kein Cloud-Login)';
-  }
+  document.getElementById('setUsage').textContent = sb && sbSession ? 'wird von Supabase verwaltet' : 'nur lokal (nicht angemeldet)';
+  // Team-Bereich nur im angemeldeten (Supabase-)Modus
+  const team = document.getElementById('teamSection');
+  if (sb && sbSession && boardId) {
+    team.hidden = false;
+    const b = myBoards.find(x => x.id === boardId);
+    document.getElementById('setShareCode').textContent = (b && b.share_code) || '–';
+  } else team.hidden = true;
   settingsOverlay.classList.add('open');
 }
+document.getElementById('btnJoinBoard').onclick = joinBoardByCode;
+document.getElementById('btnNewBoard').onclick = createBoard;
 function closeSettings() {
   const s = state.settings;
   s.boardTitle = (document.getElementById('setBoardTitle').value.trim() || 'Mein Board').slice(0, 40);
@@ -1531,11 +1551,10 @@ document.getElementById('chipShowHidden').onclick = function () {
   this.classList.toggle('active', showHidden);
   render();
 };
-document.getElementById('btnLogout').onclick = () => {
-  if (confirm('Abmelden? Lokale Daten bleiben erhalten, die Cloud-Verbindung wird getrennt.')) {
-    localStorage.removeItem(LS_AUTH);
-    location.reload();
-  }
+document.getElementById('btnLogout').onclick = async () => {
+  if (!confirm('Abmelden?')) return;
+  try { if (sb) await sb.auth.signOut(); } catch (e) {}
+  location.reload();
 };
 document.getElementById('dueWeekBadge').onclick = () => toggleQuick('week');
 document.getElementById('dueMonthBadge').onclick = () => toggleQuick('month');
@@ -1808,23 +1827,27 @@ document.getElementById('lightbox').onclick = () => document.getElementById('lig
               POST /focus {heute, tickets:[...]}    -> {fokus}
    ============================================================ */
 const CLAUDE_WORKER_URL = 'https://billowing-sunset-d43c.davidmumelter9.workers.dev';
+// === Supabase: hier deine Projektwerte eintragen (Project Settings -> API) ===
+const SUPABASE_URL = 'https://eqrzazmdamiplqiizrat.supabase.co';
+const SUPABASE_ANON_KEY = '';   // <- anon public key hier eintragen (Project Settings -> API)
 
 /* ============================================================
-   LOGIN & CLOUD-SPEICHER
-   Jeder Nutzer hat einen Zugangsschlüssel; der Worker ordnet ihm
-   ein Profil (Spalten/Features) und einen eigenen Cloud-Speicher zu.
-   localStorage bleibt als Offline-Cache pro Nutzer erhalten.
+   AUTH & CLOUD über Supabase (Login, Boards, Echtzeit, Anhänge).
+   Der Cloudflare-Worker dient nur noch als Claude-Proxy.
    ============================================================ */
-const LS_AUTH = 'orbit.auth';
-let auth = null;
-const OFFLINE_PROFILE = { focus: true, reportAll: true, housekeeper: true };
-function loadAuth() {
-  try { auth = JSON.parse(localStorage.getItem(LS_AUTH)); } catch (e) { auth = null; }
-  if (auth && (!auth.profile || typeof auth.user !== 'string')) auth = null;
-}
-function lsKey() { return LS_KEY + (auth && auth.user ? ':' + auth.user : ''); }
+let sb = null;
+try { if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+catch (e) { console.warn('Supabase-Init fehlgeschlagen:', e); }
 
-/* Funktionen (Buttons) je nach Profil — Säulen/Titel kommen aus applyBoardConfig */
+let auth = null;            // { user: email|'local', name }
+let sbSession = null;       // Supabase-Session (access_token)
+let boardId = null;         // aktives Board
+let myBoards = [];          // alle erreichbaren Boards (eigene + geteilte)
+let boardChannel = null;
+let appStarted = false;
+const OFFLINE_PROFILE = { focus: true, reportAll: true, housekeeper: true };
+
+function lsKey() { return LS_KEY + ':' + (auth && auth.user ? auth.user : 'anon') + (boardId ? ':' + boardId : ''); }
 function applyProfile(p) {
   document.getElementById('btnFocus').hidden = !p.focus;
   document.getElementById('btnReportAll').hidden = !p.reportAll;
@@ -1833,19 +1856,14 @@ function applyProfile(p) {
 function refreshStatusOptions() {
   document.getElementById('fStatus').innerHTML = STATUSES.map(s => '<option>' + s + '</option>').join('');
 }
-
 function cloudFetch(p, opts) {
   opts = opts || {};
-  opts.headers = Object.assign({ 'X-Auth': auth ? (auth.auth || '') : '' }, opts.headers || {});
+  opts.headers = Object.assign({ 'X-Supabase-Token': sbSession ? sbSession.access_token : '' }, opts.headers || {});
   return fetch(CLAUDE_WORKER_URL + p, opts);
 }
 function setSync(ok) {
   const el = document.getElementById('syncDot');
-  if (!auth || auth.user === 'local') { // lokaler Modus: Klick öffnet den Login
-    el.textContent = '🔑 Anmelden';
-    el.style.color = 'var(--blue)';
-    return;
-  }
+  if (!auth || auth.user === 'local') { el.textContent = '🔑 Anmelden'; el.style.color = 'var(--blue)'; return; }
   el.textContent = ok ? '☁ synchron' : '⚠ offline';
   el.style.color = ok ? 'var(--green)' : 'var(--red)';
 }
@@ -1856,179 +1874,215 @@ document.getElementById('syncDot').onclick = () => {
     document.getElementById('loginEmail').focus();
   }
 };
+
+function boardSnapshot() { return { tickets: state.tickets, categories: state.categories, settings: state.settings, notes: state.notes || [] }; }
 let cloudTimer = null;
 function scheduleCloudSave() {
-  if (!auth || auth.user === 'local' || !CLAUDE_WORKER_URL) return;
+  try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
+  if (!sb || !boardId) return;
   clearTimeout(cloudTimer);
-  cloudTimer = setTimeout(cloudSave, 1500);
+  cloudTimer = setTimeout(cloudSave, 1200);
 }
 async function cloudSave() {
+  if (!sb || !boardId) { cloudTimer = null; return; }
   try {
-    const res = await cloudFetch('/data', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state)
-    });
-    if (res.status === 413) { alert((await res.json()).error); setSync(false); return; }
-    setSync(res.ok);
-  } catch (e) { setSync(false); }
+    const { error } = await sb.from('boards').update({
+      data: boardSnapshot(), title: state.settings.boardTitle || 'Mein Board',
+      updated_at: new Date().toISOString(), updated_by: sbSession && sbSession.user ? sbSession.user.id : null
+    }).eq('id', boardId);
+    cloudTimer = null;
+    const b = myBoards.find(x => x.id === boardId); if (b) b.title = state.settings.boardTitle;
+    setSync(!error);
+  } catch (e) { cloudTimer = null; setSync(false); }
 }
-async function cloudLoad() {
-  try {
-    const res = await cloudFetch('/data');
-    if (res.status === 204) { if (state.tickets.length) scheduleCloudSave(); setSync(true); return; }
-    if (!res.ok) throw 0;
-    const data = await res.json();
-    if (data && Array.isArray(data.tickets)) {
-      state.tickets = data.tickets;
-      state.categories = data.categories || [];
-      state.settings = Object.assign(defaultSettings(), data.settings || {});
-      setColumnsFromSettings(); migrateTickets(); ensureCategories();
-      try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
-      kanbanSortKey = state.settings.kanbanSort;
-      document.getElementById('kanbanSort').value = kanbanSortKey;
-      applyBoardConfig(); render(); applyGimmick(); applyTips(); renderNotes();
-    } else if (state.tickets.length) scheduleCloudSave();
-    setSync(true);
-  } catch (e) {
-    setSync(false);
-    toast('⚠ Cloud nicht erreichbar — lokale Daten aktiv');
-  }
+function loadBoardData(board) {
+  const d = board.data || {};
+  state.tickets = Array.isArray(d.tickets) ? d.tickets : [];
+  state.categories = Array.isArray(d.categories) ? d.categories : [];
+  state.settings = Object.assign(defaultSettings(), d.settings || {});
+  state.notes = Array.isArray(d.notes) ? d.notes : [];
+  if (board.title) state.settings.boardTitle = board.title;
+  setColumnsFromSettings(); migrateTickets(); ensureCategories();
+  try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
 }
-/* Gemeinsames Arbeiten: regelmäßig (und bei Fenster-Fokus) den Cloud-Stand
-   nachladen, damit zwei Personen mit demselben Schlüssel die Änderungen
-   des anderen sehen. Schützt laufende Bearbeitung: kein Überschreiben, wenn
-   ein Ticket offen ist, eine Notiz fokussiert ist oder lokal noch nicht
-   gespeichert wurde. UI-Einstellungen bleiben lokal. */
-async function cloudRefresh() {
-  if (!auth || auth.user === 'local' || !CLAUDE_WORKER_URL) return;
-  if (cloudTimer) return;                                   // lokale Änderungen warten auf Upload
+/* Live-Update von einem anderen Gerät/Mitglied — laufende Bearbeitung schützen */
+function applyRemote(row) {
+  if (!row || row.id !== boardId) return;
+  const b = myBoards.find(x => x.id === row.id); if (b) { b.data = row.data; b.title = row.title; }
+  if (cloudTimer) return;
   if (overlay.classList.contains('open') || settingsOverlay.classList.contains('open')) return;
-  const ae = document.activeElement;
-  if (ae && ae.closest && ae.closest('.sticky')) return;    // Notiz wird gerade getippt
-  try {
-    const res = await cloudFetch('/data');
-    if (!res.ok || res.status === 204) { setSync(res.ok || res.status === 204); return; }
-    const data = await res.json();
-    if (!data || !Array.isArray(data.tickets)) { setSync(true); return; }
-    const ds = data.settings || {};
-    const inc = JSON.stringify([data.tickets, data.categories || [], data.notes || [], ds.statuses || [], ds.boardTitle || '']);
-    const cur = JSON.stringify([state.tickets, state.categories, state.notes || [], state.settings.statuses || [], state.settings.boardTitle || '']);
-    if (inc !== cur) {
-      state.tickets = data.tickets;
-      state.categories = data.categories || [];
-      state.notes = data.notes || [];
-      // Strukturelle Board-Einstellungen mitziehen (Säulen + Titel), UI-Prefs lokal lassen
-      if (Array.isArray(ds.statuses) && ds.statuses.length) state.settings.statuses = ds.statuses;
-      if (ds.boardTitle) state.settings.boardTitle = ds.boardTitle;
-      setColumnsFromSettings(); migrateTickets(); ensureCategories();
-      try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
-      applyBoardConfig(); render(); renderNotes();
-    }
-    setSync(true);
-  } catch (e) { setSync(false); }
+  const ae = document.activeElement; if (ae && ae.closest && ae.closest('.sticky')) return;
+  const d = row.data || {}, ds = d.settings || {};
+  const inc = JSON.stringify([d.tickets || [], d.categories || [], d.notes || [], ds.statuses || [], row.title || '']);
+  const cur = JSON.stringify([state.tickets, state.categories, state.notes || [], state.settings.statuses || [], state.settings.boardTitle || '']);
+  if (inc === cur) return;
+  state.tickets = d.tickets || []; state.categories = d.categories || []; state.notes = d.notes || [];
+  if (Array.isArray(ds.statuses) && ds.statuses.length) state.settings.statuses = ds.statuses;
+  if (row.title) state.settings.boardTitle = row.title;
+  setColumnsFromSettings(); migrateTickets(); ensureCategories();
+  try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
+  applyBoardConfig(); render(); renderNotes();
 }
-setInterval(cloudRefresh, 20000);                            // alle 20 s abgleichen
-window.addEventListener('focus', cloudRefresh);              // sofort beim Zurückkommen
-
-/* Anhänge in der Cloud (pro Datei ein Eintrag, lokal gecacht) */
+function subscribeBoard() {
+  if (!sb) return;
+  if (boardChannel) { sb.removeChannel(boardChannel); boardChannel = null; }
+  boardChannel = sb.channel('board-' + boardId)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'boards', filter: 'id=eq.' + boardId },
+        payload => applyRemote(payload.new))
+    .subscribe();
+}
+/* Anhänge in Supabase Storage (Bucket "attachments", Pfad <board>/<id>), lokal gecacht */
 async function cloudPutFile(id, rec) {
-  if (!auth || auth.user === 'local' || !CLAUDE_WORKER_URL) return;
-  try {
-    const data = await blobToB64(rec.blob);
-    const res = await cloudFetch('/file/' + id, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data, name: rec.name, type: rec.type })
-    });
-    if (res.status === 413) alert((await res.json()).error);
-  } catch (e) {}
+  if (!sb || !boardId) return;
+  try { await sb.storage.from('attachments').upload(boardId + '/' + id, rec.blob, { upsert: true, contentType: rec.type || 'application/octet-stream' }); } catch (e) {}
 }
 function cloudDelFile(id) {
-  if (auth && auth.user !== 'local' && CLAUDE_WORKER_URL)
-    cloudFetch('/file/' + id, { method: 'DELETE' }).catch(() => {});
+  if (sb && boardId) sb.storage.from('attachments').remove([boardId + '/' + id]).catch(() => {});
 }
-/* Datei lokal holen, bei Bedarf aus der Cloud nachladen + cachen */
 async function imgGetC(id) {
   let rec = null;
   if (idb) { try { rec = await imgGet(id); } catch (e) {} }
-  if (rec || !auth || auth.user === 'local' || !CLAUDE_WORKER_URL) return rec;
+  if (rec || !sb || !boardId) return rec;
   try {
-    const res = await cloudFetch('/file/' + id);
-    if (!res.ok) return null;
-    const j = await res.json();
-    const blob = await (await fetch(j.data)).blob();
-    rec = { id, blob, name: j.name || 'datei', type: j.type || blob.type };
+    const { data, error } = await sb.storage.from('attachments').download(boardId + '/' + id);
+    if (error || !data) return null;
+    rec = { id, blob: data, name: 'datei', type: data.type || 'application/octet-stream' };
     if (idb) imgPut(rec).catch(() => {});
     return rec;
   } catch (e) { return null; }
 }
 
-function startApp() {
-  document.getElementById('loginOverlay').classList.remove('open');
-  applyProfile(auth.profile);
-  load();
-  applyBoardConfig();
+/* ---------- Board-Verwaltung ---------- */
+async function ensureBoards() {
+  const { data, error } = await sb.from('boards').select('id,title,data,share_code,owner').order('updated_at', { ascending: false });
+  if (error) throw error;
+  myBoards = data || [];
+  if (!myBoards.length) {
+    const { data: created, error: e2 } = await sb.from('boards')
+      .insert({ title: 'Mein Board', data: { tickets: [], categories: [], settings: defaultSettings(), notes: [] } })
+      .select().single();
+    if (e2) throw e2;
+    myBoards = [created];
+  }
+}
+function renderBoardSwitch() {
+  const sel = document.getElementById('boardSwitch');
+  if (!sel) return;
+  if (!sb || myBoards.length <= 1) { sel.hidden = true; return; }
+  sel.hidden = false;
+  sel.innerHTML = myBoards.map(b => '<option value="' + b.id + '"' + (b.id === boardId ? ' selected' : '') + '>' + esc(b.title || 'Board') + '</option>').join('');
+}
+function setActiveBoard(id) {
+  const b = myBoards.find(x => x.id === id) || myBoards[0];
+  boardId = b.id;
+  loadBoardData(b);
   kanbanSortKey = state.settings.kanbanSort;
   document.getElementById('kanbanSort').value = kanbanSortKey;
-  if (state.settings.remindDays > 0 &&
-      (new Date(todayStr()) - new Date(state.settings.lastExport || todayStr())) / 86400000 >= state.settings.remindDays)
-    document.getElementById('exportBanner').hidden = false;
+  applyBoardConfig();
   setView(state.settings.defaultView || 'kanban');
   applyGimmick(); applyTips(); renderNotes();
-  if (auth.user !== 'local') cloudLoad(); else setSync(false);
+  renderBoardSwitch();
+  subscribeBoard();
+  setSync(true);
 }
+
+async function startSupabase(session) {
+  if (appStarted) { sbSession = session; return; }
+  appStarted = true;
+  sbSession = session;
+  auth = { user: session.user.email, name: session.user.email };
+  document.getElementById('loginOverlay').classList.remove('open');
+  applyProfile(OFFLINE_PROFILE);
+  try { await ensureBoards(); setActiveBoard(myBoards[0].id); }
+  catch (e) { toast('⚠ Daten konnten nicht geladen werden — Supabase-Schema/Policies prüfen.'); console.warn(e); setSync(false); }
+}
+function startOffline() {
+  if (appStarted) { document.getElementById('loginOverlay').classList.remove('open'); return; }
+  appStarted = true;
+  auth = { user: 'local', name: '' };
+  document.getElementById('loginOverlay').classList.remove('open');
+  applyProfile(OFFLINE_PROFILE);
+  load(); applyBoardConfig();
+  kanbanSortKey = state.settings.kanbanSort;
+  document.getElementById('kanbanSort').value = kanbanSortKey;
+  setView(state.settings.defaultView || 'kanban');
+  applyGimmick(); applyTips(); renderNotes();
+  setSync(false);
+}
+
 document.getElementById('btnLogin').onclick = async () => {
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPass').value;
   const err = document.getElementById('loginErr');
   if (!email || !password) { err.textContent = 'Bitte E-Mail und Passwort eingeben.'; err.hidden = false; return; }
-  if (!CLAUDE_WORKER_URL) { err.textContent = 'Worker-URL fehlt im Code.'; err.hidden = false; return; }
-  try {
-    const res = await fetch(CLAUDE_WORKER_URL + '/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    if (!res.ok) {
-      let msg = 'E-Mail oder Passwort falsch.';
-      try { msg = (await res.json()).error || msg; } catch (e2) {}
-      err.textContent = msg; err.hidden = false; return;
-    }
-    const profile = await res.json();
-    auth = { user: profile.email, auth: btoa(email + ':' + password), name: profile.name,
-             profile: { focus: profile.focus, reportAll: profile.reportAll, housekeeper: profile.housekeeper } };
-    localStorage.setItem(LS_AUTH, JSON.stringify(auth));
-    startApp();
-  } catch (e) { err.textContent = 'Cloud nicht erreichbar — „Ohne Cloud weiter“ nutzen.'; err.hidden = false; }
+  if (!sb) { err.textContent = 'Supabase ist nicht konfiguriert (SUPABASE_URL/SUPABASE_ANON_KEY im Code eintragen).'; err.hidden = false; return; }
+  err.hidden = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { err.textContent = 'E-Mail oder Passwort falsch.'; err.hidden = false; }
+  // Erfolg -> onAuthStateChange startet die App
 };
-document.getElementById('loginPass').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btnLogin').click();
-});
+document.getElementById('btnSignup').onclick = async () => {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  if (!email || !password) { err.textContent = 'Bitte E-Mail und Passwort eingeben.'; err.hidden = false; return; }
+  if (password.length < 6) { err.textContent = 'Passwort: mindestens 6 Zeichen.'; err.hidden = false; return; }
+  if (!sb) { err.textContent = 'Supabase ist nicht konfiguriert.'; err.hidden = false; return; }
+  err.hidden = true;
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) { err.textContent = 'Registrierung fehlgeschlagen: ' + error.message; err.hidden = false; return; }
+  if (!data.session) { err.style.color = 'var(--green)'; err.textContent = '✓ Konto angelegt. Falls E-Mail-Bestätigung aktiv ist: Postfach prüfen, sonst direkt anmelden.'; err.hidden = false; }
+  // mit Session startet onAuthStateChange automatisch
+};
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
 document.getElementById('btnLoginTest').onclick = async () => {
   const d = document.getElementById('loginDiag');
   d.hidden = false; d.style.color = 'var(--text-weak)'; d.textContent = 'Teste…';
-  if (!CLAUDE_WORKER_URL) { d.textContent = '⚠ Keine Worker-URL im Code hinterlegt.'; return; }
+  const parts = [];
+  parts.push(sb ? '✓ Supabase konfiguriert' : '⚠ Supabase NICHT konfiguriert (URL/Key im Code)');
   try {
     const res = await fetch(CLAUDE_WORKER_URL + '/version');
-    if (!res.ok) { d.style.color = 'var(--red)'; d.textContent = '⚠ Worker antwortet, aber /version fehlt — alte worker.js? Bitte die neue worker.js deployen.'; return; }
     const v = await res.json();
-    if (v.usersError) { d.style.color = 'var(--red)'; d.textContent = '⚠ ' + v.usersError; return; }
-    if (!v.usersConfigured) { d.style.color = 'var(--red)'; d.textContent = '⚠ Worker läuft (v' + v.version + '), aber das Secret USERS ist leer/fehlt. In den Worker-Settings als Secret anlegen.'; return; }
-    d.style.color = 'var(--green)'; d.textContent = '✓ Worker v' + v.version + ' erreichbar, ' + v.usersConfigured + ' Konten hinterlegt. E-Mail & Passwort oben eingeben.';
-  } catch (e) {
-    d.style.color = 'var(--red)';
-    d.textContent = '⚠ Worker nicht erreichbar (' + e.message + '). URL/Deploy prüfen.';
-  }
+    parts.push('✓ Worker v' + v.version + (v.supabase ? ' (Supabase verbunden)' : ' (⚠ SUPABASE_URL im Worker fehlt)'));
+  } catch (e) { parts.push('⚠ Claude-Worker nicht erreichbar'); }
+  d.style.color = sb ? 'var(--green)' : 'var(--red)';
+  d.innerHTML = parts.join('<br>');
 };
 document.getElementById('btnLoginOffline').onclick = () => {
-  if (auth) { document.getElementById('loginOverlay').classList.remove('open'); return; } // App läuft schon
-  auth = { user: 'local', auth: '', name: '', profile: OFFLINE_PROFILE };
-  localStorage.setItem(LS_AUTH, JSON.stringify(auth));
-  startApp();
+  if (appStarted) { document.getElementById('loginOverlay').classList.remove('open'); return; }
+  startOffline();
 };
 
 function claudeReady() {
   if (!CLAUDE_WORKER_URL) { alert('Die Claude-Anbindung ist noch nicht konfiguriert (CLAUDE_WORKER_URL).'); return false; }
-  if (!auth || auth.user === 'local') { alert('Dafür bitte mit E-Mail und Passwort anmelden.'); return false; }
+  if (!sb || !sbSession) { alert('Dafür bitte anmelden (E-Mail & Passwort).'); return false; }
   return true;
+}
+/* Board wechseln / teilen / neu */
+function bindBoardControls() {
+  const sw = document.getElementById('boardSwitch');
+  if (sw) sw.onchange = e => { if (cloudTimer) cloudSave(); setActiveBoard(e.target.value); };
+}
+async function joinBoardByCode() {
+  if (!sb) { alert('Bitte zuerst anmelden.'); return; }
+  const code = (document.getElementById('setJoinCode').value || '').trim().toLowerCase();
+  if (!code) return;
+  const { data, error } = await sb.rpc('join_board', { code });
+  if (error) { alert('Beitreten fehlgeschlagen: ' + error.message); return; }
+  await ensureBoards(); renderBoardSwitch();
+  document.getElementById('setJoinCode').value = '';
+  closeSettings(); setActiveBoard(data);
+  toast('Board beigetreten');
+}
+async function createBoard() {
+  if (!sb) { alert('Bitte zuerst anmelden.'); return; }
+  const { data, error } = await sb.from('boards')
+    .insert({ title: 'Neues Board', data: { tickets: [], categories: [], settings: defaultSettings(), notes: [] } })
+    .select().single();
+  if (error) { alert('Anlegen fehlgeschlagen: ' + error.message); return; }
+  await ensureBoards(); renderBoardSwitch();
+  closeSettings(); setActiveBoard(data.id);
+  toast('Neues Board angelegt');
 }
 
 async function runHousekeeper() {
@@ -2898,9 +2952,25 @@ document.addEventListener('mousedown', e => {
 /* Init */
 idbOpen().then(db => { idb = db; }).catch(() => { idb = null; console.warn('IndexedDB nicht verfügbar — Anhänge deaktiviert.'); });
 setInterval(tickClock, 1000); tickClock();
-loadAuth();
-if (auth) startApp();
-else document.getElementById('loginOverlay').classList.add('open');
+bindBoardControls();
+if (sb) {
+  // Bestehende Session prüfen + auf An-/Abmeldungen reagieren
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      sbSession = session;
+      if (!appStarted) startSupabase(session);
+    } else if (event === 'SIGNED_OUT') {
+      location.reload();
+    }
+  });
+  sb.auth.getSession().then(({ data }) => {
+    if (data && data.session) { if (!appStarted) startSupabase(data.session); }
+    else document.getElementById('loginOverlay').classList.add('open');
+  }).catch(() => document.getElementById('loginOverlay').classList.add('open'));
+} else {
+  // Supabase nicht konfiguriert -> Login-Fenster (nur „Ohne Cloud weiter" möglich)
+  document.getElementById('loginOverlay').classList.add('open');
+}
 </script>
 
 <!-- ============================================================
