@@ -164,8 +164,8 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 #dinoCv{flex:1; width:100%; height:34px}
 
 /* Astronaut */
-#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:88px; cursor:pointer; display:none;
-  animation:astroFloat 4.5s ease-in-out infinite}
+#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:88px; cursor:pointer; display:none}
+#astroBody{position:relative; width:100%; animation:astroFloat 4.5s ease-in-out infinite}
 @keyframes astroFloat{
   0%{transform:translateY(0) rotate(-2.5deg)}
   25%{transform:translateY(-6px) rotate(1.5deg)}
@@ -284,7 +284,10 @@ body.compact .card .desc{display:none}
 .pill.hoch{background:var(--red)} .pill.mittel{background:var(--yellow); color:#5a3b00} .pill.niedrig{background:var(--green)}
 .tag{border-radius:10px; padding:0 7px; font-size:11px; font-weight:600; white-space:nowrap}
 .deadline{color:var(--text-weak); white-space:nowrap}
-.jira{color:var(--blue); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap}
+.jira{color:var(--blue); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap; display:inline-flex; align-items:center; gap:3px}
+.card-foot .foot-right{display:flex; align-items:center; gap:9px; margin-left:auto}
+.att-chip{display:inline-flex; align-items:center; gap:3px; font-size:11px; color:var(--text-weak); font-weight:600}
+.att-chip svg,.jira svg{display:block}
 .jira:hover{text-decoration:underline}
 
 .due-today{background:#FFE3BD}
@@ -395,9 +398,21 @@ tr.row.done-final td{opacity:.4}
 .task-row input[type=text]{flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:5px 8px;font-size:13px;background:var(--card);color:var(--text)}
 .task-row input[type=text]:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .task-row.done input[type=text]{text-decoration:line-through;color:var(--text-weak)}
+.task-ghost input[type=checkbox]{opacity:.35}
+.task-ghost input[type=text]{border-style:dashed;color:var(--text)}
 .task-row .task-del{border:none;background:none;color:var(--text-weak);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1}
 .task-row .task-del:hover{color:var(--red)}
 .task-count{font-size:11px;color:var(--text-weak);font-weight:600}
+/* ---------- Prioritäts-Auswahl (drei Kreise: grün/gelb/rot) ---------- */
+.prio-picker{display:flex;gap:12px;align-items:center;min-height:24px}
+.prio-dot{width:22px;height:22px;border-radius:50%;border:none;padding:0;cursor:pointer;opacity:.4;
+  transition:opacity .12s ease,transform .12s ease,box-shadow .12s ease}
+.prio-dot:hover{opacity:.78;transform:scale(1.1)}
+.prio-dot.active{opacity:1;transform:scale(1.12);box-shadow:0 0 0 3px var(--card),0 0 0 5px rgba(0,0,0,.16)}
+.prio-niedrig{background:var(--green)}
+.prio-mittel{background:var(--yellow)}
+.prio-hoch{background:var(--red)}
+.prio-label{font-size:12px;color:var(--text-weak);margin-left:2px;font-weight:600}
 .card-tasks{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-weak)}
 
 /* ---------- Anhänge ---------- */
@@ -544,10 +559,14 @@ tr.row.done-final td{opacity:.4}
           <select id="fStatus" required></select>
         </div>
         <div class="field">
-          <label>Priorität <span class="req">*</span></label>
-          <select id="fPrio" required>
-            <option>Hoch</option><option selected>Mittel</option><option>Niedrig</option>
-          </select>
+          <label>Priorität</label>
+          <input type="hidden" id="fPrio" value="Mittel">
+          <div id="fPrioPicker" class="prio-picker">
+            <button type="button" class="prio-dot prio-niedrig" data-prio="Niedrig" title="Niedrig" aria-label="Niedrig"></button>
+            <button type="button" class="prio-dot prio-mittel" data-prio="Mittel" title="Mittel" aria-label="Mittel"></button>
+            <button type="button" class="prio-dot prio-hoch" data-prio="Hoch" title="Hoch" aria-label="Hoch"></button>
+            <span id="fPrioLabel" class="prio-label"></span>
+          </div>
         </div>
       </div>
       <div class="field">
@@ -556,7 +575,7 @@ tr.row.done-final td{opacity:.4}
         <div id="fCreated" style="font-size:11px;color:var(--text-weak);margin-top:4px" hidden></div>
       </div>
       <div class="field">
-        <label>Beschreibung <span class="req">*</span></label>
+        <label>Beschreibung</label>
         <div class="richtext" id="fDesc" contenteditable="true" data-ph="Beschreibung…"></div>
       </div>
       <div class="field">
@@ -569,7 +588,6 @@ tr.row.done-final td{opacity:.4}
       <div class="field">
         <label>Aufgaben <span id="taskCount" class="task-count"></span></label>
         <div id="taskList" class="task-list"></div>
-        <button type="button" class="btn" id="btnAddTask" style="padding:4px 10px;font-size:12px;margin-top:6px">+ Aufgabe</button>
       </div>
       <div class="field">
         <label>Kategorien</label>
@@ -771,9 +789,11 @@ tr.row.done-final td{opacity:.4}
 <!-- Astronaut mit Office-Tipps -->
 <div id="astro" title="Klick mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
-  <img id="astroImg" alt="Astronaut" hidden>
-  <canvas id="astroCv" width="60" height="72"></canvas>
-  <button id="astroGear" title="Astronaut-Einstellungen">⚙</button>
+  <div id="astroBody">
+    <img id="astroImg" alt="Astronaut" hidden>
+    <canvas id="astroCv" width="60" height="72"></canvas>
+    <button id="astroGear" title="Astronaut-Einstellungen">⚙</button>
+  </div>
   <div id="astroMenu" hidden>
     <label><input type="checkbox" id="astroAuto"> Tipps von selbst zeigen</label>
     <button class="btn" id="astroHide">Astronaut ausblenden</button>
@@ -796,6 +816,9 @@ let STATUSES = DEFAULT_STATUSES.slice();
 let DONE = ['Erledigt'];
 let COLLAPSIBLE = ['Themenspeicher', 'Erledigt'];
 const PRIO_ORDER = { 'Hoch': 0, 'Mittel': 1, 'Niedrig': 2 };
+// Schlanke Outline-Icons (CI-konform, erben die Textfarbe) statt Emoji
+const FILE_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+const LINK_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1 1"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1-1"/></svg>';
 const PALETTE = ['#0176D3','#2E844A','#C23934','#9050E9','#06A59A','#B25D00',
                  '#5867E8','#AA309F','#3BA755','#CA8501','#0D9DDA','#7F2D7B'];
 
@@ -879,6 +902,7 @@ function load() {
   setColumnsFromSettings(); migrateTickets(); ensureCategories(); save();
 }
 function save() {
+  lastLocalChange = Date.now();
   try { localStorage.setItem(lsKey(), JSON.stringify(state)); }
   catch (e) { alert('Speichern fehlgeschlagen (localStorage voll oder blockiert).'); }
   scheduleCloudSave();
@@ -949,6 +973,15 @@ function isToday(t)   { return !!t.deadline && !DONE.includes(t.status) && t.dea
 function isThisWeek(t)  { const [m, s] = weekBounds(); return !!t.deadline && !DONE.includes(t.status) && t.deadline >= m && t.deadline <= s; }
 function isThisMonth(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline.slice(0, 7) === todayStr().slice(0, 7); }
 function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
+function deadlineLabel(t) {
+  if (!t.deadline) return 'kein Datum';
+  const today = todayStr();
+  if (t.deadline === today) return 'Heute';
+  const diff = Math.round((new Date(t.deadline) - new Date(today)) / 86400000);
+  if (diff === 1) return 'Morgen';
+  if (diff === -1) return 'Gestern';
+  return fmtDate(t.deadline);
+}
 function matchesSearch(t, q) {
   q = String(q || '').trim().toLowerCase();
   if (!q) return true;
@@ -1092,15 +1125,17 @@ function cardEl(t) {
     '<div class="desc">' + esc(stripHtml(t.desc)) + '</div>' +
     '<div class="meta">' +
       '<span class="pill ' + t.prio.toLowerCase() + '">' + t.prio + '</span>' +
-      '<span class="deadline">📅 ' + fmtDate(t.deadline) + '</span>' +
-      (collectIds(t).length ? '<span class="deadline">📎 ' + collectIds(t).length + '</span>' : '') +
+      '<span class="deadline">' + esc(deadlineLabel(t)) + '</span>' +
       ((t.tasks && t.tasks.length) ? '<span class="card-tasks" title="Aufgaben erledigt">☑ ' + t.tasks.filter(x => x.done).length + '/' + t.tasks.length + '</span>' : '') + tags +
     '</div>' +
     '<div class="card-foot">' +
       '<select class="quick-status" title="Status ändern">' +
         STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>').join('') +
       '</select>' +
-      (t.jira ? '<a class="jira" href="' + esc(t.jira) + '" target="_blank" rel="noopener">🔗 Link</a>' : '') +
+      '<span class="foot-right">' +
+        (collectIds(t).length ? '<span class="att-chip" title="' + collectIds(t).length + ' Anhang/Anhänge">' + FILE_SVG + collectIds(t).length + '</span>' : '') +
+        (t.jira ? '<a class="jira" href="' + esc(t.jira) + '" target="_blank" rel="noopener">' + LINK_SVG + 'Link</a>' : '') +
+      '</span>' +
     '</div>';
 
   const menuBtn = document.createElement('button');
@@ -1297,7 +1332,7 @@ function openModal(id, presetStatus, presetDesc) {
   document.getElementById('btnDelete').hidden = !t;
   document.getElementById('fTitle').value = t ? t.title : '';
   document.getElementById('fStatus').value = t ? t.status : (presetStatus || 'Themenspeicher');
-  document.getElementById('fPrio').value = t ? t.prio : 'Mittel';
+  setPrioPicker(t ? t.prio : 'Mittel');
   document.getElementById('fDeadline').value = t ? t.deadline : todayStr();
   const fc = document.getElementById('fCreated');
   if (t && t.createdAt) { fc.textContent = '🗓 Erstellt am ' + fmtDate(t.createdAt); fc.hidden = false; }
@@ -1342,8 +1377,8 @@ function closeModal() {
   }
 }
 
-/* Aufgaben-Checkliste im Modal */
-function renderModalTasks() {
+/* Aufgaben-Checkliste im Modal — letzte Zeile ist immer leer: ausfüllen, Enter, weiter */
+function renderModalTasks(focusGhost) {
   const list = document.getElementById('taskList');
   list.innerHTML = '';
   modalTasks.forEach((task, i) => {
@@ -1352,25 +1387,50 @@ function renderModalTasks() {
     row.innerHTML = '<input type="checkbox"' + (task.done ? ' checked' : '') + '>' +
       '<input type="text" maxlength="200" placeholder="Aufgabe…">' +
       '<button type="button" class="task-del" title="Aufgabe entfernen">✕</button>';
-    const [cb, txt, del] = row.children;
-    txt.value = task.text || '';
-    cb.addEventListener('change', () => { task.done = cb.checked; row.classList.toggle('done', cb.checked); updateTaskCount(); });
-    txt.addEventListener('input', () => { task.text = txt.value; });
-    del.addEventListener('click', () => { modalTasks.splice(i, 1); renderModalTasks(); });
+    const cb = row.children[0], txt = row.children[1], del = row.children[2];
+    if (txt) {
+      txt.value = task.text || '';
+      txt.addEventListener('input', () => { task.text = txt.value; });
+      txt.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); focusTaskInput(i + 1); } });
+    }
+    if (cb) cb.addEventListener('change', () => { task.done = cb.checked; row.classList.toggle('done', cb.checked); updateTaskCount(); });
+    if (del) del.addEventListener('click', () => { modalTasks.splice(i, 1); renderModalTasks(); });
     list.appendChild(row);
   });
+  // Immer eine leere Geister-Zeile am Ende
+  const ghost = document.createElement('div');
+  ghost.className = 'task-row task-ghost';
+  ghost.innerHTML = '<input type="checkbox" disabled>' +
+    '<input type="text" maxlength="200" placeholder="Neue Aufgabe… (Enter)">';
+  const gtxt = ghost.children[1];
+  if (gtxt) gtxt.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const v = gtxt.value.trim();
+    if (!v) return;
+    modalTasks.push({ text: v, done: false });
+    renderModalTasks(true); // neu rendern, Fokus zurück auf die (neue) leere Zeile
+  });
+  list.appendChild(ghost);
   updateTaskCount();
+  if (focusGhost && gtxt) gtxt.focus();
+}
+function focusTaskInput(idx) {
+  const inputs = document.querySelectorAll('#taskList .task-row input[type=text]');
+  if (inputs[idx]) inputs[idx].focus(); // idx == modalTasks.length -> Geister-Zeile
 }
 function updateTaskCount() {
   const total = modalTasks.length, done = modalTasks.filter(t => t.done).length;
   document.getElementById('taskCount').textContent = total ? '(' + done + '/' + total + ' erledigt)' : '';
 }
-document.getElementById('btnAddTask').addEventListener('click', () => {
-  modalTasks.push({ text: '', done: false });
-  renderModalTasks();
-  const rows = document.querySelectorAll('#taskList .task-row');
-  const last = rows[rows.length - 1]; if (last) last.querySelector('input[type=text]').focus();
-});
+/* Prioritäts-Kreise (grün/gelb/rot) -> setzt das versteckte #fPrio */
+function setPrioPicker(value) {
+  document.getElementById('fPrio').value = value;
+  document.querySelectorAll('#fPrioPicker .prio-dot').forEach(d => d.classList.toggle('active', d.dataset.prio === value));
+  const lbl = document.getElementById('fPrioLabel'); if (lbl) lbl.textContent = value;
+}
+document.querySelectorAll('#fPrioPicker .prio-dot').forEach(d =>
+  d.addEventListener('click', () => setPrioPicker(d.dataset.prio)));
 
 /* Kategorie-Chips + Pickliste im Modal */
 function renderModalCats() {
@@ -1401,12 +1461,11 @@ function addCategory(name) { // Neue Kategorie -> Liste (Outlook-Stil), Farbe au
 function saveTicket() {
   const form = document.getElementById('ticketForm');
   if (!form.reportValidity()) return;
+  // Noch nicht bestätigte (aber ausgefüllte) Aufgabe aus der Geister-Zeile übernehmen
+  const ghost = document.querySelector('#taskList .task-ghost input[type=text]');
+  if (ghost && ghost.value.trim()) modalTasks.push({ text: ghost.value.trim(), done: false });
   const descHtml = sanitizeHtml(document.getElementById('fDesc').innerHTML);
   const noteHtml = sanitizeHtml(document.getElementById('fNote').innerHTML);
-  // Pflichtfeld: Text ODER mindestens ein Bild
-  if (!stripHtml(descHtml).trim() && !descHtml.includes('data-img-id')) {
-    alert('Beschreibung ist ein Pflichtfeld.'); document.getElementById('fDesc').focus(); return;
-  }
   const data = {
     title: document.getElementById('fTitle').value.trim(),
     prio: document.getElementById('fPrio').value,
@@ -2016,6 +2075,7 @@ document.getElementById('syncDot').onclick = () => {
 
 function boardSnapshot() { return { tickets: state.tickets, categories: state.categories, settings: state.settings, notes: state.notes || [] }; }
 let cloudTimer = null;
+let lastLocalChange = 0;   // Zeitstempel der letzten lokalen Änderung (schützt vor Remote-Überschreiben)
 function scheduleCloudSave() {
   try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
   if (!sb || !boardId) return;
@@ -2048,7 +2108,8 @@ function loadBoardData(board) {
 function applyRemote(row) {
   if (!row || row.id !== boardId) return;
   const b = myBoards.find(x => x.id === row.id); if (b) { b.data = row.data; b.title = row.title; }
-  if (cloudTimer) return;
+  if (cloudTimer || noteSaveT) return;
+  if (Date.now() - lastLocalChange < 2500) return; // gerade lokal editiert -> Remote nicht drüberbügeln
   if (overlay.classList.contains('open') || settingsOverlay.classList.contains('open')) return;
   const ae = document.activeElement; if (ae && ae.closest && ae.closest('.sticky')) return;
   const d = row.data || {}, ds = d.settings || {};
@@ -2845,6 +2906,8 @@ const DINO = (() => {
     resume() { running = true; spawnAnimal(true); },
     pause() { running = false; },
     running: () => running,
+    forceUfo() { spawnUfo(); },
+    forceMeteor() { spawnMeteor(cv.clientWidth || cv.width || 300); },
   };
 })();
 function applyGimmick() {
@@ -3041,8 +3104,15 @@ function applyTips() {
   document.getElementById('tipBar').hidden = true; // alte Leiste deaktiviert
   scheduleAutoTip();
 }
-document.getElementById('astroCv').onclick = () => speakTip();
-document.getElementById('astroImg').onclick = () => speakTip();
+let astroClicks = 0;
+function astroClicked() {
+  speakTip();
+  astroClicks++;
+  if (astroClicks >= 10) { astroClicks = 0; DINO.forceMeteor(); }   // 10× -> Meteor
+  else if (astroClicks % 5 === 0) DINO.forceUfo();                  // 5× -> UFO
+}
+document.getElementById('astroCv').onclick = astroClicked;
+document.getElementById('astroImg').onclick = astroClicked;
 document.getElementById('astroGear').onclick = e => {
   e.stopPropagation();
   document.getElementById('astroBubble').hidden = true;
@@ -3066,7 +3136,7 @@ document.getElementById('btnTipClose').onclick = () => document.getElementById('
    ============================================================ */
 function ensureNotes() { if (!Array.isArray(state.notes)) state.notes = []; }
 let noteSaveT = null;
-function persistNotes() { clearTimeout(noteSaveT); noteSaveT = setTimeout(save, 500); }
+function persistNotes() { lastLocalChange = Date.now(); clearTimeout(noteSaveT); noteSaveT = setTimeout(() => { noteSaveT = null; save(); }, 500); }
 function renderNotes() {
   ensureNotes();
   document.querySelectorAll('.sticky').forEach(n => n.remove());
