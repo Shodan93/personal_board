@@ -463,6 +463,7 @@ tr.row.done-final td{opacity:.4}
     <option value="prio">Priorität</option>
   </select>
   <button class="chip" id="chipShowHidden" title="Auch automatisch ausgeblendete erledigte Tickets zeigen">Ausgeblendete anzeigen</button>
+  <input type="search" id="kanbanSearch" placeholder="🔍 Tickets durchsuchen…" title="Filtert die Karten nach Titel, Beschreibung und Notiz">
   <span class="spacer"></span>
   <span class="lbl" id="kanbanStats"></span>
 </div>
@@ -783,6 +784,7 @@ let idb = null;                              // IndexedDB-Handle für Bild-Anhä
 let sort = { key: 'deadline', dir: 1 };      // Liste: default Deadline aufsteigend
 let quick = '';                              // Schnellfilter Liste
 let kanbanQuick = '';                        // Badge-Filter im Kanban: ''|today|week|month
+let kanbanSearch = '';                       // Volltext-Suche im Kanban (Titel/Beschreibung/Notiz)
 let kanbanSortKey = 'deadline';
 let globalCat = '';                          // Globaler Kategorie-Filter (Header)
 
@@ -919,6 +921,14 @@ function isToday(t)   { return !!t.deadline && !DONE.includes(t.status) && t.dea
 function isThisWeek(t)  { const [m, s] = weekBounds(); return !!t.deadline && !DONE.includes(t.status) && t.deadline >= m && t.deadline <= s; }
 function isThisMonth(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline.slice(0, 7) === todayStr().slice(0, 7); }
 function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
+function matchesSearch(t, q) {
+  q = String(q || '').trim().toLowerCase();
+  if (!q) return true;
+  return t.title.toLowerCase().includes(q)
+      || stripHtml(t.desc).toLowerCase().includes(q)
+      || stripHtml(t.note).toLowerCase().includes(q)
+      || (t.cats || []).join(' ').toLowerCase().includes(q);
+}
 function doneClass(t) {
   if (!DONE.includes(t.status)) return '';
   return t.status === DONE[DONE.length - 1] ? 'done done-final' : 'done'; // letzter Done-Status = final
@@ -981,10 +991,12 @@ function renderKanban() {
     else if (kanbanQuick === 'week') items = items.filter(isThisWeek);
     else if (kanbanQuick === 'month') items = items.filter(isThisMonth);
     if (globalCat) items = items.filter(t => t.cats.includes(globalCat));
+    if (kanbanSearch) items = items.filter(t => matchesSearch(t, kanbanSearch));
     items.sort((a, b) => kanbanSortKey === 'prio'
       ? (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]) || a.deadline.localeCompare(b.deadline)
       : a.deadline.localeCompare(b.deadline) || (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]));
-    const collapsed = COLLAPSIBLE.includes(status) && !!(state.settings.collapsed || {})[status];
+    // Bei aktiver Suche alle Spalten aufklappen, damit Treffer sichtbar sind
+    const collapsed = !kanbanSearch && COLLAPSIBLE.includes(status) && !!(state.settings.collapsed || {})[status];
     col.innerHTML = '<div class="col-head"><span>' +
       (COLLAPSIBLE.includes(status) ? '<button class="col-toggle" title="Ein-/ausklappen">' + (collapsed ? '▸' : '▾') + '</button>' : '') +
       status + '</span><span class="col-count">' + items.length + '</span></div>';
@@ -1611,6 +1623,10 @@ document.getElementById('chipShowHidden').onclick = function () {
   this.classList.toggle('active', showHidden);
   render();
 };
+document.getElementById('kanbanSearch').addEventListener('input', function () {
+  kanbanSearch = this.value;
+  renderKanban();
+});
 document.getElementById('btnLogout').onclick = async () => {
   if (!confirm('Abmelden?')) return;
   try { if (sb) await sb.auth.signOut(); } catch (e) {}
