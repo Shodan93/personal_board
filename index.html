@@ -281,9 +281,11 @@ body.compact .card .desc{display:none}
 .jira:hover{text-decoration:underline}
 
 .due-today{background:#FFE3BD}
-.overdue{background:var(--overdue-bg)}
+.overdue{background:#FBD8D5}
+/* Überfällig = persistente Eskalation: roter Rand, bleibt rot solange das Datum in der Vergangenheit liegt */
+.card.overdue{border-left-color:var(--red)}
 .due-today .deadline{color:#B25D00; font-weight:700}
-.overdue .deadline{color:var(--red); font-weight:700}
+.overdue .deadline{color:var(--red); font-weight:800}
 .escal.today{background:#B25D00}
 .card .title{padding-right:38px}
 .done{opacity:.65}
@@ -302,7 +304,7 @@ tr.row{cursor:pointer}
 tr.row td{transition:background .1s}
 tr.row:hover td{background:var(--blue-bg)}
 tr.row.due-today td{background:var(--today-bg)}
-tr.row.overdue td{background:var(--overdue-bg)}
+tr.row.overdue td{background:#FBD8D5}
 tr.row.done td{opacity:.65}
 tr.row.done-final td{opacity:.4}
 .empty{padding:24px; text-align:center; color:var(--text-weak)}
@@ -359,6 +361,10 @@ tr.row.done-final td{opacity:.4}
 .set-row select,.set-row input[type=number]{width:130px}
 #setColumns input,#setBoardTitle{width:170px}
 #setColumns .set-row label{color:var(--text-weak)}
+.set-col-row{gap:10px}
+.set-col-row .set-col{flex:1 1 auto; width:auto; min-width:0}
+.set-done{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-weak); white-space:nowrap; cursor:pointer}
+.set-done input{width:auto}
 #setColumns input:focus,#setBoardTitle:focus,#setJoinCode:focus{outline:2px solid var(--blue); outline-offset:-1px}
 
 /* ---------- Rich-Text (Beschreibung/Notiz mit Inline-Bildern) ---------- */
@@ -602,7 +608,7 @@ tr.row.done-final td{opacity:.4}
           <label>Boardname</label>
           <input type="text" id="setBoardTitle" maxlength="40" style="width:160px">
         </div>
-        <div style="font-size:11px;color:var(--text-weak);margin:6px 0 4px">Säulen benennen (die letzte gilt als „erledigt"):</div>
+        <div style="font-size:11px;color:var(--text-weak);margin:6px 0 4px">Säulen benennen. Mit „erledigt" markierst du Erfolgs-/Fertig-Spalten (Konfetti + Erledigt-Markierung, keine Eskalationsfärbung):</div>
         <div id="setColumns" style="display:grid;gap:6px"></div>
       </div>
       <div class="set-row">
@@ -757,7 +763,8 @@ tr.row.done-final td{opacity:.4}
 const LS_KEY = 'controlPanel.v2';
 const LS_KEY_V1 = 'controlPanel.tickets.v1'; // Migration aus v1
 // Workflow wird pro Nutzerprofil gesetzt (applyProfile) — Default: voller Workflow
-// Standard-Säulen (frei umbenennbar; im Board gespeichert). Die LETZTE Säule gilt als „erledigt".
+// Standard-Säulen (frei umbenennbar; im Board gespeichert). „Erledigt"-Säulen
+// werden in den Einstellungen manuell angekreuzt (DONE), Default = letzte Säule.
 const DEFAULT_STATUSES = ['Themenspeicher', 'Geplant', 'In Arbeit', 'Review', 'Erledigt'];
 let STATUSES = DEFAULT_STATUSES.slice();
 let DONE = ['Erledigt'];
@@ -783,7 +790,9 @@ function defaultSettings() {
   return { defaultView: 'kanban', kanbanSort: 'deadline', hideDoneAfter: 14,
            remindDays: 7, compact: false, modalWide: false, lastExport: todayStr(),
            dino: true, tips: true, tipsAuto: true, collapsed: {},
-           statuses: DEFAULT_STATUSES.slice(), boardTitle: 'Mein Board' };
+           statuses: DEFAULT_STATUSES.slice(),
+           doneStatuses: [DEFAULT_STATUSES[DEFAULT_STATUSES.length - 1]],
+           boardTitle: 'Mein Board' };
 }
 /* Säulen aus den (board-eigenen) Einstellungen übernehmen — letzte Säule = erledigt */
 function setColumnsFromSettings() {
@@ -792,8 +801,13 @@ function setColumnsFromSettings() {
   st = st.map(s => String(s || '').trim()).filter(Boolean);
   while (st.length < 2) st.push('Spalte ' + (st.length + 1));
   STATUSES = st;
-  DONE = [st[st.length - 1]];
-  COLLAPSIBLE = STATUSES.filter(s => s === STATUSES[0] || /block|wart/i.test(s) || s === DONE[0]);
+  // „Erledigt"-Säulen kommen aus den Einstellungen (manuell ankreuzbar).
+  // Alt-Boards ohne diese Angabe: letzte Säule gilt als erledigt.
+  let done = (state.settings && Array.isArray(state.settings.doneStatuses))
+    ? state.settings.doneStatuses.filter(s => st.includes(s)) : null;
+  if (!done || !done.length) done = [st[st.length - 1]];
+  DONE = st.filter(s => done.includes(s)); // in Board-Reihenfolge
+  COLLAPSIBLE = STATUSES.filter(s => s === STATUSES[0] || /block|wart/i.test(s) || DONE.includes(s));
 }
 /* Board-Aussehen anwenden: Säulen, Titel, Spaltenzahl, Auswahllisten */
 function applyBoardConfig() {
@@ -900,10 +914,10 @@ function weekBounds() { // Mo–So der aktuellen Woche
   return [f(mon), f(sun)];
 }
 function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return d + '.' + m + '.' + y; }
-function isOverdue(t) { return !DONE.includes(t.status) && t.deadline < todayStr(); }
-function isToday(t)   { return !DONE.includes(t.status) && t.deadline === todayStr(); }
-function isThisWeek(t)  { const [m, s] = weekBounds(); return !DONE.includes(t.status) && t.deadline >= m && t.deadline <= s; }
-function isThisMonth(t) { return !DONE.includes(t.status) && t.deadline.slice(0, 7) === todayStr().slice(0, 7); }
+function isOverdue(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline < todayStr(); }
+function isToday(t)   { return !!t.deadline && !DONE.includes(t.status) && t.deadline === todayStr(); }
+function isThisWeek(t)  { const [m, s] = weekBounds(); return !!t.deadline && !DONE.includes(t.status) && t.deadline >= m && t.deadline <= s; }
+function isThisMonth(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline.slice(0, 7) === todayStr().slice(0, 7); }
 function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
 function doneClass(t) {
   if (!DONE.includes(t.status)) return '';
@@ -1370,8 +1384,12 @@ function openSettings() {
   document.getElementById('setBoardTitle').value = s.boardTitle || 'Mein Board';
   // Säulen-Eingabefelder (eines pro aktueller Säule)
   document.getElementById('setColumns').innerHTML = STATUSES.map((name, i) =>
-    '<div class="set-row"><label>Säule ' + (i + 1) + (i === STATUSES.length - 1 ? ' (erledigt)' : '') +
-    '</label><input type="text" class="set-col" maxlength="30" value="' + esc(name) + '" style="width:160px"></div>').join('');
+    '<div class="set-row set-col-row">' +
+      '<input type="text" class="set-col" maxlength="30" value="' + esc(name) + '">' +
+      '<label class="set-done" title="Tickets in dieser Spalte gelten als erledigt: Konfetti + Erledigt-Markierung, keine Fälligkeits-/Eskalationsfärbung.">' +
+        '<input type="checkbox" class="set-done-cb"' + (DONE.includes(name) ? ' checked' : '') + '> erledigt' +
+      '</label>' +
+    '</div>').join('');
   document.getElementById('setView').value = s.defaultView;
   document.getElementById('setKanbanSort').value = s.kanbanSort;
   document.getElementById('setHideDone').value = s.hideDoneAfter;
@@ -1412,6 +1430,20 @@ function closeSettings() {
     else if (!newStatuses.includes(t.status)) t.status = newStatuses[0];
   });
   s.statuses = newStatuses;
+  // „Erledigt"-Säulen aus den Checkboxen (per Index zu den neuen Namen); mind. eine
+  const doneFlags = [...document.querySelectorAll('#setColumns .set-done-cb')].map(cb => cb.checked);
+  let newDone = newStatuses.filter((n, i) => doneFlags[i]);
+  if (!newDone.length) newDone = [newStatuses[newStatuses.length - 1]];
+  const prevDone = DONE.slice();
+  s.doneStatuses = newDone;
+  // Tickets in neu als „erledigt" markierten Säulen abschließen (Konfetti einmalig)
+  let justCompleted = 0;
+  state.tickets.forEach(t => {
+    if (newDone.includes(t.status) && !prevDone.includes(t.status)) {
+      if (!t.completedAt) t.completedAt = todayStr();
+      justCompleted++;
+    }
+  });
   s.defaultView = document.getElementById('setView').value;
   s.kanbanSort = document.getElementById('setKanbanSort').value;
   s.hideDoneAfter = Math.max(0, +document.getElementById('setHideDone').value || 0);
@@ -1421,6 +1453,7 @@ function closeSettings() {
   s.tips = document.getElementById('setTips').checked;
   save(); settingsOverlay.classList.remove('open');
   applyBoardConfig(); render(); applyGimmick(); applyTips();
+  if (justCompleted > 0) celebrate(); // Säule als „erledigt" markiert -> Konfetti
 }
 
 /* Kategorien verwalten: umbenennen (Tickets folgen), Farbe, löschen */
