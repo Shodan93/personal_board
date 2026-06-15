@@ -165,7 +165,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 
 /* Astronaut */
 #astro{position:fixed; right:18px; bottom:18px; z-index:90; width:88px; cursor:pointer; display:none}
-#astroBody{position:relative; width:100%; animation:astroFloat 4.5s ease-in-out infinite}
+#astroBody{position:relative; width:100%; z-index:1; animation:astroFloat 4.5s ease-in-out infinite}
 @keyframes astroFloat{
   0%{transform:translateY(0) rotate(-2.5deg)}
   25%{transform:translateY(-6px) rotate(1.5deg)}
@@ -174,7 +174,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
   100%{transform:translateY(0) rotate(-2.5deg)}}
 #astroCv{display:block; filter:drop-shadow(0 3px 5px rgba(0,0,0,.25))}
 #astroImg{display:block; width:100%; height:auto; image-rendering:auto; filter:drop-shadow(0 4px 7px rgba(0,0,0,.28))}
-#astroBubble{position:absolute; bottom:70px; right:0; width:230px; max-width:62vw;
+#astroBubble{position:absolute; bottom:calc(100% + 8px); right:0; width:230px; max-width:62vw; z-index:5;
   background:var(--card); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
   animation:astroPop .2s ease}
@@ -409,9 +409,9 @@ tr.row.done-final td{opacity:.4}
   transition:opacity .12s ease,transform .12s ease,box-shadow .12s ease}
 .prio-dot:hover{opacity:.78;transform:scale(1.1)}
 .prio-dot.active{opacity:1;transform:scale(1.12);box-shadow:0 0 0 3px var(--card),0 0 0 5px rgba(0,0,0,.16)}
-.prio-niedrig{background:var(--green)}
-.prio-mittel{background:var(--yellow)}
-.prio-hoch{background:var(--red)}
+.prio-dot.prio-niedrig{background:var(--green)}
+.prio-dot.prio-mittel{background:var(--yellow)}
+.prio-dot.prio-hoch{background:var(--red)}
 .prio-label{font-size:12px;color:var(--text-weak);margin-left:2px;font-weight:600}
 .card-tasks{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-weak)}
 
@@ -2871,6 +2871,7 @@ const DINO = (() => {
   }
   // Tier anklicken -> bleibt stehen und zerplatzt
   function animalWidth(a) { return a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px; }
+  let clickCount = 0; // Easter-Egg: alle 5 Klicks ins Minispiel ein UFO, alle 10 ein Meteor
   cv.addEventListener('click', e => {
     const rect = cv.getBoundingClientRect();
     const cx = (e.clientX - rect.left) * (cv.width / rect.width);
@@ -2889,6 +2890,9 @@ const DINO = (() => {
         break;
       }
     }
+    clickCount++;
+    if (clickCount >= 10) { clickCount = 0; spawnMeteor(cv.clientWidth || cv.width || 300); }
+    else if (clickCount % 5 === 0) spawnUfo();
   });
   cv.style.cursor = 'pointer';
   return {
@@ -2906,8 +2910,6 @@ const DINO = (() => {
     resume() { running = true; spawnAnimal(true); },
     pause() { running = false; },
     running: () => running,
-    forceUfo() { spawnUfo(); },
-    forceMeteor() { spawnMeteor(cv.clientWidth || cv.width || 300); },
   };
 })();
 function applyGimmick() {
@@ -3104,15 +3106,8 @@ function applyTips() {
   document.getElementById('tipBar').hidden = true; // alte Leiste deaktiviert
   scheduleAutoTip();
 }
-let astroClicks = 0;
-function astroClicked() {
-  speakTip();
-  astroClicks++;
-  if (astroClicks >= 10) { astroClicks = 0; DINO.forceMeteor(); }   // 10× -> Meteor
-  else if (astroClicks % 5 === 0) DINO.forceUfo();                  // 5× -> UFO
-}
-document.getElementById('astroCv').onclick = astroClicked;
-document.getElementById('astroImg').onclick = astroClicked;
+document.getElementById('astroCv').onclick = () => speakTip();
+document.getElementById('astroImg').onclick = () => speakTip();
 document.getElementById('astroGear').onclick = e => {
   e.stopPropagation();
   document.getElementById('astroBubble').hidden = true;
