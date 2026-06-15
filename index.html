@@ -16,7 +16,7 @@
   --gray-bg:#F3F3F3; --card:#FFFFFF; --border:#E5E5E5;
   --text:#181818; --text-weak:#706E6B;
   --shadow:0 2px 4px rgba(0,0,0,.08);
-  --radius:6px;
+  --radius:8px;
   --overdue-bg:#FDEDEC; --today-bg:#FFF3E6;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -25,7 +25,8 @@
 [hidden]{display:none!important}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  background:var(--gray-bg); color:var(--text); font-size:13px; line-height:1.45;
+  background:var(--gray-bg); color:var(--text); font-size:14px; line-height:1.55;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
 }
 button{font:inherit;cursor:pointer}
 input,select,textarea{font:inherit}
@@ -49,7 +50,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 .spacer{flex:1}
 .btn{
   border:1px solid var(--border); background:var(--card); color:var(--blue);
-  border-radius:var(--radius); padding:5px 12px; font-weight:600; font-size:12px;
+  border-radius:var(--radius); padding:6px 13px; font-weight:600; font-size:13px;
 }
 .btn:hover{background:var(--blue-bg)}
 .btn-primary{background:var(--blue); border-color:var(--blue); color:#fff}
@@ -92,7 +93,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
   display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
   padding:10px 16px 24px; align-items:start;
 }
-.col{background:#ECEBEA; border-radius:var(--radius); padding:8px; min-height:140px}
+.col{background:#ECEBEA; border-radius:var(--radius); padding:10px; min-height:140px}
 .col.dragover{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
 .col-head{
   display:flex; align-items:center; justify-content:space-between;
@@ -163,10 +164,16 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 #dinoCv{flex:1; width:100%; height:34px}
 
 /* Astronaut */
-#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:60px; cursor:pointer; display:none;
-  animation:astroFloat 4s ease-in-out infinite}
-@keyframes astroFloat{0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)}}
+#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:72px; cursor:pointer; display:none;
+  animation:astroFloat 4.5s ease-in-out infinite}
+@keyframes astroFloat{
+  0%{transform:translateY(0) rotate(-2.5deg)}
+  25%{transform:translateY(-6px) rotate(1.5deg)}
+  50%{transform:translateY(-9px) rotate(2.5deg)}
+  75%{transform:translateY(-4px) rotate(-1deg)}
+  100%{transform:translateY(0) rotate(-2.5deg)}}
 #astroCv{display:block; filter:drop-shadow(0 3px 5px rgba(0,0,0,.25))}
+#astroImg{display:block; width:100%; height:auto; image-rendering:auto; filter:drop-shadow(0 4px 7px rgba(0,0,0,.28))}
 #astroBubble{position:absolute; bottom:70px; right:0; width:230px; max-width:62vw;
   background:var(--card); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
@@ -243,7 +250,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 .card{
   background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
   border-left:4px solid var(--border);
-  box-shadow:var(--shadow); padding:8px; margin-bottom:8px; cursor:pointer;
+  box-shadow:var(--shadow); padding:10px 11px; margin-bottom:9px; cursor:pointer;
   position:relative;
   transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
@@ -253,10 +260,10 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
   border-color:var(--blue);
 }
 .card.dragging{opacity:.4}
-.card .title{font-weight:700; font-size:13px; margin-bottom:2px; word-break:break-word; padding-right:18px}
-.card .desc{color:var(--text-weak); font-size:12px; max-height:34px; overflow:hidden; margin-bottom:4px}
+.card .title{font-weight:700; font-size:14px; line-height:1.35; margin-bottom:4px; word-break:break-word; padding-right:18px}
+.card .desc{color:var(--text-weak); font-size:12.5px; line-height:1.45; max-height:38px; overflow:hidden; margin-bottom:6px}
 body.compact .card .desc{display:none}
-.card .meta{display:flex; gap:5px; flex-wrap:wrap; align-items:center; font-size:11px}
+.card .meta{display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:11px}
 .card-foot{display:flex; justify-content:space-between; align-items:flex-end; gap:6px; margin-top:4px}
 .card select.quick-status{
   font-size:11px; padding:2px 4px; flex:1;
@@ -315,12 +322,12 @@ tr.row.done-final td{opacity:.4}
   align-items:flex-start; justify-content:center; z-index:100; padding:24px 12px; overflow-y:auto;
 }
 .overlay.open{display:flex}
-.modal{background:var(--card); border-radius:8px; width:100%; max-width:560px; box-shadow:0 8px 30px rgba(0,0,0,.3)}
-.modal-head{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border)}
-.modal-head h2{font-size:15px; color:var(--blue-dark)}
+.modal{background:var(--card); border-radius:10px; width:100%; max-width:560px; box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.modal-head{display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--border)}
+.modal-head h2{font-size:16px; color:var(--blue-dark)}
 .modal-close{border:none; background:none; font-size:18px; color:var(--text-weak)}
-.modal-body{padding:12px 16px; display:grid; gap:10px}
-.field label{display:block; font-size:11px; font-weight:700; color:var(--text-weak); margin-bottom:3px}
+.modal-body{padding:16px 18px; display:grid; gap:14px}
+.field label{display:block; font-size:12px; font-weight:700; color:var(--text-weak); margin-bottom:5px; letter-spacing:.01em}
 .field label .req{color:var(--red)}
 .field input,.field select,.field textarea{
   width:100%; border:1px solid var(--border); border-radius:var(--radius);
@@ -334,7 +341,7 @@ tr.row.done-final td{opacity:.4}
 .field textarea{resize:vertical; min-height:56px}
 .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--blue); outline-offset:-1px}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-.modal-foot{display:flex; gap:8px; justify-content:flex-end; padding:0 16px 14px}
+.modal-foot{display:flex; gap:8px; justify-content:flex-end; padding:4px 18px 16px}
 .modal-foot .foot-left{display:flex; gap:8px; margin-right:auto}
 
 /* Kategorie-Auswahl im Ticket-Modal */
@@ -380,6 +387,18 @@ tr.row.done-final td{opacity:.4}
 .rt-toolbar button:hover{background:var(--blue-bg);border-color:var(--border)}
 .rt-sep{width:1px;height:16px;background:var(--border);margin:0 3px}
 .rt-toolbar + .richtext{border-top-left-radius:0;border-top-right-radius:0}
+
+/* ---------- Aufgaben-Checkliste im Ticket ---------- */
+.task-list{display:flex;flex-direction:column;gap:4px}
+.task-row{display:flex;align-items:center;gap:8px}
+.task-row input[type=checkbox]{width:16px;height:16px;flex:0 0 auto;cursor:pointer;accent-color:var(--green)}
+.task-row input[type=text]{flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:5px 8px;font-size:13px;background:var(--card);color:var(--text)}
+.task-row input[type=text]:focus{outline:2px solid var(--blue);outline-offset:-1px}
+.task-row.done input[type=text]{text-decoration:line-through;color:var(--text-weak)}
+.task-row .task-del{border:none;background:none;color:var(--text-weak);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1}
+.task-row .task-del:hover{color:var(--red)}
+.task-count{font-size:11px;color:var(--text-weak);font-weight:600}
+.card-tasks{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-weak)}
 
 /* ---------- Anhänge ---------- */
 .att-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:12px;text-align:center;color:var(--text-weak);font-size:12px;cursor:pointer}
@@ -463,7 +482,7 @@ tr.row.done-final td{opacity:.4}
     <option value="prio">Priorität</option>
   </select>
   <button class="chip" id="chipShowHidden" title="Auch automatisch ausgeblendete erledigte Tickets zeigen">Ausgeblendete anzeigen</button>
-  <input type="search" id="kanbanSearch" placeholder="🔍 Tickets durchsuchen…" title="Filtert die Karten nach Titel, Beschreibung und Notiz">
+  <input type="search" id="kanbanSearch" placeholder="Tickets durchsuchen…" title="Filtert die Karten nach Titel, Beschreibung und Notiz">
   <span class="spacer"></span>
   <span class="lbl" id="kanbanStats"></span>
 </div>
@@ -546,6 +565,11 @@ tr.row.done-final td{opacity:.4}
         <div style="margin-top:6px;text-align:left">
           <button type="button" class="btn" id="btnLogDate" style="padding:2px 8px;font-size:11px">+ Datumszeile</button>
         </div>
+      </div>
+      <div class="field">
+        <label>Aufgaben <span id="taskCount" class="task-count"></span></label>
+        <div id="taskList" class="task-list"></div>
+        <button type="button" class="btn" id="btnAddTask" style="padding:4px 10px;font-size:12px;margin-top:6px">+ Aufgabe</button>
       </div>
       <div class="field">
         <label>Kategorien</label>
@@ -747,6 +771,7 @@ tr.row.done-final td{opacity:.4}
 <!-- Astronaut mit Office-Tipps -->
 <div id="astro" title="Klick mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
+  <img id="astroImg" alt="Astronaut" hidden>
   <canvas id="astroCv" width="60" height="72"></canvas>
   <button id="astroGear" title="Astronaut-Einstellungen">⚙</button>
   <div id="astroMenu" hidden>
@@ -774,11 +799,12 @@ const PRIO_ORDER = { 'Hoch': 0, 'Mittel': 1, 'Niedrig': 2 };
 const PALETTE = ['#0176D3','#2E844A','#C23934','#9050E9','#06A59A','#B25D00',
                  '#5867E8','#AA309F','#3BA755','#CA8501','#0D9DDA','#7F2D7B'];
 
-let state = { tickets: [], categories: [], settings: defaultSettings() };
+let state = { tickets: [], categories: [], settings: defaultSettings(), notes: [] };
 let view = 'kanban';
 let editingId = null;
 let pendingNoteId = null;                     // Sticky-Notiz, die gerade zu einem Ticket wird
 let modalCats = [];                          // Kategorien des offenen Tickets
+let modalTasks = [];                         // Aufgaben-Checkliste des offenen Tickets
 let modalImgs = [], sessionNewImgs = [], attUrls = [];
 let idb = null;                              // IndexedDB-Handle für Bild-Anhänge
 let sort = { key: 'deadline', dir: 1 };      // Liste: default Deadline aufsteigend
@@ -838,6 +864,7 @@ function load() {
       state.tickets = data.tickets || [];
       state.categories = data.categories || [];
       state.settings = Object.assign(defaultSettings(), data.settings || {});
+      state.notes = Array.isArray(data.notes) ? data.notes : [];
       setColumnsFromSettings(); migrateTickets(); ensureCategories();
       return;
     }
@@ -865,6 +892,7 @@ function migrateTickets() {
     if (!STATUSES.includes(t.status)) t.status = 'Themenspeicher';
     if (!Array.isArray(t.cats)) t.cats = [];
     if (!Array.isArray(t.imgs)) t.imgs = [];
+    if (!Array.isArray(t.tasks)) t.tasks = [];
     if (!t.descFormat) { // Alt-Daten: Plaintext einmalig nach HTML wandeln
       t.desc = esc(t.desc || '').replace(/\n/g, '<br>');
       t.note = esc(t.note || '').replace(/\n/g, '<br>');
@@ -1065,7 +1093,8 @@ function cardEl(t) {
     '<div class="meta">' +
       '<span class="pill ' + t.prio.toLowerCase() + '">' + t.prio + '</span>' +
       '<span class="deadline">📅 ' + fmtDate(t.deadline) + '</span>' +
-      (collectIds(t).length ? '<span class="deadline">📎 ' + collectIds(t).length + '</span>' : '') + tags +
+      (collectIds(t).length ? '<span class="deadline">📎 ' + collectIds(t).length + '</span>' : '') +
+      ((t.tasks && t.tasks.length) ? '<span class="card-tasks" title="Aufgaben erledigt">☑ ' + t.tasks.filter(x => x.done).length + '/' + t.tasks.length + '</span>' : '') + tags +
     '</div>' +
     '<div class="card-foot">' +
       '<select class="quick-status" title="Status ändern">' +
@@ -1256,7 +1285,7 @@ function modalFingerprint() {
     jira: document.getElementById('fJira').value,
     desc: document.getElementById('fDesc').innerHTML,
     note: document.getElementById('fNote').innerHTML,
-    cats: modalCats, imgs: modalImgs
+    cats: modalCats, imgs: modalImgs, tasks: modalTasks
   });
 }
 function isModalDirty() { return modalFingerprint() !== modalSnapshot; }
@@ -1278,6 +1307,8 @@ function openModal(id, presetStatus, presetDesc) {
   document.getElementById('fNote').innerHTML = '';
   modalCats = t ? [...t.cats] : [];
   renderModalCats();
+  modalTasks = t && Array.isArray(t.tasks) ? t.tasks.map(x => ({ text: x.text || '', done: !!x.done })) : [];
+  renderModalTasks();
   modalImgs = t ? [...t.imgs] : [];
   sessionNewImgs = [];
   renderAttachments();
@@ -1310,6 +1341,36 @@ function closeModal() {
     pendingNoteId = null;
   }
 }
+
+/* Aufgaben-Checkliste im Modal */
+function renderModalTasks() {
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  modalTasks.forEach((task, i) => {
+    const row = document.createElement('div');
+    row.className = 'task-row' + (task.done ? ' done' : '');
+    row.innerHTML = '<input type="checkbox"' + (task.done ? ' checked' : '') + '>' +
+      '<input type="text" maxlength="200" placeholder="Aufgabe…">' +
+      '<button type="button" class="task-del" title="Aufgabe entfernen">✕</button>';
+    const [cb, txt, del] = row.children;
+    txt.value = task.text || '';
+    cb.addEventListener('change', () => { task.done = cb.checked; row.classList.toggle('done', cb.checked); updateTaskCount(); });
+    txt.addEventListener('input', () => { task.text = txt.value; });
+    del.addEventListener('click', () => { modalTasks.splice(i, 1); renderModalTasks(); });
+    list.appendChild(row);
+  });
+  updateTaskCount();
+}
+function updateTaskCount() {
+  const total = modalTasks.length, done = modalTasks.filter(t => t.done).length;
+  document.getElementById('taskCount').textContent = total ? '(' + done + '/' + total + ' erledigt)' : '';
+}
+document.getElementById('btnAddTask').addEventListener('click', () => {
+  modalTasks.push({ text: '', done: false });
+  renderModalTasks();
+  const rows = document.querySelectorAll('#taskList .task-row');
+  const last = rows[rows.length - 1]; if (last) last.querySelector('input[type=text]').focus();
+});
 
 /* Kategorie-Chips + Pickliste im Modal */
 function renderModalCats() {
@@ -1355,7 +1416,8 @@ function saveTicket() {
     note: noteHtml,
     descFormat: 'html',
     cats: [...modalCats],
-    imgs: [...modalImgs]
+    imgs: [...modalImgs],
+    tasks: modalTasks.map(x => ({ text: (x.text || '').trim(), done: !!x.done })).filter(x => x.text)
   };
   const newStatus = document.getElementById('fStatus').value;
   const oldIds = editingId ? collectIds(state.tickets.find(x => x.id === editingId)) : [];
@@ -2504,8 +2566,8 @@ const DINO = (() => {
 
   let running = true, started = false, rafId = null, lastTs = 0;
   let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [], bursts = [];
-  let hiM = null, gx = 0;
-  let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
+  let hiM = null, gx = 0, meteor = null, flash = 0;
+  let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0, nextMeteor = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -2523,6 +2585,36 @@ const DINO = (() => {
   const spawnNear = x => nearM.push({ kind: pick(NEAR_K), x, w: 34 + Math.random() * 46, h: 7 + Math.random() * 7 });
   const spawnHi = x => { if (!hiM) hiM = { kind: 'volcano', x, w: 44 + Math.random() * 22, h: 16 + Math.random() * 8 }; };
   const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42 });
+  const METEOR_COLORS = ['#ff6b1a', '#ffd23f', '#ff3b30', '#ffae42'];
+  function spawnMeteor(w) {
+    if (meteor) return;
+    const ix = 30 + Math.random() * Math.max(20, w - 60);
+    meteor = { ix, sx: ix + 70, sy: -18, t: 0, dur: 0.85 + Math.random() * 0.4 };
+  }
+  function meteorPos(groundY) {
+    const t = meteor.t;
+    return [meteor.sx + (meteor.ix - meteor.sx) * t, meteor.sy + ((groundY - 4) - meteor.sy) * t];
+  }
+  function explodeMeteor(groundY) {
+    const ix = meteor.ix, iy = groundY - 4;
+    for (let k = 0; k < 48; k++) {
+      const ang = Math.random() * Math.PI * 2, sp = 0.8 + Math.random() * 3.4;
+      bursts.push({ x: ix, y: iy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 1.3,
+        s: 2 + (Math.random() * 3 | 0), c: METEOR_COLORS[Math.random() * METEOR_COLORS.length | 0], life: 0.7 + Math.random() * 0.6 });
+    }
+    // alle Tiere sterben – jedes zerplatzt in seiner eigenen Farbe
+    animals.forEach(a => {
+      const h = a.v.sp.length * a.v.px, aw = a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px;
+      const px0 = a.x + aw / 2, py0 = groundY - h / 2;
+      for (let k = 0; k < 10; k++) {
+        const ang = Math.random() * Math.PI * 2, sp = 0.6 + Math.random() * 1.9;
+        bursts.push({ x: px0, y: py0, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 0.8, s: a.v.px, c: a.v.c, life: 0.7 + Math.random() * 0.4 });
+      }
+    });
+    animals = [];
+    flash = 1;
+    meteor = null;
+  }
 
   function drawAnimal(a, groundY) {
     const rows = a.v.sp, p = a.v.px, top = groundY - rows.length * p;
@@ -2666,6 +2758,17 @@ const DINO = (() => {
       birds.forEach(b => { b.x -= 28 * dt; b.ft += dt; if (b.ft > 0.25) { b.ft = 0; b.frame = 1 - b.frame; } });
       ufos.forEach(u => u.x += u.speed * dt);
       animals.forEach(a => { a.x += a.speed * dt; a.ft += dt; if (a.ft > 0.22) { a.ft = 0; a.frame = 1 - a.frame; } });
+      // Meteor: ab und zu ein Einschlag mit Explosion, der alle Tiere tötet
+      if (ts > nextMeteor) { if (animals.length && Math.random() < 0.6) spawnMeteor(w); nextMeteor = ts + 28000 + Math.random() * 34000; }
+      if (meteor) {
+        meteor.t += dt / meteor.dur;
+        const [mx, my] = meteorPos(groundY);
+        for (let k = 0; k < 2; k++) bursts.push({ x: mx + (Math.random() - 0.5) * 2, y: my + (Math.random() - 0.5) * 2,
+          vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6 - 0.3, s: 1 + (Math.random() * 2 | 0),
+          c: Math.random() < 0.5 ? '#ff6b1a' : '#ffd23f', life: 0.35 + Math.random() * 0.3 });
+        if (meteor.t >= 1) explodeMeteor(groundY);
+      }
+      if (flash > 0) flash = Math.max(0, flash - dt * 2.6);
       farM = farM.filter(m => m.x + m.w > -10);
       nearM = nearM.filter(m => m.x + m.w > -10);
       if (hiM && hiM.x + hiM.w < -10) hiM = null;
@@ -2687,6 +2790,13 @@ const DINO = (() => {
     drawGround(w, groundY);
     plants.forEach(o => drawPlant(o, groundY));
     animals.forEach(a => drawAnimal(a, groundY));
+    if (meteor) {
+      const [mxf, myf] = meteorPos(groundY);
+      const mx = Math.round(mxf), my = Math.round(myf);
+      ctx.fillStyle = '#3a2a20'; R(mx - 2, my - 2, 5, 5);   // Felskern
+      ctx.fillStyle = '#ff6b1a'; R(mx - 1, my - 1, 3, 3);   // glühender Kopf
+      ctx.fillStyle = '#ffd23f'; R(mx, my, 1, 1);
+    }
     // Zerplatzen-Partikel (beim Anklicken eines Tieres)
     if (bursts.length) {
       for (const b of bursts) {
@@ -2696,6 +2806,7 @@ const DINO = (() => {
       for (const b of bursts) { ctx.globalAlpha = Math.max(0, b.life); ctx.fillStyle = b.c; R(b.x, b.y, b.s, b.s); }
       ctx.globalAlpha = 1;
     }
+    if (flash > 0) { ctx.globalAlpha = Math.min(0.55, flash * 0.55); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1; }
   }
   // Tier anklicken -> bleibt stehen und zerplatzt
   function animalWidth(a) { return a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px; }
@@ -2725,6 +2836,7 @@ const DINO = (() => {
       started = true; lastTs = performance.now();
       nextSpawn = lastTs + 800; nextPlant = lastTs + 400; nextCloud = lastTs + 800;
       nextBird = lastTs + 6000; nextFar = lastTs + 3000; nextNear = lastTs + 1500; nextUfo = lastTs + 40000; nextHi = lastTs + 2000;
+      nextMeteor = lastTs + 14000 + Math.random() * 16000; meteor = null; flash = 0;
       seedScene();
       spawnCloud(30 + Math.random() * 200);
       rafId = requestAnimationFrame(frame);
@@ -2890,6 +3002,14 @@ let tipPool = [], tipTimer = null, bubbleTimer = null;
   ];
   const col = { K, W, G, D, V, H, O };
   map.forEach((row, y) => [...row].forEach((ch, x) => { if (col[ch]) px(x, y, col[ch]); }));
+})();
+// Eigenes Astronauten-Bild (astronaut.png im Repo-Root) verwenden, sonst Pixel-Art als Fallback.
+(function loadAstronautImage() {
+  const img = document.getElementById('astroImg'), cv = document.getElementById('astroCv');
+  if (!img) return;
+  img.onload = () => { img.hidden = false; if (cv) cv.hidden = true; };
+  img.onerror = () => { img.hidden = true; if (cv) cv.hidden = false; }; // PNG fehlt -> Pixel-Art behalten
+  img.src = 'astronaut.png';
 })();
 // Bei Fensterfokus immer einen frischen Tipp zeigen
 window.addEventListener('focus', () => { if (state.settings.tips !== false) speakTip(); });
