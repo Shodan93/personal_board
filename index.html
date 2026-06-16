@@ -764,8 +764,7 @@ tr.row.done-final td{opacity:.4}
       <div id="loginDiag" style="font-size:11px;color:var(--text-weak)" hidden></div>
     </div>
     <div class="modal-foot">
-      <button class="btn" id="btnLoginOffline" style="margin-right:auto" title="Nur auf diesem Gerät speichern">Ohne Cloud</button>
-      <button class="btn" id="btnLoginTest" title="Verbindung prüfen">Test</button>
+      <button class="btn" id="btnLoginTest" style="margin-right:auto" title="Verbindung prüfen">Test</button>
       <button class="btn" id="btnSignup" title="Neues Konto anlegen">Registrieren</button>
       <button class="btn btn-primary" id="btnLogin">Anmelden</button>
     </div>
@@ -2292,6 +2291,7 @@ async function startSupabase(session) {
     setSync(false);
   }
 }
+// Interner Bootstrap ohne Cloud — NICHT aus der UI erreichbar (keine Gast-Nutzung).
 function startOffline() {
   if (appStarted) { document.getElementById('loginOverlay').classList.remove('open'); return; }
   appStarted = true;
@@ -2343,10 +2343,6 @@ document.getElementById('btnLoginTest').onclick = async () => {
   } catch (e) { parts.push('⚠ Claude-Worker nicht erreichbar'); }
   d.style.color = sb ? 'var(--green)' : 'var(--red)';
   d.innerHTML = parts.join('<br>');
-};
-document.getElementById('btnLoginOffline').onclick = () => {
-  if (appStarted) { document.getElementById('loginOverlay').classList.remove('open'); return; }
-  startOffline();
 };
 
 function claudeReady() {
@@ -3425,7 +3421,8 @@ if (sb) {
     else document.getElementById('loginOverlay').classList.add('open');
   }).catch(() => document.getElementById('loginOverlay').classList.add('open'));
 } else {
-  // Supabase nicht konfiguriert -> Login-Fenster (nur „Ohne Cloud weiter" möglich)
+  // Supabase nicht konfiguriert -> Anmeldung nicht möglich (Konfigurationsfehler).
+  // Es gibt bewusst KEINEN Offline-/Gast-Zugang mehr: Nutzung nur mit Anmeldung.
   document.getElementById('loginOverlay').classList.add('open');
 }
 </script>
