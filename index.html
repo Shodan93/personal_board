@@ -474,7 +474,7 @@ tr.row.done-final td{opacity:.4}
 </header>
 
 <div class="banner" id="exportBanner" hidden>
-  <span>⚠ Letzter Export liegt länger zurück. localStorage ist kein Backup — jetzt sichern.</span>
+  <span>⚠ Letzter Export liegt länger zurück. Lege bei Gelegenheit ein JSON-Backup an.</span>
   <button class="btn" id="btnBannerExport">Jetzt exportieren</button>
   <button class="btn" id="btnBannerDismiss">Später</button>
 </div>
@@ -806,8 +806,6 @@ tr.row.done-final td{opacity:.4}
 /* ============================================================
    KONSTANTEN & STATE
    ============================================================ */
-const LS_KEY = 'controlPanel.v2';
-const LS_KEY_V1 = 'controlPanel.tickets.v1'; // Migration aus v1
 // Workflow wird pro Nutzerprofil gesetzt (applyProfile) — Default: voller Workflow
 // Standard-Säulen (frei umbenennbar; im Board gespeichert). „Erledigt"-Säulen
 // werden in den Einstellungen manuell angekreuzt (DONE), Default = letzte Säule.
@@ -879,32 +877,16 @@ function applyBoardConfig() {
 /* ============================================================
    LADEN / SPEICHERN / MIGRATION
    ============================================================ */
+// Kein localStorage mehr: Quelle der Wahrheit ist Supabase. load() ist nur noch
+// ein leerer Startzustand (z. B. als Notfall-Fallback, wenn die Cloud nicht erreichbar ist).
 function load() {
-  try {
-    const raw = localStorage.getItem(lsKey()) || localStorage.getItem(LS_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      state.tickets = data.tickets || [];
-      state.categories = data.categories || [];
-      state.settings = Object.assign(defaultSettings(), data.settings || {});
-      state.notes = Array.isArray(data.notes) ? data.notes : [];
-      setColumnsFromSettings(); migrateTickets(); ensureCategories();
-      return;
-    }
-    const rawV1 = localStorage.getItem(LS_KEY_V1); // v1 -> v2 Migration
-    if (rawV1) {
-      state.tickets = JSON.parse(rawV1);
-      setColumnsFromSettings(); migrateTickets(); ensureCategories(); save();
-      return;
-    }
-  } catch (e) { console.warn('localStorage nicht lesbar:', e); }
-  state.tickets = []; // Leere Version — Daten per JSON-Import laden
-  setColumnsFromSettings(); migrateTickets(); ensureCategories(); save();
+  state.tickets = [];
+  state.categories = [];
+  state.notes = [];
+  setColumnsFromSettings(); migrateTickets(); ensureCategories();
 }
 function save() {
   lastLocalChange = Date.now();
-  try { localStorage.setItem(lsKey(), JSON.stringify(state)); }
-  catch (e) { alert('Speichern fehlgeschlagen (localStorage voll oder blockiert).'); }
   scheduleCloudSave();
 }
 /* Alte Status umbenennen + Felder ergänzen */
@@ -1872,7 +1854,8 @@ document.getElementById('btnCatManagerAdd').onclick = () => {
 
 /* ============================================================
    BILD-ANHÄNGE (IndexedDB)
-   Tickets bleiben in localStorage, Bilder als Blobs in IndexedDB.
+   Board-Daten liegen in Supabase; Bilder werden in Supabase Storage gespeichert
+   und lokal in IndexedDB zwischengespeichert (reiner Cache).
    ============================================================ */
 function idbOpen() {
   return new Promise((res, rej) => {
@@ -2129,7 +2112,6 @@ let boardChannel = null;
 let appStarted = false;
 const OFFLINE_PROFILE = { focus: true, reportAll: true, housekeeper: true };
 
-function lsKey() { return LS_KEY + ':' + (auth && auth.user ? auth.user : 'anon') + (boardId ? ':' + boardId : ''); }
 function applyProfile(p) {
   document.getElementById('btnFocus').hidden = !p.focus;
   document.getElementById('btnReportAll').hidden = !p.reportAll;
@@ -2161,11 +2143,15 @@ function boardSnapshot() { return { tickets: state.tickets, categories: state.ca
 let cloudTimer = null;
 let lastLocalChange = 0;   // Zeitstempel der letzten lokalen Änderung (schützt vor Remote-Überschreiben)
 function scheduleCloudSave() {
-  try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
   if (!sb || !boardId) return;
   clearTimeout(cloudTimer);
-  cloudTimer = setTimeout(cloudSave, 1200);
+  cloudTimer = setTimeout(cloudSave, 900);
 }
+// Ausstehende Speicherung sofort wegschreiben, bevor der Tab in den Hintergrund geht/schließt
+function flushCloudSave() { if (cloudTimer) { clearTimeout(cloudTimer); cloudTimer = null; cloudSave(); } }
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushCloudSave(); });
+window.addEventListener('pagehide', flushCloudSave);
+window.addEventListener('beforeunload', flushCloudSave);
 async function cloudSave() {
   if (!sb || !boardId) { cloudTimer = null; return; }
   try {
@@ -2186,7 +2172,6 @@ function loadBoardData(board) {
   state.notes = Array.isArray(d.notes) ? d.notes : [];
   if (board.title) state.settings.boardTitle = board.title;
   setColumnsFromSettings(); migrateTickets(); ensureCategories();
-  try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
 }
 /* Live-Update von einem anderen Gerät/Mitglied — laufende Bearbeitung schützen */
 function applyRemote(row) {
@@ -2204,7 +2189,6 @@ function applyRemote(row) {
   if (Array.isArray(ds.statuses) && ds.statuses.length) state.settings.statuses = ds.statuses;
   if (row.title) state.settings.boardTitle = row.title;
   setColumnsFromSettings(); migrateTickets(); ensureCategories();
-  try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) {}
   applyBoardConfig(); render(); renderNotes();
 }
 function subscribeBoard() {
@@ -3445,10 +3429,12 @@ Auf app.netlify.com die index.html per Drag & Drop in den
 "Deploy"-Bereich ziehen — fertig. Alternativ Repo verbinden für
 automatische Deploys bei jedem Push.
 
-WICHTIG: localStorage ist an Browser + Origin gebunden. Beim Wechsel
-von file:// zu einer gehosteten URL startet die App leer — vorher per
-Export sichern, danach importieren. Single-User-Tool: NICHT für
-gleichzeitige Nutzung durch mehrere Mitarbeiter geeignet.
+WICHTIG: Alle Board-Daten liegen ausschließlich in Supabase (kein
+localStorage). Nutzung nur mit Anmeldung; jeder Nutzer sieht via RLS
+nur seine eigenen bzw. beigetretenen Boards. Bilder liegen in Supabase
+Storage (lokal nur in IndexedDB zwischengespeichert). Primär als
+privates Board gedacht — gleichzeitiges Bearbeiten desselben Boards ist
+„last write wins".
 ============================================================ -->
 </body>
 </html>
