@@ -1726,10 +1726,10 @@ function buildIcs(title, desc, tasks, deadline, uidBase) {
   tasks = (tasks || []).map(t => ({ text: (t.text || '').trim(), done: !!t.done })).filter(t => t.text);
   let body = (desc || '').trim();
   if (tasks.length) body += (body ? '\n\n' : '') + 'Aufgaben:\n' + tasks.map(t => (t.done ? '☑ ' : '☐ ') + t.text).join('\n');
-  const dl = deadline || todayStr();
-  const start = dl.replace(/-/g, '');
-  const nd = new Date(dl + 'T00:00:00'); nd.setDate(nd.getDate() + 1);
-  const end = nd.getFullYear() + p2(nd.getMonth() + 1) + p2(nd.getDate());
+  const day = (deadline || todayStr()).replace(/-/g, '');
+  // Standardmäßig ein 1-stündiger Termin (09:00–10:00, lokale/„floating" Zeit) statt Ganztags
+  const dtStart = day + 'T090000';
+  const dtEnd = day + 'T100000';
   const n = new Date();
   const stamp = n.getUTCFullYear() + p2(n.getUTCMonth() + 1) + p2(n.getUTCDate()) + 'T' + p2(n.getUTCHours()) + p2(n.getUTCMinutes()) + p2(n.getUTCSeconds()) + 'Z';
   return [
@@ -1737,8 +1737,8 @@ function buildIcs(title, desc, tasks, deadline, uidBase) {
     'BEGIN:VEVENT',
     'UID:' + (uidBase || 'neu') + '-' + Date.now() + '@orbit',
     'DTSTAMP:' + stamp,
-    'DTSTART;VALUE=DATE:' + start,
-    'DTEND;VALUE=DATE:' + end,
+    'DTSTART:' + dtStart,
+    'DTEND:' + dtEnd,
     'SUMMARY:' + icsEscape(title),
     'DESCRIPTION:' + icsEscape(body),
     'END:VEVENT', 'END:VCALENDAR'
