@@ -365,7 +365,7 @@ tr.row.done-final td{opacity:.4}
 .set-row{display:flex; align-items:center; gap:8px; justify-content:space-between}
 .set-row label{font-size:12px}
 /* einheitliche, runde Eingabefelder in den Einstellungen (CI-konform) */
-.set-row select,.set-row input,#setColumns input,#setBoardTitle,#setJoinCode{
+.set-row select,.set-row input,#setColumns input,#setBoardTitle{
   border:1px solid var(--border); border-radius:var(--radius); padding:5px 8px; font-size:13px; background:var(--card); color:var(--text);
 }
 .set-row select,.set-row input[type=number]{width:130px}
@@ -375,7 +375,7 @@ tr.row.done-final td{opacity:.4}
 .set-col-row .set-col{flex:1 1 auto; width:auto; min-width:0}
 .set-done{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-weak); white-space:nowrap; cursor:pointer}
 .set-done input{width:auto}
-#setColumns input:focus,#setBoardTitle:focus,#setJoinCode:focus{outline:2px solid var(--blue); outline-offset:-1px}
+#setColumns input:focus,#setBoardTitle:focus{outline:2px solid var(--blue); outline-offset:-1px}
 
 /* ---------- Rich-Text (Beschreibung/Notiz mit Inline-Bildern) ---------- */
 .richtext{width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:6px 8px;font-size:13px;min-height:72px;max-height:300px;overflow-y:auto;background:var(--card)}
@@ -581,9 +581,6 @@ tr.row.done-final td{opacity:.4}
       <div class="field">
         <label>Kommentar / Verlauf (optional)</label>
         <div class="richtext" id="fNote" contenteditable="true" data-ph="Verlauf…"></div>
-        <div style="margin-top:6px;text-align:left">
-          <button type="button" class="btn" id="btnLogDate" style="padding:2px 8px;font-size:11px">+ Datumszeile</button>
-        </div>
       </div>
       <div class="field">
         <label>Aufgaben <span id="taskCount" class="task-count"></span></label>
@@ -594,8 +591,6 @@ tr.row.done-final td{opacity:.4}
         <div class="cat-chips" id="catChips"></div>
         <div class="cat-add">
           <div id="catSelect"></div>
-          <input id="catNew" placeholder="Neue Kategorie…" maxlength="40">
-          <button type="button" class="btn" id="btnCatAdd">Anlegen</button>
         </div>
       </div>
       <div class="field">
@@ -613,7 +608,6 @@ tr.row.done-final td{opacity:.4}
       <span class="foot-left">
         <button class="btn btn-danger" id="btnDelete" hidden>Löschen</button>
         <button type="button" class="btn" id="btnHousekeeper" title="Rechtschreibung &amp; Formatierung per KI aufräumen">🧹 Housekeeper</button>
-        <button type="button" class="btn" id="btnExportIcs" title="Als Termin exportieren (.ics) – per Drag &amp; Drop in den Outlook-Kalender ziehen">📅 In Kalender</button>
       </span>
       <button class="btn" data-close>Abbrechen</button>
       <button class="btn btn-primary" id="btnSave">Speichern</button>
@@ -692,18 +686,9 @@ tr.row.done-final td{opacity:.4}
         <button class="btn" id="btnLogout">Abmelden</button>
       </div>
       <div class="settings-section" id="teamSection" hidden>
-        <h3>Team &amp; Boards</h3>
-        <div class="set-row">
-          <label>Team-Code (zum Teilen dieses Boards)</label>
-          <span id="setShareCode" style="font-family:monospace;font-size:13px;user-select:all">–</span>
-        </div>
-        <div class="cat-add" style="margin-top:8px">
-          <input id="setJoinCode" placeholder="Team-Code eines anderen Boards…" maxlength="40">
-          <button type="button" class="btn" id="btnJoinBoard">Beitreten</button>
-        </div>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <h3>Boards</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnNewBoard">+ Neues Board</button>
-          <button type="button" class="btn" id="btnLeaveBoard" hidden>Board verlassen</button>
           <button type="button" class="btn btn-danger" id="btnDeleteBoard">Board löschen…</button>
         </div>
       </div>
@@ -1163,14 +1148,12 @@ function toggleCardMenu(cardEl, id) {
   const m = document.createElement('div');
   m.className = 'card-menu-pop';
   m.innerHTML = '<button data-act="dup">⧉ Duplizieren</button>' +
-                '<button data-act="ics">📅 In Kalender (.ics)</button>' +
                 '<button data-act="del" style="color:var(--red)">🗑 Löschen</button>';
   m.addEventListener('click', e => {
     e.stopPropagation();
     const act = e.target.dataset.act;
     closeCardMenus();
     if (act === 'dup') duplicateTicket(id);
-    if (act === 'ics') exportIcsForTicket(id);
     if (act === 'del') deleteTicketById(id);
   });
   cardEl.appendChild(m);
@@ -1530,23 +1513,13 @@ function openSettings() {
   document.getElementById('setTips').checked = s.tips !== false;
   renderCatManager();
   document.getElementById('setUsage').textContent = sb && sbSession ? 'wird von Supabase verwaltet' : 'nur lokal (nicht angemeldet)';
-  // Team-Bereich nur im angemeldeten (Supabase-)Modus
+  // Board-Verwaltung nur im angemeldeten (Supabase-)Modus
   const team = document.getElementById('teamSection');
-  if (sb && sbSession && boardId) {
-    team.hidden = false;
-    const b = myBoards.find(x => x.id === boardId);
-    document.getElementById('setShareCode').textContent = (b && b.share_code) || '–';
-    // Besitzer darf löschen; eingeladene Mitglieder können das Board nur verlassen
-    const isOwner = !!(b && sbSession && b.owner === sbSession.user.id);
-    document.getElementById('btnDeleteBoard').hidden = !isOwner;
-    document.getElementById('btnLeaveBoard').hidden = isOwner;
-  } else team.hidden = true;
+  team.hidden = !(sb && sbSession && boardId);
   settingsOverlay.classList.add('open');
 }
-document.getElementById('btnJoinBoard').onclick = joinBoardByCode;
 document.getElementById('btnNewBoard').onclick = createBoard;
 document.getElementById('btnDeleteBoard').onclick = deleteBoard;
-document.getElementById('btnLeaveBoard').onclick = leaveBoard;
 function closeSettings() {
   const s = state.settings;
   s.boardTitle = (document.getElementById('setBoardTitle').value.trim() || 'Mein Board').slice(0, 40);
@@ -1700,73 +1673,8 @@ document.getElementById('btnWide').onclick = () => {
   state.settings.modalWide = !state.settings.modalWide; save();
   overlay.querySelector('.modal').classList.toggle('wide', state.settings.modalWide);
 };
-document.getElementById('btnLogDate').onclick = () => {
-  const ed = document.getElementById('fNote');
-  const line = document.createElement('div');
-  line.innerHTML = '<b>— ' + fmtDate(todayStr()) + ':</b>&nbsp;';
-  ed.insertBefore(line, ed.firstChild);
-  ed.focus();
-  const r = document.createRange(); r.selectNodeContents(line); r.collapse(false);
-  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
-};
 document.getElementById('btnDelete').onclick = deleteTicket;
 
-/* Ticket als Kalender-Termin exportieren (.ics) — in den Outlook-Kalender ziehen.
-   Nur Titel, Beschreibung und Aufgaben werden übernommen (Deadline als Tag). */
-function icsEscape(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;'); }
-function icsFold(line) { let out = ''; while (line.length > 73) { out += line.slice(0, 73) + '\r\n '; line = line.slice(73); } return out + line; }
-function buildIcs(title, desc, tasks, deadline, uidBase) {
-  const p2 = n => String(n).padStart(2, '0');
-  title = (title || '').trim() || 'Aufgabe';
-  tasks = (tasks || []).map(t => ({ text: (t.text || '').trim(), done: !!t.done })).filter(t => t.text);
-  let body = (desc || '').trim();
-  if (tasks.length) body += (body ? '\n\n' : '') + 'Aufgaben:\n' + tasks.map(t => (t.done ? '☑ ' : '☐ ') + t.text).join('\n');
-  const day = todayStr().replace(/-/g, '');   // Termin immer am heutigen Tag einfügen
-  // Standardmäßig ein 1-stündiger Termin (09:00–10:00, lokale/„floating" Zeit) statt Ganztags
-  const dtStart = day + 'T090000';
-  const dtEnd = day + 'T100000';
-  const n = new Date();
-  const stamp = n.getUTCFullYear() + p2(n.getUTCMonth() + 1) + p2(n.getUTCDate()) + 'T' + p2(n.getUTCHours()) + p2(n.getUTCMinutes()) + p2(n.getUTCSeconds()) + 'Z';
-  return [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Orbit//Board//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    'UID:' + (uidBase || 'neu') + '-' + Date.now() + '@orbit',
-    'DTSTAMP:' + stamp,
-    'DTSTART:' + dtStart,
-    'DTEND:' + dtEnd,
-    'SUMMARY:' + icsEscape(title),
-    'DESCRIPTION:' + icsEscape(body),
-    'END:VEVENT', 'END:VCALENDAR'
-  ].map(icsFold).join('\r\n');
-}
-function downloadIcs(title, desc, tasks, deadline, uidBase) {
-  const ics = buildIcs(title, desc, tasks, deadline, uidBase);
-  title = (title || '').trim() || 'Aufgabe';
-  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = (title.replace(/[^\wäöüÄÖÜß \-]+/g, '').trim().replace(/\s+/g, '_').slice(0, 40) || 'termin') + '.ics';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast('📅 Termin exportiert – in den Outlook-Kalender ziehen');
-}
-function exportTicketIcs() { // aus dem offenen Modal (inkl. noch nicht bestätigter Geister-Aufgabe)
-  const tasks = modalTasks.slice();
-  const ghost = document.querySelector('#taskList .task-ghost input[type=text]');
-  if (ghost && ghost.value.trim()) tasks.push({ text: ghost.value.trim(), done: false });
-  downloadIcs(
-    document.getElementById('fTitle').value,
-    stripHtml(sanitizeHtml(document.getElementById('fDesc').innerHTML)),
-    tasks,
-    document.getElementById('fDeadline').value,
-    editingId || 'neu');
-}
-function exportIcsForTicket(id) { // aus dem Karten-Menü
-  const t = state.tickets.find(x => x.id === id); if (!t) return;
-  downloadIcs(t.title, stripHtml(t.desc || ''), t.tasks || [], t.deadline, t.id);
-}
-document.getElementById('btnExportIcs').onclick = exportTicketIcs;
 document.getElementById('btnBannerExport').onclick = exportJSON;
 document.getElementById('btnBannerDismiss').onclick = () => document.getElementById('exportBanner').hidden = true;
 document.getElementById('importFile').addEventListener('change', e => {
@@ -1837,16 +1745,7 @@ document.querySelectorAll('th.sortable').forEach(th =>
     renderList();
   }));
 
-/* Kategorien im Ticket-Modal */
-document.getElementById('btnCatAdd').onclick = () => {
-  const inp = document.getElementById('catNew');
-  const name = addCategory(inp.value);
-  if (name && !modalCats.includes(name)) modalCats.push(name);
-  inp.value = ''; renderModalCats();
-};
-document.getElementById('catNew').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnCatAdd').click(); }
-});
+/* Kategorien werden nur noch in den Einstellungen angelegt, nicht mehr im Ticket */
 document.getElementById('btnCatManagerAdd').onclick = () => {
   const inp = document.getElementById('catManagerNew');
   addCategory(inp.value); inp.value = ''; renderCatManager();
@@ -2339,17 +2238,6 @@ function bindBoardControls() {
   const sw = document.getElementById('boardSwitch');
   if (sw) sw.onchange = e => { if (cloudTimer) cloudSave(); setActiveBoard(e.target.value); };
 }
-async function joinBoardByCode() {
-  if (!sb) { alert('Bitte zuerst anmelden.'); return; }
-  const code = (document.getElementById('setJoinCode').value || '').trim().toLowerCase();
-  if (!code) return;
-  const { data, error } = await sb.rpc('join_board', { code });
-  if (error) { alert('Beitreten fehlgeschlagen: ' + error.message); return; }
-  await ensureBoards(); renderBoardSwitch();
-  document.getElementById('setJoinCode').value = '';
-  closeSettings(); setActiveBoard(data);
-  toast('Board beigetreten');
-}
 async function createBoard() {
   if (!sb) { alert('Bitte zuerst anmelden.'); return; }
   const { data, error } = await sb.rpc('create_board', {
@@ -2376,22 +2264,6 @@ async function deleteBoard() {
   await ensureBoards();          // legt bei Bedarf automatisch ein neues leeres Board an
   setActiveBoard(myBoards[0].id);
   toast('Board gelöscht');
-}
-
-async function leaveBoard() {
-  if (!sb || !boardId) { alert('Kein Board zum Verlassen.'); return; }
-  const b = myBoards.find(x => x.id === boardId);
-  if (!b) return;
-  if (b.owner === sbSession.user.id) { alert('Du bist Besitzer dieses Boards — du kannst es nur löschen, nicht verlassen.'); return; }
-  if (!confirm('Board „' + (b.title || 'dieses Board') + '" verlassen? Du siehst es danach nicht mehr (die Daten bleiben für die anderen erhalten).')) return;
-  const { error } = await sb.rpc('leave_board', { b: boardId });
-  if (error) { alert('Verlassen fehlgeschlagen: ' + error.message); return; }
-  if (boardChannel) { sb.removeChannel(boardChannel); boardChannel = null; }
-  boardId = null;
-  closeSettings();
-  await ensureBoards();          // legt bei Bedarf automatisch ein neues eigenes Board an
-  setActiveBoard(myBoards[0].id);
-  toast('Board verlassen');
 }
 
 async function runHousekeeper() {
@@ -2693,7 +2565,7 @@ const DINO = (() => {
   let running = true, started = false, rafId = null, lastTs = 0;
   let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [], bursts = [];
   let hiM = null, gx = 0, meteor = null, flash = 0, strobe = 0, shake = 0, shock = [];
-  let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0, nextMeteor = 0;
+  let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -2893,8 +2765,7 @@ const DINO = (() => {
       birds.forEach(b => { b.x -= 28 * dt; b.ft += dt; if (b.ft > 0.25) { b.ft = 0; b.frame = 1 - b.frame; } });
       ufos.forEach(u => u.x += u.speed * dt);
       animals.forEach(a => { a.x += a.speed * dt; a.ft += dt; if (a.ft > 0.22) { a.ft = 0; a.frame = 1 - a.frame; } });
-      // Meteor: ab und zu ein Einschlag mit Explosion, der alle Tiere tötet
-      if (ts > nextMeteor) { if (animals.length && Math.random() < 0.6) spawnMeteor(w); nextMeteor = ts + 28000 + Math.random() * 34000; }
+      // Meteor kommt NUR manuell (10 Klicks ins Minispiel), nicht mehr von selbst
       if (meteor) {
         meteor.t += dt / meteor.dur;
         const [mx, my] = meteorPos(groundY);
@@ -2997,7 +2868,7 @@ const DINO = (() => {
       started = true; lastTs = performance.now();
       nextSpawn = lastTs + 800; nextPlant = lastTs + 400; nextCloud = lastTs + 800;
       nextBird = lastTs + 6000; nextFar = lastTs + 3000; nextNear = lastTs + 1500; nextUfo = lastTs + 40000; nextHi = lastTs + 2000;
-      nextMeteor = lastTs + 14000 + Math.random() * 16000; meteor = null; flash = 0; strobe = 0; shake = 0; shock = [];
+      meteor = null; flash = 0; strobe = 0; shake = 0; shock = [];
       seedScene();
       spawnCloud(30 + Math.random() * 200);
       rafId = requestAnimationFrame(frame);
