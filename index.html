@@ -1726,7 +1726,7 @@ function buildIcs(title, desc, tasks, deadline, uidBase) {
   tasks = (tasks || []).map(t => ({ text: (t.text || '').trim(), done: !!t.done })).filter(t => t.text);
   let body = (desc || '').trim();
   if (tasks.length) body += (body ? '\n\n' : '') + 'Aufgaben:\n' + tasks.map(t => (t.done ? '☑ ' : '☐ ') + t.text).join('\n');
-  const day = (deadline || todayStr()).replace(/-/g, '');
+  const day = todayStr().replace(/-/g, '');   // Termin immer am heutigen Tag einfügen
   // Standardmäßig ein 1-stündiger Termin (09:00–10:00, lokale/„floating" Zeit) statt Ganztags
   const dtStart = day + 'T090000';
   const dtEnd = day + 'T100000';
