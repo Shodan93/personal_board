@@ -1010,6 +1010,20 @@ function setStatus(t, status) {
   else delete t.completedAt;
   if (!wasDone && DONE.includes(status)) celebrate(); // erstmaliger Abschluss
 }
+/* Ticket auf einen Status verschieben (Drag/Drop oder Schnell-Status) — warnt bei
+   noch offenen Aufgaben, wenn das Ziel eine „erledigt"-Säule ist. */
+function moveToStatus(t, status) {
+  if (!t || t.status === status) { render(); return; }
+  const open = (t.tasks || []).filter(x => !x.done).length;
+  if (DONE.includes(status) && open > 0) {
+    if (!confirm('⚠ Dieses Ticket hat noch ' + open + ' offene Aufgabe' + (open === 1 ? '' : 'n') +
+        '.\n\nTrotzdem nach „' + status + '" verschieben und als erledigt markieren?')) {
+      render(); // Auswahl/Position zurücksetzen
+      return;
+    }
+  }
+  setStatus(t, status); save(); render();
+}
 
 /* ============================================================
    RENDERING
@@ -1103,7 +1117,7 @@ function renderKanban() {
     col.addEventListener('drop', e => {
       e.preventDefault(); col.classList.remove('dragover');
       const t = state.tickets.find(x => x.id === e.dataTransfer.getData('text/plain'));
-      if (t && t.status !== status) { setStatus(t, status); save(); render(); }
+      if (t) moveToStatus(t, status);
     });
     root.appendChild(col);
   });
@@ -1150,7 +1164,7 @@ function cardEl(t) {
     if (e.target.closest('a') || e.target.closest('select') || e.target.closest('.card-menu-pop')) return;
     openModal(t.id);
   });
-  el.querySelector('.quick-status').addEventListener('change', e => { setStatus(t, e.target.value); save(); render(); });
+  el.querySelector('.quick-status').addEventListener('change', e => moveToStatus(t, e.target.value));
   return el;
 }
 
@@ -1784,8 +1798,19 @@ document.getElementById('btnSetImport').onclick = () => document.getElementById(
 document.getElementById('btnSettings').onclick = openSettings;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = requestCloseModal);
 document.querySelectorAll('[data-close-settings]').forEach(b => b.onclick = closeSettings);
-overlay.addEventListener('click', e => { if (e.target === overlay) requestCloseModal(); });
-settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) closeSettings(); });
+// Nur schließen, wenn der Klick AUF dem Backdrop beginnt UND endet (verhindert
+// versehentliches Schließen, wenn man Text markiert/zieht und außerhalb loslässt)
+let overlayDownTarget = null, settingsDownTarget = null;
+overlay.addEventListener('mousedown', e => { overlayDownTarget = e.target; });
+overlay.addEventListener('click', e => {
+  if (e.target === overlay && overlayDownTarget === overlay) requestCloseModal();
+  overlayDownTarget = null;
+});
+settingsOverlay.addEventListener('mousedown', e => { settingsDownTarget = e.target; });
+settingsOverlay.addEventListener('click', e => {
+  if (e.target === settingsOverlay && settingsDownTarget === settingsOverlay) closeSettings();
+  settingsDownTarget = null;
+});
 
 /* Bestätigungsdialog für ungespeicherte Änderungen */
 document.getElementById('btnConfirmCancel').onclick = () => confirmOverlay.classList.remove('open');
