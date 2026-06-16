@@ -613,6 +613,7 @@ tr.row.done-final td{opacity:.4}
       <span class="foot-left">
         <button class="btn btn-danger" id="btnDelete" hidden>Löschen</button>
         <button type="button" class="btn" id="btnHousekeeper" title="Rechtschreibung &amp; Formatierung per KI aufräumen">🧹 Housekeeper</button>
+        <button type="button" class="btn" id="btnExportIcs" title="Als Termin exportieren (.ics) – per Drag &amp; Drop in den Outlook-Kalender ziehen">📅 In Kalender</button>
       </span>
       <button class="btn" data-close>Abbrechen</button>
       <button class="btn btn-primary" id="btnSave">Speichern</button>
@@ -1167,12 +1168,14 @@ function toggleCardMenu(cardEl, id) {
   const m = document.createElement('div');
   m.className = 'card-menu-pop';
   m.innerHTML = '<button data-act="dup">⧉ Duplizieren</button>' +
+                '<button data-act="ics">📅 In Kalender (.ics)</button>' +
                 '<button data-act="del" style="color:var(--red)">🗑 Löschen</button>';
   m.addEventListener('click', e => {
     e.stopPropagation();
     const act = e.target.dataset.act;
     closeCardMenus();
     if (act === 'dup') duplicateTicket(id);
+    if (act === 'ics') exportIcsForTicket(id);
     if (act === 'del') deleteTicketById(id);
   });
   cardEl.appendChild(m);
@@ -1712,6 +1715,63 @@ document.getElementById('btnLogDate').onclick = () => {
   const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
 };
 document.getElementById('btnDelete').onclick = deleteTicket;
+
+/* Ticket als Kalender-Termin exportieren (.ics) — in den Outlook-Kalender ziehen.
+   Nur Titel, Beschreibung und Aufgaben werden übernommen (Deadline als Tag). */
+function icsEscape(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;'); }
+function icsFold(line) { let out = ''; while (line.length > 73) { out += line.slice(0, 73) + '\r\n '; line = line.slice(73); } return out + line; }
+function buildIcs(title, desc, tasks, deadline, uidBase) {
+  const p2 = n => String(n).padStart(2, '0');
+  title = (title || '').trim() || 'Aufgabe';
+  tasks = (tasks || []).map(t => ({ text: (t.text || '').trim(), done: !!t.done })).filter(t => t.text);
+  let body = (desc || '').trim();
+  if (tasks.length) body += (body ? '\n\n' : '') + 'Aufgaben:\n' + tasks.map(t => (t.done ? '☑ ' : '☐ ') + t.text).join('\n');
+  const dl = deadline || todayStr();
+  const start = dl.replace(/-/g, '');
+  const nd = new Date(dl + 'T00:00:00'); nd.setDate(nd.getDate() + 1);
+  const end = nd.getFullYear() + p2(nd.getMonth() + 1) + p2(nd.getDate());
+  const n = new Date();
+  const stamp = n.getUTCFullYear() + p2(n.getUTCMonth() + 1) + p2(n.getUTCDate()) + 'T' + p2(n.getUTCHours()) + p2(n.getUTCMinutes()) + p2(n.getUTCSeconds()) + 'Z';
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Orbit//Board//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    'UID:' + (uidBase || 'neu') + '-' + Date.now() + '@orbit',
+    'DTSTAMP:' + stamp,
+    'DTSTART;VALUE=DATE:' + start,
+    'DTEND;VALUE=DATE:' + end,
+    'SUMMARY:' + icsEscape(title),
+    'DESCRIPTION:' + icsEscape(body),
+    'END:VEVENT', 'END:VCALENDAR'
+  ].map(icsFold).join('\r\n');
+}
+function downloadIcs(title, desc, tasks, deadline, uidBase) {
+  const ics = buildIcs(title, desc, tasks, deadline, uidBase);
+  title = (title || '').trim() || 'Aufgabe';
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (title.replace(/[^\wäöüÄÖÜß \-]+/g, '').trim().replace(/\s+/g, '_').slice(0, 40) || 'termin') + '.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('📅 Termin exportiert – in den Outlook-Kalender ziehen');
+}
+function exportTicketIcs() { // aus dem offenen Modal (inkl. noch nicht bestätigter Geister-Aufgabe)
+  const tasks = modalTasks.slice();
+  const ghost = document.querySelector('#taskList .task-ghost input[type=text]');
+  if (ghost && ghost.value.trim()) tasks.push({ text: ghost.value.trim(), done: false });
+  downloadIcs(
+    document.getElementById('fTitle').value,
+    stripHtml(sanitizeHtml(document.getElementById('fDesc').innerHTML)),
+    tasks,
+    document.getElementById('fDeadline').value,
+    editingId || 'neu');
+}
+function exportIcsForTicket(id) { // aus dem Karten-Menü
+  const t = state.tickets.find(x => x.id === id); if (!t) return;
+  downloadIcs(t.title, stripHtml(t.desc || ''), t.tasks || [], t.deadline, t.id);
+}
+document.getElementById('btnExportIcs').onclick = exportTicketIcs;
 document.getElementById('btnBannerExport').onclick = exportJSON;
 document.getElementById('btnBannerDismiss').onclick = () => document.getElementById('exportBanner').hidden = true;
 document.getElementById('importFile').addEventListener('change', e => {
