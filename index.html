@@ -17,8 +17,22 @@
   --text:#181818; --text-weak:#706E6B;
   --shadow:0 2px 4px rgba(0,0,0,.08);
   --radius:8px;
-  --overdue-bg:#FDEDEC; --today-bg:#FFF3E6;
+  --overdue-bg:#FBD8D5; --today-bg:#FFE3BD; --col-bg:#ECEBEA;
+  color-scheme:light;
 }
+/* ---------- Dark Mode (sauber, dunkles Slate) ---------- */
+:root[data-theme="dark"]{
+  --blue:#4c9ff0; --blue-dark:#9cc7f6; --blue-bg:#172638;
+  --red:#e2706b; --yellow:#d9a24f; --green:#46b673;
+  --gray-bg:#14161b; --card:#1e2128; --border:#323845;
+  --text:#e7e9ee; --text-weak:#969cab;
+  --shadow:0 2px 8px rgba(0,0,0,.45);
+  --overdue-bg:#3b2422; --today-bg:#3a3120; --col-bg:#23262e;
+  color-scheme:dark;
+}
+:root[data-theme="dark"] th{background:var(--col-bg)}
+:root[data-theme="dark"] .due-today .deadline{color:#e0a955}
+:root[data-theme="dark"] .badge-today{color:#fff}
 *{box-sizing:border-box;margin:0;padding:0}
 /* FIX v2: hidden-Attribut muss display:grid/flex etc. immer schlagen
    (Ursache des Listenansicht-Bugs in v1) */
@@ -93,7 +107,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
   display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
   padding:10px 16px 24px; align-items:start;
 }
-.col{background:#ECEBEA; border-radius:var(--radius); padding:10px; min-height:140px}
+.col{background:var(--col-bg); border-radius:var(--radius); padding:10px; min-height:140px}
 .col.dragover{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
 .col-head{
   display:flex; align-items:center; justify-content:space-between;
@@ -290,8 +304,8 @@ body.compact .card .desc{display:none}
 .att-chip svg,.jira svg{display:block}
 .jira:hover{text-decoration:underline}
 
-.due-today{background:#FFE3BD}
-.overdue{background:#FBD8D5}
+.due-today{background:var(--today-bg)}
+.overdue{background:var(--overdue-bg)}
 /* Überfällig = persistente Eskalation: roter Rand, bleibt rot solange das Datum in der Vergangenheit liegt */
 .card.overdue{border-left-color:var(--red)}
 .due-today .deadline{color:#B25D00; font-weight:700}
@@ -306,7 +320,7 @@ body.compact .card .desc{display:none}
 .list-wrap{padding:10px 16px 24px; overflow-x:auto}
 table{width:100%; border-collapse:collapse; background:var(--card); box-shadow:var(--shadow); border-radius:var(--radius); overflow:hidden}
 th,td{padding:7px 10px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; vertical-align:top}
-th{background:#FAFAF9; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-weak); white-space:nowrap; user-select:none}
+th{background:var(--col-bg); font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-weak); white-space:nowrap; user-select:none}
 th.sortable{cursor:pointer}
 th.sortable:hover{color:var(--blue)}
 th .arrow{font-size:10px}
@@ -314,7 +328,7 @@ tr.row{cursor:pointer}
 tr.row td{transition:background .1s}
 tr.row:hover td{background:var(--blue-bg)}
 tr.row.due-today td{background:var(--today-bg)}
-tr.row.overdue td{background:#FBD8D5}
+tr.row.overdue td{background:var(--overdue-bg)}
 tr.row.done td{opacity:.65}
 tr.row.done-final td{opacity:.4}
 .empty{padding:24px; text-align:center; color:var(--text-weak)}
@@ -334,7 +348,7 @@ tr.row.done-final td{opacity:.4}
 .field label .req{color:var(--red)}
 .field input,.field select,.field textarea{
   width:100%; border:1px solid var(--border); border-radius:var(--radius);
-  padding:6px 8px; font-size:13px;
+  padding:6px 8px; font-size:13px; background:var(--card); color:var(--text);
 }
 /* Datums-Icon linksbündig vor dem Datum */
 .field input[type=date]{position:relative; padding-left:32px}
@@ -384,12 +398,6 @@ tr.row.done-final td{opacity:.4}
 .richtext img{max-width:100%;display:block;margin:6px 0;border:1px solid var(--border);border-radius:4px;cursor:zoom-in}
 .richtext ul,.richtext ol{padding-left:22px;margin:4px 0}
 .richtext li{margin:2px 0}
-.rt-toolbar{display:flex;gap:3px;align-items:center;flex-wrap:wrap;border:1px solid var(--border);border-bottom:none;
-  border-radius:var(--radius) var(--radius) 0 0;background:#FAFAF9;padding:4px 6px}
-.rt-toolbar button{border:1px solid transparent;background:none;border-radius:4px;padding:2px 7px;font-size:12px;color:var(--text);line-height:1.3}
-.rt-toolbar button:hover{background:var(--blue-bg);border-color:var(--border)}
-.rt-sep{width:1px;height:16px;background:var(--border);margin:0 3px}
-.rt-toolbar + .richtext{border-top-left-radius:0;border-top-right-radius:0}
 
 /* ---------- Aufgaben-Checkliste im Ticket ---------- */
 .task-list{display:flex;flex-direction:column;gap:4px}
@@ -470,6 +478,7 @@ tr.row.done-final td{opacity:.4}
     <button id="btnList">Liste</button>
   </div>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
+  <button class="btn btn-icon" id="btnTheme" title="Dark Mode umschalten">🌙</button>
   <button class="btn btn-icon" id="btnSettings" title="Einstellungen">⚙</button>
 </header>
 
@@ -484,7 +493,7 @@ tr.row.done-final td{opacity:.4}
   <button class="btn" id="btnFocusClose">Schließen</button>
 </div>
 
-<div class="banner" id="tipBar" style="background:#FBFBFA;border-bottom-color:var(--border);font-size:12px;color:var(--text-weak)" hidden>
+<div class="banner" id="tipBar" style="background:var(--card);border-bottom-color:var(--border);font-size:12px;color:var(--text-weak)" hidden>
   <span>💡 <span id="tipText"></span></span>
   <button class="btn" id="btnTipClose">✕</button>
 </div>
@@ -496,10 +505,10 @@ tr.row.done-final td{opacity:.4}
     <option value="deadline">Fälligkeit</option>
     <option value="prio">Priorität</option>
   </select>
-  <button class="chip" id="chipShowHidden" title="Auch automatisch ausgeblendete erledigte Tickets zeigen">Ausgeblendete anzeigen</button>
   <input type="search" id="kanbanSearch" placeholder="Tickets durchsuchen…" title="Filtert die Karten nach Titel, Beschreibung und Notiz">
   <span class="spacer"></span>
   <span class="lbl" id="kanbanStats"></span>
+  <button class="chip" id="chipShowHidden" title="Auch automatisch ausgeblendete erledigte Tickets zeigen">Ausgeblendete anzeigen</button>
 </div>
 
 <!-- Listen-Toolbar -->
@@ -571,8 +580,10 @@ tr.row.done-final td{opacity:.4}
       </div>
       <div class="field">
         <label>Deadline <span class="req">*</span></label>
-        <input type="date" id="fDeadline" required>
-        <div id="fCreated" style="font-size:11px;color:var(--text-weak);margin-top:4px" hidden></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="date" id="fDeadline" required>
+          <span id="fCreated" style="font-size:11px;color:var(--text-weak)" hidden></span>
+        </div>
       </div>
       <div class="field">
         <label>Beschreibung</label>
@@ -595,12 +606,12 @@ tr.row.done-final td{opacity:.4}
       </div>
       <div class="field">
         <label>Anhänge (alle Dateitypen)</label>
-        <div class="att-zone" id="attZone">📎 Datei hier ablegen oder klicken</div>
+        <div class="att-zone" id="attZone"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Datei hier ablegen oder klicken</div>
         <input type="file" id="attFile" multiple hidden>
         <div class="att-thumbs" id="attThumbs"></div>
       </div>
       <div class="field">
-        <label>Link (optional)</label>
+        <label>Link</label>
         <input type="url" id="fJira" placeholder="https://…">
       </div>
     </form>
@@ -608,6 +619,7 @@ tr.row.done-final td{opacity:.4}
       <span class="foot-left">
         <button class="btn btn-danger" id="btnDelete" hidden>Löschen</button>
         <button type="button" class="btn" id="btnHousekeeper" title="Rechtschreibung &amp; Formatierung per KI aufräumen">🧹 Housekeeper</button>
+        <button type="button" class="btn" id="btnCopyInfo" title="Titel, Beschreibung, Notiz &amp; Aufgaben in die Zwischenablage kopieren">📋 Kopieren</button>
       </span>
       <button class="btn" data-close>Abbrechen</button>
       <button class="btn btn-primary" id="btnSave">Speichern</button>
@@ -826,7 +838,15 @@ function defaultSettings() {
            dino: true, tips: true, tipsAuto: true, collapsed: {},
            statuses: DEFAULT_STATUSES.slice(),
            doneStatuses: [DEFAULT_STATUSES[DEFAULT_STATUSES.length - 1]],
+           theme: 'light',
            boardTitle: 'Mein Board' };
+}
+/* Dark/Light umschalten (Einstellung liegt im Board und synchronisiert über Supabase) */
+function applyTheme() {
+  const dark = state.settings.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'dark' : '';
+  const btn = document.getElementById('btnTheme');
+  if (btn) { btn.textContent = dark ? '☀️' : '🌙'; btn.title = dark ? 'Light Mode' : 'Dark Mode'; }
 }
 /* Säulen aus den (board-eigenen) Einstellungen übernehmen — letzte Säule = erledigt */
 function setColumnsFromSettings() {
@@ -846,6 +866,7 @@ function setColumnsFromSettings() {
 /* Board-Aussehen anwenden: Säulen, Titel, Spaltenzahl, Auswahllisten */
 function applyBoardConfig() {
   setColumnsFromSettings();
+  applyTheme();
   // Oben links nur die Marke; der Boardname steht in der Pickliste (kein Doppel)
   document.getElementById('boardTitle').textContent = '🪐 Orbit';
   document.title = (state.settings.boardTitle || 'Orbit') + ' · Orbit';
@@ -1675,6 +1696,37 @@ document.getElementById('btnWide').onclick = () => {
 };
 document.getElementById('btnDelete').onclick = deleteTicket;
 
+/* Alle Ticket-Infos formatiert in die Zwischenablage (Titel, Beschreibung, Notiz, Aufgaben) */
+function ticketInfoText() {
+  const title = (document.getElementById('fTitle').value || '').trim();
+  const desc = stripHtml(sanitizeHtml(document.getElementById('fDesc').innerHTML)).trim();
+  const note = stripHtml(sanitizeHtml(document.getElementById('fNote').innerHTML)).trim();
+  const tasks = modalTasks.slice();
+  const ghost = document.querySelector('#taskList .task-ghost input[type=text]');
+  if (ghost && ghost.value.trim()) tasks.push({ text: ghost.value.trim(), done: false });
+  const tt = tasks.map(t => ({ text: (t.text || '').trim(), done: !!t.done })).filter(t => t.text);
+  let out = title || 'Ticket';
+  if (desc) out += '\n\n' + desc;
+  if (note) out += '\n\nNotiz:\n' + note;
+  if (tt.length) out += '\n\nAufgaben:\n' + tt.map(t => (t.done ? '☑ ' : '☐ ') + t.text).join('\n');
+  return out;
+}
+async function copyTicketInfo() {
+  const text = ticketInfoText();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('📋 Ticket-Infos kopiert');
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); toast('📋 Ticket-Infos kopiert'); }
+    catch (_) { alert('Kopieren nicht möglich.'); }
+    ta.remove();
+  }
+}
+document.getElementById('btnCopyInfo').onclick = copyTicketInfo;
+
 document.getElementById('btnBannerExport').onclick = exportJSON;
 document.getElementById('btnBannerDismiss').onclick = () => document.getElementById('exportBanner').hidden = true;
 document.getElementById('importFile').addEventListener('change', e => {
@@ -1685,6 +1737,10 @@ document.getElementById('importFile').addEventListener('change', e => {
 document.getElementById('btnSetExport').onclick = () => { closeSettings(); exportJSON(); };
 document.getElementById('btnSetImport').onclick = () => document.getElementById('importFile').click();
 document.getElementById('btnSettings').onclick = openSettings;
+document.getElementById('btnTheme').onclick = () => {
+  state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(); save();
+};
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = requestCloseModal);
 document.querySelectorAll('[data-close-settings]').forEach(b => b.onclick = closeSettings);
 // Nur schließen, wenn der Klick AUF dem Backdrop beginnt UND endet (verhindert
@@ -1914,32 +1970,8 @@ async function insertInlineImage(editor, file) {
     sel.removeAllRanges(); sel.addRange(r);
   } else editor.appendChild(img);
 }
-/* ---------- Formatierungs-Toolbar für Rich-Text-Felder ---------- */
-function buildToolbar(editor) {
-  const tb = document.createElement('div');
-  tb.className = 'rt-toolbar';
-  tb.innerHTML =
-    '<button type="button" data-cmd="bold" title="Fett (Strg+B)"><b>B</b></button>' +
-    '<button type="button" data-cmd="italic" title="Kursiv (Strg+I)"><i>K</i></button>' +
-    '<button type="button" data-cmd="underline" title="Unterstrichen (Strg+U)"><u>U</u></button>' +
-    '<span class="rt-sep"></span>' +
-    '<button type="button" data-cmd="insertUnorderedList" title="Aufzählung">• Liste</button>' +
-    '<button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1. Liste</button>' +
-    '<span class="rt-sep"></span>' +
-    '<button type="button" data-cmd="removeFormat" title="Formatierung entfernen">Tx</button>';
-  editor.parentNode.insertBefore(tb, editor);
-  const exec = (cmd, val) => { editor.focus(); document.execCommand(cmd, false, val || null); };
-  // mousedown abfangen, damit die Textauswahl im Editor erhalten bleibt
-  tb.addEventListener('mousedown', e => e.preventDefault());
-  tb.addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.cmd) exec(b.dataset.cmd);
-  });
-}
-
 /* Editor-Events: Drop + Doppelklick für Vollbild (Einfachklick markiert zum Löschen) */
 document.querySelectorAll('.richtext').forEach(ed => {
-  buildToolbar(ed);
   ed.addEventListener('dragover', e => e.preventDefault());
   ed.addEventListener('drop', e => {
     e.preventDefault();
@@ -3235,7 +3267,7 @@ function startDragNote(e, el, note) {
 // Aufziehen eines Rechtecks irgendwo auf der UI erzeugt eine Notiz
 document.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
-  if (e.target.closest('.card, button, a, select, input, textarea, .col-add, .ghost-card, .card-menu-pop, .sticky, .overlay, header, #astro, #dinoWrap, .list-wrap, .toolbar, label, .rt-toolbar')) return;
+  if (e.target.closest('.card, button, a, select, input, textarea, .col-add, .ghost-card, .card-menu-pop, .sticky, .overlay, header, #astro, #dinoWrap, .list-wrap, .toolbar, label')) return;
   const sx = e.clientX, sy = e.clientY;
   const sel = document.getElementById('noteSel');
   sel.style.display = 'block'; sel.style.left = sx + 'px'; sel.style.top = sy + 'px';
