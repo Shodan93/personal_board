@@ -2566,7 +2566,19 @@ document.addEventListener('keydown', e => {
 const DINO = (() => {
   const cv = document.getElementById('dinoCv');
   const ctx = cv.getContext('2d');
-  const INK = '#535353', INK2 = '#7a7a7a', SKY = '#c9c9c9';
+  // Theme-abhängige Palette (hell/dunkel) — wird pro Frame aktualisiert
+  let INK, INK2, SKY, FAR, NEAR, SNOW, SHADE, VOLC, GLOW;
+  function updatePalette() {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    if (dark) {
+      INK = '#c3c8d3'; INK2 = '#888e9c'; SKY = '#525b6b';
+      FAR = '#454d5d'; NEAR = '#aab1be'; SNOW = '#eef2f8'; SHADE = '#838a98'; VOLC = '#9298a6'; GLOW = '#ff6b1a';
+    } else {
+      INK = '#535353'; INK2 = '#7a7a7a'; SKY = '#d3d7dd';
+      FAR = '#bfbfbf'; NEAR = '#454545'; SNOW = '#ffffff'; SHADE = '#373737'; VOLC = '#8f8f8f'; GLOW = '#d8541e';
+    }
+  }
+  updatePalette();
   const SPRITES = [
     ['......####', '......#.##', '......####', '......##..', '#....####.', '##..#####.', '.########.', '..######..', '...####...', '...a#.b#..', '...a..b...'], // T-Rex
     ['.......###', '......####', '......##..', '#.....###.', '.#..####..', '..######..', '...####...', '...a..b...', '..aa..b...'],                               // Raptor
@@ -2583,18 +2595,15 @@ const DINO = (() => {
     ['......##', '......##', '......#.', '...####.', '..#####.', '....#...', '...a.b..', '...a.b..'],                                                            // Strauß
   ];
   const VARIANTS = [];
-  SPRITES.forEach(sp => [2, 3].forEach(px => [INK, INK2].forEach(c => VARIANTS.push({ sp, px, c }))));
+  SPRITES.forEach(sp => [2, 3].forEach(px => [0, 1].forEach(shade => VARIANTS.push({ sp, px, shade }))));
+  const animalColor = a => (a.v.shade ? INK2 : INK); // Farbe erst beim Zeichnen auflösen (theme-fähig)
 
-  // Biome: Urzeit (prähistorisch), Wüste, Winter, Dschungel
-  // far = ferne Berge (Hintergrund-Ebene), near = Hügel/Dünen (Vordergrund-Ebene),
-  // hi  = EIN Highlight pro Biom (max. eines gleichzeitig auf dem Canvas)
-  // Nur EIN Biom (Urzeit) — monochrom, viel Pflanzen-Variation
+  // Landschaft in Parallax-Ebenen: ferne Bergkette (far, hell/langsam),
+  // nahe Schneeberge (near, dunkel/schnell, Beispiel-Look), Vulkan-Highlight.
   const PLANTS = ['leaf', 'leaf2', 'pine', 'fern', 'grass', 'tallgrass', 'rock', 'rock2', 'shrub', 'flower', 'mushroom', 'log', 'sapling', 'reed'];
-  const FAR_K = ['mountain'], NEAR_K = ['hill'];
-  // Farben (deckend; nur Grautöne — keine Einfärbung von Bergen/Highlights)
-  const FAR = '#cdcdcd', NEAR = '#b4b1ac';
 
-  let running = true, started = false, rafId = null, lastTs = 0;
+  let running = true, started = false, rafId = null, lastTs = 0, nowTs = 0;
+  let curX = -999, curY = -999;   // Mauszeiger im Canvas (Tiere reagieren)
   let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [], bursts = [];
   let hiM = null, gx = 0, meteor = null, flash = 0, strobe = 0, shake = 0, shock = [];
   let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
@@ -2609,11 +2618,13 @@ const DINO = (() => {
     animals.push({ v, x: -40, speed: 16 + Math.random() * 26, ft: 0, frame: 0 });
   }
   const spawnPlant = x => plants.push({ kind: pick(PLANTS), x, s: 1 + Math.random() });
-  const spawnCloud = x => clouds.push({ x, y: 2 + Math.random() * 8, w: 16 + Math.random() * 16 });
+  const spawnCloud = x => clouds.push({ x, y: 1 + Math.random() * 8, type: pick(['small', 'small', 'big', 'wisp']), s: 0.8 + Math.random() * 0.7 });
   const spawnBird = x => birds.push({ x, y: 4 + Math.random() * 8, ft: 0, frame: 0 });
-  const spawnFar = x => farM.push({ kind: pick(FAR_K), x, w: 50 + Math.random() * 70, h: 15 + Math.random() * 12 });
-  const spawnNear = x => nearM.push({ kind: pick(NEAR_K), x, w: 34 + Math.random() * 46, h: 7 + Math.random() * 7 });
-  const spawnHi = x => { if (!hiM) hiM = { kind: 'volcano', x, w: 44 + Math.random() * 22, h: 16 + Math.random() * 8 }; };
+  // Ferne Bergkette: breit, niedrig, mehrere Zacken, hell (atmosphärische Tiefe)
+  const spawnFar = x => farM.push({ x, w: 90 + Math.random() * 90, h: 16 + Math.random() * 12, peaks: 2 + (Math.random() * 3 | 0), seed: Math.random() * 1000 });
+  // Naher Schneeberg: höher, schmaler, dunkel mit Schneekappe (Beispiel-Look)
+  const spawnNear = x => nearM.push({ x, w: 40 + Math.random() * 40, h: 20 + Math.random() * 12, seed: Math.random() * 1000 });
+  const spawnHi = x => { if (!hiM) hiM = { kind: 'volcano', x, w: 46 + Math.random() * 24, h: 18 + Math.random() * 8, seed: Math.random() * 1000 }; };
   const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42 });
   const FIRE = ['#ffffff', '#fff3b0', '#ffd23f', '#ff8c1a', '#ff3b30', '#c81e12'];
   function spawnMeteor(w) {
@@ -2647,7 +2658,7 @@ const DINO = (() => {
       const px0 = a.x + aw / 2, py0 = groundY - h / 2;
       for (let k = 0; k < 14; k++) {
         const ang = Math.random() * Math.PI * 2, sp = 0.8 + Math.random() * 2.4;
-        bursts.push({ x: px0, y: py0, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 1, s: a.v.px, c: a.v.c, life: 0.7 + Math.random() * 0.6 });
+        bursts.push({ x: px0, y: py0, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 1, s: a.v.px, c: animalColor(a), life: 0.7 + Math.random() * 0.6 });
       }
     });
     animals = [];
@@ -2657,7 +2668,7 @@ const DINO = (() => {
 
   function drawAnimal(a, groundY) {
     const rows = a.v.sp, p = a.v.px, top = groundY - rows.length * p;
-    ctx.fillStyle = a.v.c;
+    ctx.fillStyle = animalColor(a);
     for (let r = 0; r < rows.length; r++) for (let c = 0; c < rows[r].length; c++) {
       const ch = rows[r][c];
       if (ch === '#' || (ch === 'a' && a.frame === 0) || (ch === 'b' && a.frame === 1))
@@ -2710,32 +2721,77 @@ const DINO = (() => {
       r(1.5 * s, 4 * s, s, 4 * s); R(o.x, groundY - 5 * s, s, s); R(o.x + 2 * s, groundY - 6 * s, s, s);
     }
   }
-  // Dreiecks-Berg als EIN deckendes Polygon (kein Spalten-Antialiasing -> kein Flackern)
-  function tri(x0, x1, h, base, color) {
-    ctx.fillStyle = color; ctx.beginPath();
-    ctx.moveTo(Math.round(x0), base);
-    ctx.lineTo(Math.round((x0 + x1) / 2), Math.round(base - h));
-    ctx.lineTo(Math.round(x1), base); ctx.closePath(); ctx.fill();
+  // Berge in Pixel-Spalten (stufige Silhouette wie im Beispiel, kein Antialiasing-Flackern)
+  function colBlocks(x0, w, base, P, hAt, paint) {
+    for (let gx2 = 0; gx2 < w; gx2 += P) {
+      const colH = Math.round(hAt(gx2) / P) * P;
+      if (colH < P) continue;
+      paint(Math.round(x0 + gx2), Math.round(base - colH), colH, gx2);
+    }
   }
-  function hill(o, base, color) {
-    ctx.fillStyle = color; ctx.beginPath();
-    ctx.moveTo(Math.round(o.x), base);
-    for (let i = 0; i <= o.w; i += 2) ctx.lineTo(Math.round(o.x + i), Math.round(base - o.h * Math.sin((i / o.w) * Math.PI)));
-    ctx.lineTo(Math.round(o.x + o.w), base); ctx.closePath(); ctx.fill();
+  // Ferne Bergkette: mehrere sanfte Zacken, hell, dezenter Schnee auf den Spitzen
+  function drawFarRange(o, base) {
+    const P = 2, env = gx2 => Math.sin((gx2 / o.w) * Math.PI); // 0 an den Rändern
+    colBlocks(o.x, o.w, base, P, gx2 => {
+      const ridge = 0.6 + 0.4 * Math.abs(Math.sin((gx2 / o.w) * Math.PI * o.peaks + o.seed));
+      return o.h * env(gx2) * ridge;
+    }, (x, y, hh, gx2) => {
+      ctx.fillStyle = FAR; ctx.fillRect(x, y, P, hh);
+      if (hh > o.h * 0.6 && rnd(gx2 + o.seed) > 0.55) { ctx.fillStyle = SNOW; ctx.fillRect(x, y, P, P); }
+    });
+  }
+  // Naher Schneeberg: dunkler Körper, geschattete Flanke, zackige Schneekappe (Beispiel)
+  function drawPeak(o, base) {
+    const P = 2, cx = o.w / 2;
+    colBlocks(o.x, o.w, base, P, gx2 => {
+      const t = Math.abs(gx2 - cx) / cx;
+      const jag = (rnd(((gx2 / 4) | 0) + o.seed) - 0.5) * o.h * 0.07;
+      return Math.max(0, o.h * (1 - t) + jag);
+    }, (x, y, hh, gx2) => {
+      const t = Math.abs(gx2 - cx) / cx;
+      ctx.fillStyle = (gx2 > cx) ? SHADE : NEAR;               // Licht von links
+      ctx.fillRect(x, y, P, hh);
+      if (t < 0.62) {                                          // Schnee mit „Fingern"
+        let sd = Math.round((hh * (0.55 - t * 0.6) * (0.4 + rnd(gx2 + o.seed * 2) * 1.0)) / P) * P;
+        sd = Math.min(sd, hh - P);
+        if (sd >= P) { ctx.fillStyle = SNOW; ctx.fillRect(x, y, P, sd); }
+      }
+    });
+  }
+  // Vulkan: abgeflachter Kegel mit Krater, Glut + aufsteigender Rauch
+  function drawVolcano(o, base) {
+    const P = 2, cx = o.w / 2, craterHalf = o.w * 0.16;
+    colBlocks(o.x, o.w, base, P, gx2 => {
+      const t = Math.abs(gx2 - cx) / cx;
+      let h = o.h * (1 - t * 0.8);
+      if (Math.abs(gx2 - cx) < craterHalf) h -= o.h * 0.16;    // Kratermulde
+      return Math.max(0, h);
+    }, (x, y, hh, gx2) => {
+      ctx.fillStyle = (gx2 > cx) ? SHADE : VOLC;
+      ctx.fillRect(x, y, P, hh);
+    });
+    const craterY = Math.round(base - (o.h - o.h * 0.16));
+    const ccx = Math.round(o.x + cx);
+    ctx.fillStyle = GLOW; R(ccx - craterHalf + 1, craterY, craterHalf * 2 - 2, 2); // Glut
+    // Rauch (aufsteigend, zeitlich versetzt)
+    ctx.fillStyle = INK2;
+    for (let i = 0; i < 3; i++) {
+      const ph = nowTs / 900 + i * 0.8;
+      const sx = ccx + Math.round(Math.sin(ph) * 3);
+      const sy = craterY - 4 - i * 5 - Math.round((ph % 1) * 3);
+      R(sx - 1, sy, 2 + (i === 0 ? 1 : 0), 2);
+    }
   }
   function drawMount(o, base, far) {
-    const k = o.kind;
-    if (k === 'hill') { hill(o, base, far ? FAR : NEAR); return; }
-    if (k === 'mountain') { tri(o.x, o.x + o.w, o.h, base, far ? FAR : NEAR); return; }
-    if (k === 'volcano') { // rauchend (KEIN Ausbruch), nur Grautöne
-      const x0 = Math.round(o.x), x1 = Math.round(o.x + o.w), top = Math.round(base - o.h);
-      const tl = Math.round(o.x + o.w * 0.38), tr = Math.round(o.x + o.w * 0.62);
-      ctx.fillStyle = FAR; ctx.beginPath();
-      ctx.moveTo(x0, base); ctx.lineTo(tl, top); ctx.lineTo(tr, top); ctx.lineTo(x1, base); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#9a9a9a'; R(tl, top, tr - tl, 2);
-      ctx.fillStyle = '#bdbdbd'; const cx = Math.round(o.x + o.w / 2);
-      R(cx - 1, top - 4, 2, 2); R(cx + 1, top - 8, 2, 2); R(cx - 2, top - 12, 2, 2);
-    }
+    if (o.kind === 'volcano') return drawVolcano(o, base);
+    return far ? drawFarRange(o, base) : drawPeak(o, base);
+  }
+  function drawCloud(c) {
+    ctx.fillStyle = SKY;
+    const x = Math.round(c.x), y = Math.round(c.y), s = c.s;
+    if (c.type === 'wisp') { R(x, y + 1, 26 * s, 1); R(x + 6, y + 3, 15 * s, 1); }
+    else if (c.type === 'big') { R(x + 3, y, 9 * s, 2); R(x, y + 2, 17 * s, 2); R(x + 2, y + 4, 21 * s, 2); }
+    else { R(x + 3, y, 6 * s, 2); R(x, y + 2, 12 * s, 2); } // small
   }
   function drawUfo(u, groundY) {
     const x = Math.round(u.x), y = groundY - u.y - 14;
@@ -2778,12 +2834,13 @@ const DINO = (() => {
     const w = cv.clientWidth || 200;
     if (cv.width !== w) cv.width = w;
     const h = cv.height, groundY = h - 6;
-    const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts;
+    const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts; nowTs = ts;
+    updatePalette();
     if (running) {
       gx += 16 * dt;
       if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
       if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 1600 + Math.random() * 2600; } // dichter bewachsen
-      if (ts > nextCloud) { spawnCloud(w + 10); nextCloud = ts + 7000 + Math.random() * 9000; }
+      if (ts > nextCloud) { if (clouds.length < 3) spawnCloud(w + 10); nextCloud = ts + 12000 + Math.random() * 13000; } // weniger Wolken
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
       if (ts > nextFar) { if (farM.length < 2) spawnFar(w + 30); nextFar = ts + 22000 + Math.random() * 28000; }
       if (ts > nextNear) { if (nearM.length < 2) spawnNear(w + 20); nextNear = ts + 16000 + Math.random() * 20000; }
@@ -2796,7 +2853,15 @@ const DINO = (() => {
       clouds.forEach(c => c.x -= 4 * dt);
       birds.forEach(b => { b.x -= 28 * dt; b.ft += dt; if (b.ft > 0.25) { b.ft = 0; b.frame = 1 - b.frame; } });
       ufos.forEach(u => u.x += u.speed * dt);
-      animals.forEach(a => { a.x += a.speed * dt; a.ft += dt; if (a.ft > 0.22) { a.ft = 0; a.frame = 1 - a.frame; } });
+      animals.forEach(a => {
+        const aw = animalWidth(a), acx = a.x + aw / 2;
+        // Tiere reagieren: flüchten (schneller) wenn der Mauszeiger nah ist
+        const flee = curX > -100 && Math.abs(curX - acx) < 24 && curY > 0 && curY < h && curX > acx - 14;
+        const sp = a.speed * (flee ? 3.0 : 1);
+        a.x += sp * dt; a.ft += dt;
+        const fr = flee ? 0.12 : 0.22;
+        if (a.ft > fr) { a.ft = 0; a.frame = 1 - a.frame; }
+      });
       // Meteor kommt NUR manuell (10 Klicks ins Minispiel), nicht mehr von selbst
       if (meteor) {
         meteor.t += dt / meteor.dur;
@@ -2824,8 +2889,7 @@ const DINO = (() => {
     farM.forEach(m => drawMount(m, groundY, true));      // Ebene 1: ferne Berge
     if (hiM) drawMount(hiM, groundY, true);              // Highlight (eines)
     nearM.forEach(m => drawMount(m, groundY, false));    // Ebene 2: Hügel/Dünen
-    ctx.fillStyle = SKY;
-    clouds.forEach(c => { R(c.x, c.y + 3, c.w, 2); R(c.x + 4, c.y, c.w * 0.5, 3); });
+    clouds.forEach(drawCloud);
     ufos.forEach(u => drawUfo(u, groundY));
     ctx.fillStyle = INK2;
     birds.forEach(b => { R(b.x, b.y + (b.frame ? 0 : 2), 3, 1); R(b.x + 3, b.y + 1, 2, 1); R(b.x + 5, b.y + (b.frame ? 0 : 2), 3, 1); });
@@ -2865,6 +2929,13 @@ const DINO = (() => {
       ctx.globalAlpha = 1;
     }
   }
+  // Mauszeiger verfolgen, damit Tiere flüchten können
+  cv.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    curX = (e.clientX - r.left) * (cv.width / r.width);
+    curY = (e.clientY - r.top) * (cv.height / r.height);
+  });
+  cv.addEventListener('mouseleave', () => { curX = -999; curY = -999; });
   // Tier anklicken -> bleibt stehen und zerplatzt
   function animalWidth(a) { return a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px; }
   let clickCount = 0, lastClickTs = 0; // Easter-Egg: 5 Klicks -> UFO, 10 -> Meteor (Zähler nur 5s gültig)
@@ -2880,7 +2951,7 @@ const DINO = (() => {
         for (let k = 0; k < 16; k++) {
           const ang = Math.random() * Math.PI * 2, sp = 0.6 + Math.random() * 1.8;
           bursts.push({ x: px0, y: py0, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 0.8,
-            s: a.v.px, c: a.v.c, life: 0.8 + Math.random() * 0.4 });
+            s: a.v.px, c: animalColor(a), life: 0.8 + Math.random() * 0.4 });
         }
         animals.splice(i, 1);
         break;
