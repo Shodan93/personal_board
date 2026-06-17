@@ -105,7 +105,7 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 /* ---------- Kanban ---------- */
 .kanban{
   display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
-  padding:10px 16px 24px; align-items:start;
+  padding:10px 16px 24px; align-items:stretch;   /* alle Spalten gleich hoch (= höchste Spalte) */
 }
 .col{background:var(--col-bg); border-radius:var(--radius); padding:10px; min-height:140px}
 .col.dragover{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
@@ -273,10 +273,10 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
   border-color:var(--blue);
 }
 .card.dragging{opacity:.4}
-.card .title{font-weight:700; font-size:14px; line-height:1.35; margin-bottom:4px; word-break:break-word; padding-right:18px}
-.card .desc{color:var(--text-weak); font-size:12.5px; line-height:1.45; max-height:38px; overflow:hidden; margin-bottom:6px}
-body.compact .card .desc{display:none}
-.card .meta{display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:11px}
+/* Einheitliche, gleich hohe Karten: Titel einzeilig, kein Umbruch, keine Beschreibung */
+.card .title{font-weight:700; font-size:14px; line-height:1.35; margin-bottom:6px; padding-right:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.card .desc{display:none}
+.card .meta{display:flex; gap:6px; flex-wrap:nowrap; overflow:hidden; align-items:center; font-size:11px}
 .card-foot{display:flex; justify-content:space-between; align-items:flex-end; gap:6px; margin-top:4px}
 .card select.quick-status{
   font-size:11px; padding:2px 4px; flex:1;
