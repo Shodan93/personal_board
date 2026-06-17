@@ -400,7 +400,11 @@ tr.row.done-final td{opacity:.4}
 
 /* ---------- Aufgaben-Checkliste im Ticket ---------- */
 .task-list{display:flex;flex-direction:column;gap:4px}
-.task-row{display:flex;align-items:center;gap:8px}
+.task-row{display:flex;align-items:center;gap:6px;border-radius:var(--radius)}
+.task-grip{flex:0 0 auto;cursor:grab;color:var(--text-weak);font-size:13px;line-height:1;user-select:none;padding:0 1px}
+.task-grip:active{cursor:grabbing}
+.task-row.dragging{opacity:.45}
+.task-row.task-drop-target{box-shadow:inset 0 2px 0 var(--blue)}
 .task-row input[type=checkbox]{width:16px;height:16px;flex:0 0 auto;cursor:pointer;accent-color:var(--green)}
 .task-row input[type=text]{flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:5px 8px;font-size:13px;background:var(--card);color:var(--text)}
 .task-row input[type=text]:focus{outline:2px solid var(--blue);outline-offset:-1px}
@@ -822,6 +826,7 @@ let editingId = null;
 let pendingNoteId = null;                     // Sticky-Notiz, die gerade zu einem Ticket wird
 let modalCats = [];                          // Kategorien des offenen Tickets
 let modalTasks = [];                         // Aufgaben-Checkliste des offenen Tickets
+let taskDragFrom = -1;                        // Index der gerade gezogenen Aufgabe
 let modalImgs = [], sessionNewImgs = [], attUrls = [];
 let idb = null;                              // IndexedDB-Handle für Bild-Anhänge
 let sort = { key: 'deadline', dir: 1 };      // Liste: default Deadline aufsteigend
@@ -1389,10 +1394,11 @@ function renderModalTasks(focusGhost) {
   modalTasks.forEach((task, i) => {
     const row = document.createElement('div');
     row.className = 'task-row' + (task.done ? ' done' : '');
-    row.innerHTML = '<input type="checkbox"' + (task.done ? ' checked' : '') + '>' +
+    row.innerHTML = '<span class="task-grip" draggable="true" title="Ziehen zum Sortieren">⠿</span>' +
+      '<input type="checkbox"' + (task.done ? ' checked' : '') + '>' +
       '<input type="text" maxlength="200" placeholder="Aufgabe…">' +
       '<button type="button" class="task-del" title="Aufgabe entfernen">✕</button>';
-    const cb = row.children[0], txt = row.children[1], del = row.children[2];
+    const grip = row.children[0], cb = row.children[1], txt = row.children[2], del = row.children[3];
     if (txt) {
       txt.value = task.text || '';
       txt.addEventListener('input', () => { task.text = txt.value; });
@@ -1400,14 +1406,29 @@ function renderModalTasks(focusGhost) {
     }
     if (cb) cb.addEventListener('change', () => { task.done = cb.checked; row.classList.toggle('done', cb.checked); updateTaskCount(); });
     if (del) del.addEventListener('click', () => { modalTasks.splice(i, 1); renderModalTasks(); });
+    // Drag & Drop: Reihenfolge per Griff (⠿) anpassen
+    if (grip) {
+      grip.addEventListener('dragstart', e => {
+        taskDragFrom = i; row.classList.add('dragging');
+        if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (_) {} }
+      });
+      grip.addEventListener('dragend', () => {
+        taskDragFrom = -1;
+        document.querySelectorAll('#taskList .task-row').forEach(r => r.classList.remove('dragging', 'task-drop-target'));
+      });
+    }
+    row.addEventListener('dragover', e => { if (taskDragFrom < 0) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; row.classList.add('task-drop-target'); });
+    row.addEventListener('dragleave', () => row.classList.remove('task-drop-target'));
+    row.addEventListener('drop', e => { if (taskDragFrom < 0) return; e.preventDefault(); moveTask(taskDragFrom, i); });
     list.appendChild(row);
   });
   // Immer eine leere Geister-Zeile am Ende
   const ghost = document.createElement('div');
   ghost.className = 'task-row task-ghost';
-  ghost.innerHTML = '<input type="checkbox" disabled>' +
+  ghost.innerHTML = '<span class="task-grip" style="visibility:hidden">⠿</span>' +
+    '<input type="checkbox" disabled>' +
     '<input type="text" maxlength="200" placeholder="Neue Aufgabe… (Enter)">';
-  const gtxt = ghost.children[1];
+  const gtxt = ghost.children[2];
   if (gtxt) gtxt.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
@@ -1416,9 +1437,22 @@ function renderModalTasks(focusGhost) {
     modalTasks.push({ text: v, done: false });
     renderModalTasks(true); // neu rendern, Fokus zurück auf die (neue) leere Zeile
   });
+  // Ans Ende ziehen
+  ghost.addEventListener('dragover', e => { if (taskDragFrom < 0) return; e.preventDefault(); ghost.classList.add('task-drop-target'); });
+  ghost.addEventListener('dragleave', () => ghost.classList.remove('task-drop-target'));
+  ghost.addEventListener('drop', e => { if (taskDragFrom < 0) return; e.preventDefault(); moveTask(taskDragFrom, modalTasks.length); });
   list.appendChild(ghost);
   updateTaskCount();
   if (focusGhost && gtxt) gtxt.focus();
+}
+function moveTask(from, to) {
+  if (from < 0 || from >= modalTasks.length) return;
+  const [m] = modalTasks.splice(from, 1);
+  if (from < to) to--;                                   // Index nach dem Entfernen anpassen
+  to = Math.max(0, Math.min(to, modalTasks.length));
+  if (to === from && modalTasks[to] === m) return;
+  modalTasks.splice(to, 0, m);
+  renderModalTasks();
 }
 function focusTaskInput(idx) {
   const inputs = document.querySelectorAll('#taskList .task-row input[type=text]');
