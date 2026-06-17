@@ -174,7 +174,6 @@ header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:n
 #dinoWrap{display:flex; align-items:flex-end; gap:1px; flex:1 1 200px; min-width:150px; height:34px}
 #dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:11px; padding:0 3px 2px; cursor:pointer}
 #dinoWrap button:hover{color:var(--blue)}
-#dinoBiome{font-size:10px; color:#b9b7b4; white-space:nowrap; padding:0 2px}
 #dinoCv{flex:1; width:100%; height:34px}
 
 /* Astronaut */
@@ -905,6 +904,9 @@ function migrateTickets() {
     if (!Array.isArray(t.cats)) t.cats = [];
     if (!Array.isArray(t.imgs)) t.imgs = [];
     if (!Array.isArray(t.tasks)) t.tasks = [];
+    if (!PRIO_ORDER.hasOwnProperty(t.prio)) t.prio = 'Mittel'; // nie undefined -> kein Render-Crash
+    if (typeof t.deadline !== 'string') t.deadline = '';
+    if (typeof t.title !== 'string') t.title = '';
     if (!t.descFormat) { // Alt-Daten: Plaintext einmalig nach HTML wandeln
       t.desc = esc(t.desc || '').replace(/\n/g, '<br>');
       t.note = esc(t.note || '').replace(/\n/g, '<br>');
@@ -1062,7 +1064,7 @@ function renderKanban() {
     const collapsed = !kanbanSearch && COLLAPSIBLE.includes(status) && !!(state.settings.collapsed || {})[status];
     col.innerHTML = '<div class="col-head"><span>' +
       (COLLAPSIBLE.includes(status) ? '<button class="col-toggle" title="Ein-/ausklappen">' + (collapsed ? '▸' : '▾') + '</button>' : '') +
-      status + '</span><span class="col-count">' + items.length + '</span></div>';
+      esc(status) + '</span><span class="col-count">' + items.length + '</span></div>';
     const tg = col.querySelector('.col-toggle');
     if (tg) tg.onclick = e => {
       e.stopPropagation();
@@ -1132,7 +1134,7 @@ function cardEl(t) {
     '</div>' +
     '<div class="card-foot">' +
       '<select class="quick-status" title="Status ändern">' +
-        STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>').join('') +
+        STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') +
       '</select>' +
       '<span class="foot-right">' +
         (collectIds(t).length ? '<span class="att-chip" title="' + collectIds(t).length + ' Anhang/Anhänge">' + FILE_SVG + collectIds(t).length + '</span>' : '') +
@@ -1292,7 +1294,7 @@ document.addEventListener('click', () => closeCatDropdowns());
 
 function refreshFilters() {
   document.getElementById('filterStatus').innerHTML =
-    '<option value="">Status: Alle</option>' + STATUSES.map(s => '<option>' + s + '</option>').join('');
+    '<option value="">Status: Alle</option>' + STATUSES.map(s => '<option>' + esc(s) + '</option>').join('');
   buildCatDropdown(document.getElementById('globalCat'), {
     placeholder: 'Kategorie: Alle',
     value: globalCat,
@@ -1377,6 +1379,7 @@ function closeModal() {
     if (el) el.style.display = '';
     pendingNoteId = null;
   }
+  if (typeof flushPendingRemote === 'function') flushPendingRemote(); // verpasstes Live-Update nachholen
 }
 
 /* Aufgaben-Checkliste im Modal — letzte Zeile ist immer leer: ausfüllen, Enter, weiter */
@@ -1544,31 +1547,34 @@ document.getElementById('btnDeleteBoard').onclick = deleteBoard;
 function closeSettings() {
   const s = state.settings;
   s.boardTitle = (document.getElementById('setBoardTitle').value.trim() || 'Mein Board').slice(0, 40);
-  // Säulen einlesen + Tickets per Index auf die neuen Namen umziehen (keine verlieren)
-  const oldStatuses = STATUSES.slice();
-  let newStatuses = [...document.querySelectorAll('#setColumns .set-col')]
-    .map((inp, i) => inp.value.trim() || ('Säule ' + (i + 1)));
-  newStatuses = newStatuses.map((n, i) => newStatuses.indexOf(n) === i ? n : n + ' ' + (i + 1)); // eindeutig
-  state.tickets.forEach(t => {
-    const i = oldStatuses.indexOf(t.status);
-    if (i >= 0) t.status = newStatuses[Math.min(i, newStatuses.length - 1)];
-    else if (!newStatuses.includes(t.status)) t.status = newStatuses[0];
-  });
-  s.statuses = newStatuses;
-  // „Erledigt"-Säulen aus den Checkboxen (per Index zu den neuen Namen); mind. eine
-  const doneFlags = [...document.querySelectorAll('#setColumns .set-done-cb')].map(cb => cb.checked);
-  let newDone = newStatuses.filter((n, i) => doneFlags[i]);
-  if (!newDone.length) newDone = [newStatuses[newStatuses.length - 1]];
-  const prevDone = DONE.slice();
-  s.doneStatuses = newDone;
-  // Tickets in neu als „erledigt" markierten Säulen abschließen (Konfetti einmalig)
+  // Säulen einlesen + Tickets per Index auf die neuen Namen umziehen (keine verlieren).
+  // Schutz: nur wenn die Säulen-Felder wirklich da sind — sonst NICHT umsortieren (sonst Datenverlust).
   let justCompleted = 0;
-  state.tickets.forEach(t => {
-    if (newDone.includes(t.status) && !prevDone.includes(t.status)) {
-      if (!t.completedAt) t.completedAt = todayStr();
-      justCompleted++;
-    }
-  });
+  const colInputs = [...document.querySelectorAll('#setColumns .set-col')];
+  if (colInputs.length) {
+    const oldStatuses = STATUSES.slice();
+    let newStatuses = colInputs.map((inp, i) => inp.value.trim() || ('Säule ' + (i + 1)));
+    newStatuses = newStatuses.map((n, i) => newStatuses.indexOf(n) === i ? n : n + ' ' + (i + 1)); // eindeutig
+    state.tickets.forEach(t => {
+      const i = oldStatuses.indexOf(t.status);
+      if (i >= 0) t.status = newStatuses[Math.min(i, newStatuses.length - 1)];
+      else if (!newStatuses.includes(t.status)) t.status = newStatuses[0];
+    });
+    s.statuses = newStatuses;
+    // „Erledigt"-Säulen aus den Checkboxen (per Index zu den neuen Namen); mind. eine
+    const doneFlags = [...document.querySelectorAll('#setColumns .set-done-cb')].map(cb => cb.checked);
+    let newDone = newStatuses.filter((n, i) => doneFlags[i]);
+    if (!newDone.length) newDone = [newStatuses[newStatuses.length - 1]];
+    const prevDone = DONE.slice();
+    s.doneStatuses = newDone;
+    // Tickets in neu als „erledigt" markierten Säulen abschließen (Konfetti einmalig)
+    state.tickets.forEach(t => {
+      if (newDone.includes(t.status) && !prevDone.includes(t.status)) {
+        if (!t.completedAt) t.completedAt = todayStr();
+        justCompleted++;
+      }
+    });
+  }
   s.defaultView = document.getElementById('setView').value;
   s.kanbanSort = document.getElementById('setKanbanSort').value;
   s.hideDoneAfter = Math.max(0, +document.getElementById('setHideDone').value || 0);
@@ -1579,6 +1585,7 @@ function closeSettings() {
   save(); settingsOverlay.classList.remove('open');
   applyBoardConfig(); render(); applyGimmick(); applyTips();
   if (justCompleted > 0) celebrate(); // Säule als „erledigt" markiert -> Konfetti
+  flushPendingRemote(); // verpasstes Live-Update nachholen
 }
 
 /* Kategorien verwalten: umbenennen (Tickets folgen), Farbe, löschen */
@@ -2049,7 +2056,7 @@ function applyProfile(p) {
   document.getElementById('btnHousekeeper').hidden = !p.housekeeper;
 }
 function refreshStatusOptions() {
-  document.getElementById('fStatus').innerHTML = STATUSES.map(s => '<option>' + s + '</option>').join('');
+  document.getElementById('fStatus').innerHTML = STATUSES.map(s => '<option>' + esc(s) + '</option>').join('');
 }
 function cloudFetch(p, opts) {
   opts = opts || {};
@@ -2093,6 +2100,7 @@ async function cloudSave() {
     cloudTimer = null;
     const b = myBoards.find(x => x.id === boardId); if (b) b.title = state.settings.boardTitle;
     setSync(!error);
+    flushPendingRemote(); // ein während des Speicherns eingegangenes Remote-Update jetzt einspielen
   } catch (e) { cloudTimer = null; setSync(false); }
 }
 function loadBoardData(board) {
@@ -2104,24 +2112,35 @@ function loadBoardData(board) {
   if (board.title) state.settings.boardTitle = board.title;
   setColumnsFromSettings(); migrateTickets(); ensureCategories();
 }
-/* Live-Update von einem anderen Gerät/Mitglied — laufende Bearbeitung schützen */
+/* Live-Update von einem anderen Gerät/Mitglied — laufende Bearbeitung schützen.
+   Wird gerade lokal editiert, merken wir das Remote-Update (pendingRemote) und
+   spielen es ein, sobald die Bearbeitung/der Save abgeschlossen ist (Konvergenz). */
+let pendingRemote = null;
 function applyRemote(row) {
   if (!row || row.id !== boardId) return;
   const b = myBoards.find(x => x.id === row.id); if (b) { b.data = row.data; b.title = row.title; }
-  if (cloudTimer || noteSaveT) return;
-  if (Date.now() - lastLocalChange < 2500) return; // gerade lokal editiert -> Remote nicht drüberbügeln
-  if (overlay.classList.contains('open') || settingsOverlay.classList.contains('open')) return;
-  const ae = document.activeElement; if (ae && ae.closest && ae.closest('.sticky')) return;
+  // Transiente Gründe -> später erneut anwenden
+  if (cloudTimer || noteSaveT || Date.now() - lastLocalChange < 2500 ||
+      overlay.classList.contains('open') || settingsOverlay.classList.contains('open') ||
+      (document.activeElement && document.activeElement.closest && document.activeElement.closest('.sticky'))) {
+    pendingRemote = row; return;
+  }
+  pendingRemote = null;
   const d = row.data || {}, ds = d.settings || {};
   const inc = JSON.stringify([d.tickets || [], d.categories || [], d.notes || [], ds.statuses || [], row.title || '']);
   const cur = JSON.stringify([state.tickets, state.categories, state.notes || [], state.settings.statuses || [], state.settings.boardTitle || '']);
   if (inc === cur) return;
   state.tickets = d.tickets || []; state.categories = d.categories || []; state.notes = d.notes || [];
+  // Einstellungen breiter mitsynchronisieren (Säulen, Erledigt-Säulen, Theme, Kompakt)
   if (Array.isArray(ds.statuses) && ds.statuses.length) state.settings.statuses = ds.statuses;
+  if (Array.isArray(ds.doneStatuses)) state.settings.doneStatuses = ds.doneStatuses;
+  if (ds.theme) state.settings.theme = ds.theme;
+  if (typeof ds.compact === 'boolean') state.settings.compact = ds.compact;
   if (row.title) state.settings.boardTitle = row.title;
   setColumnsFromSettings(); migrateTickets(); ensureCategories();
   applyBoardConfig(); render(); renderNotes();
 }
+function flushPendingRemote() { if (pendingRemote) applyRemote(pendingRemote); }
 function subscribeBoard() {
   if (!sb) return;
   if (boardChannel) { sb.removeChannel(boardChannel); boardChannel = null; }
@@ -2272,6 +2291,7 @@ function bindBoardControls() {
 }
 async function createBoard() {
   if (!sb) { alert('Bitte zuerst anmelden.'); return; }
+  flushCloudSave(); // ausstehende Änderung am aktuellen Board sichern, bevor gewechselt wird
   const { data, error } = await sb.rpc('create_board', {
     p_title: 'Neues Board',
     p_data: { tickets: [], categories: [], settings: defaultSettings(), notes: [] }
@@ -2288,6 +2308,7 @@ async function deleteBoard() {
   const name = (b && b.title) || 'dieses Board';
   const eingabe = prompt('Board „' + name + '" und ALLE seine Tickets endgültig löschen?\n\nZum Bestätigen „löschen" eingeben:');
   if ((eingabe || '').trim().toLowerCase() !== 'löschen') { toast('Abgebrochen'); return; }
+  if (cloudTimer) { clearTimeout(cloudTimer); cloudTimer = null; } // ausstehenden Save fürs gelöschte Board verwerfen
   const { error } = await sb.from('boards').delete().eq('id', boardId);
   if (error) { alert('Löschen fehlgeschlagen: ' + error.message); return; }
   if (boardChannel) { sb.removeChannel(boardChannel); boardChannel = null; }
@@ -2567,15 +2588,15 @@ const DINO = (() => {
   const cv = document.getElementById('dinoCv');
   const ctx = cv.getContext('2d');
   // Theme-abhängige Palette (hell/dunkel) — wird pro Frame aktualisiert
-  let INK, INK2, SKY, FAR, NEAR, SNOW, SHADE, VOLC, GLOW;
+  let INK, INK2, SKY, FAR, HILL, NEAR, SHADE, VOLC, GLOW, LAVA;
   function updatePalette() {
     const dark = document.documentElement.dataset.theme === 'dark';
     if (dark) {
-      INK = '#c3c8d3'; INK2 = '#888e9c'; SKY = '#525b6b';
-      FAR = '#454d5d'; NEAR = '#aab1be'; SNOW = '#eef2f8'; SHADE = '#838a98'; VOLC = '#9298a6'; GLOW = '#ff6b1a';
+      INK = '#c3c8d3'; INK2 = '#888e9c'; SKY = '#6a7283';
+      FAR = '#3f4756'; HILL = '#5b6473'; NEAR = '#aab1be'; SHADE = '#838a98'; VOLC = '#9298a6'; GLOW = '#ff6b1a'; LAVA = '#ffc23a';
     } else {
-      INK = '#535353'; INK2 = '#7a7a7a'; SKY = '#d3d7dd';
-      FAR = '#bfbfbf'; NEAR = '#454545'; SNOW = '#ffffff'; SHADE = '#373737'; VOLC = '#8f8f8f'; GLOW = '#d8541e';
+      INK = '#535353'; INK2 = '#7a7a7a'; SKY = '#c4c9d1';
+      FAR = '#c8c8c8'; HILL = '#9d9d9d'; NEAR = '#454545'; SHADE = '#373737'; VOLC = '#8f8f8f'; GLOW = '#d8541e'; LAVA = '#ff8a1e';
     }
   }
   updatePalette();
@@ -2593,6 +2614,12 @@ const DINO = (() => {
     ['...####..#', '..#######.', '.########.', '.a#....#b.'],                                                                                                    // Schildkröte
     ['......#.#', '......##.', '......##.', '..#####..', '..####...', '..a#.#b..', '..a...b..'],                                                                 // Reh
     ['......##', '......##', '......#.', '...####.', '..#####.', '....#...', '...a.b..', '...a.b..'],                                                            // Strauß
+    ['...#####.', '..#######', '.########', '########.', '#######..', '#.#####..', '#.a##b#..', '..a..b...'],                                                   // Mammut
+    ['........##', '..########', '#########.', '.#######..', '.a#.#.#b..', '.a.....b..'],                                                                       // Echse
+    ['..##.....', '.####..#.', '##########', '.a#####b.', '.a....b..'],                                                                                         // Schlange
+    ['....##', '...###', '..####', '.####.', '..##..', '..a.b.', '..a.b.'],                                                                                     // Urvogel
+    ['.#...#.', '.#####.', '#######', '#######', '.a...b.', 'a.....b'],                                                                                         // Frosch
+    ['.....##.', '..#######', '.########', '########.', '..a#.#b.', '..a..b..'],                                                                                // Pteranodon (am Boden)
   ];
   const VARIANTS = [];
   SPRITES.forEach(sp => [2, 3].forEach(px => [0, 1].forEach(shade => VARIANTS.push({ sp, px, shade }))));
@@ -2600,7 +2627,7 @@ const DINO = (() => {
 
   // Landschaft in Parallax-Ebenen: ferne Bergkette (far, hell/langsam),
   // nahe Schneeberge (near, dunkel/schnell, Beispiel-Look), Vulkan-Highlight.
-  const PLANTS = ['leaf', 'leaf2', 'pine', 'fern', 'grass', 'tallgrass', 'rock', 'rock2', 'shrub', 'flower', 'mushroom', 'log', 'sapling', 'reed'];
+  const PLANTS = ['tree', 'leaf2', 'pine', 'cycad', 'deadtree', 'fern', 'fernbig', 'grass', 'tallgrass', 'reed', 'rock', 'rock2', 'boulder', 'shrub', 'flower', 'mushroom', 'log', 'sapling'];
 
   let running = true, started = false, rafId = null, lastTs = 0, nowTs = 0;
   let curX = -999, curY = -999;   // Mauszeiger im Canvas (Tiere reagieren)
@@ -2620,11 +2647,30 @@ const DINO = (() => {
   const spawnPlant = x => plants.push({ kind: pick(PLANTS), x, s: 1 + Math.random() });
   const spawnCloud = x => clouds.push({ x, y: 1 + Math.random() * 8, type: pick(['small', 'small', 'big', 'wisp']), s: 0.8 + Math.random() * 0.7 });
   const spawnBird = x => birds.push({ x, y: 4 + Math.random() * 8, ft: 0, frame: 0 });
-  // Ferne Bergkette: breit, niedrig, mehrere Zacken, hell (atmosphärische Tiefe)
-  const spawnFar = x => farM.push({ x, w: 90 + Math.random() * 90, h: 16 + Math.random() * 12, peaks: 2 + (Math.random() * 3 | 0), seed: Math.random() * 1000 });
-  // Naher Schneeberg: höher, schmaler, dunkel mit Schneekappe (Beispiel-Look)
-  const spawnNear = x => nearM.push({ x, w: 40 + Math.random() * 40, h: 20 + Math.random() * 12, seed: Math.random() * 1000 });
-  const spawnHi = x => { if (!hiM) hiM = { kind: 'volcano', x, w: 46 + Math.random() * 24, h: 18 + Math.random() * 8, seed: Math.random() * 1000 }; };
+  // Überlappung in einer Ebene verhindern (Mindestabstand gap)
+  const noOverlap = (arr, x, w, gap) => arr.every(m => x > m.x + m.w + gap || x + w < m.x - gap);
+  // Ferne Bergkette: breit, niedrig, sanfte Mehrfach-Zacken, hell (atmosphärische Tiefe)
+  function spawnFar(x) {
+    const w = 90 + Math.random() * 90;
+    if (!noOverlap(farM, x, w, 12)) return;
+    farM.push({ x, w, h: 14 + Math.random() * 10, shape: 'roll', peaks: 2 + (Math.random() * 3 | 0), seed: Math.random() * 1000 });
+  }
+  // Nahe Ebene: VIEL Hügel-Variation + gelegentlich ein markanter Berg (ohne Schnee)
+  const NEAR_SHAPES = ['roll', 'roll', 'mound', 'mound', 'broad', 'twin', 'peak'];
+  function spawnNear(x) {
+    const shape = pick(NEAR_SHAPES);
+    const peak = shape === 'peak' || shape === 'twin';
+    const w = peak ? 38 + Math.random() * 30 : 50 + Math.random() * 70;
+    if (!noOverlap(nearM, x, w, 10)) return;
+    nearM.push({ x, w, h: peak ? 18 + Math.random() * 12 : 9 + Math.random() * 9, shape, peaks: 2 + (Math.random() * 3 | 0), dark: peak, seed: Math.random() * 1000 });
+  }
+  function spawnHi(x) {
+    if (hiM) return;
+    const streams = [];
+    const n = 2 + (Math.random() * 2 | 0);
+    for (let i = 0; i < n; i++) streams.push({ dir: i % 2 ? 1 : -1, len: 4 + (Math.random() * 5 | 0), seed: Math.random() * 1000 });
+    hiM = { kind: 'volcano', x, w: 48 + Math.random() * 22, h: 19 + Math.random() * 8, seed: Math.random() * 1000, streams };
+  }
   const spawnUfo = () => ufos.push({ x: -30, y: 3 + Math.random() * 8, speed: 42 });
   const FIRE = ['#ffffff', '#fff3b0', '#ffd23f', '#ff8c1a', '#ff3b30', '#c81e12'];
   function spawnMeteor(w) {
@@ -2681,12 +2727,28 @@ const DINO = (() => {
     const r = (gx2, gy, w, h) => R(o.x + gx2, groundY - gy, w, h);
     if (k === 'rock') { r(0, 2, 4, 2); r(1, 4, 2, 2); }
     else if (k === 'rock2') { r(0, 2, 6, 2); r(1, 4, 4, 2); r(2, 6, 2, 2); }
-    else if (k === 'leaf') { // Laubbaum, runde Krone
-      r(2 * s, 5 * s, 1.5 * s, 5 * s);
-      R(o.x, groundY - 11 * s, 6 * s, 5 * s);
-      R(o.x + s, groundY - 12 * s, 4 * s, s);
-      R(o.x - 0.5 * s, groundY - 9 * s, s, 2 * s);
-      R(o.x + 5.5 * s, groundY - 9 * s, s, 2 * s);
+    else if (k === 'tree') { // Laubbaum mit gestufter, runder Krone
+      r(2.4 * s, 4 * s, 1.2 * s, 4 * s);                         // Stamm
+      R(o.x + 2 * s, groundY - 12 * s, 2 * s, 2 * s);            // Spitze
+      R(o.x + 0.5 * s, groundY - 10 * s, 5 * s, 2 * s);
+      R(o.x - 0.5 * s, groundY - 8 * s, 7 * s, 2 * s);          // breiteste Reihe
+      R(o.x + s, groundY - 6 * s, 4 * s, 2 * s);
+    } else if (k === 'cycad') { // Urzeit-Palmfarn: kurzer Stamm, sternförmige Wedel
+      r(1.6 * s, 3 * s, 1.6 * s, 3 * s);
+      R(o.x - 1.5 * s, groundY - 5 * s, 2.5 * s, s); R(o.x + 2.4 * s, groundY - 5 * s, 2.5 * s, s);
+      R(o.x - 0.8 * s, groundY - 6.6 * s, 2 * s, s); R(o.x + 2.4 * s, groundY - 6.6 * s, 2 * s, s);
+      R(o.x + 0.6 * s, groundY - 7.6 * s, 2 * s, s);
+    } else if (k === 'deadtree') { // kahler Baum mit wenigen Ästen
+      r(2 * s, 7 * s, 1.2 * s, 7 * s);
+      R(o.x - 0.8 * s, groundY - 5.5 * s, 1.8 * s, s); R(o.x + 0.6 * s, groundY - 4.6 * s, 1.6 * s, s);
+      R(o.x + 2.6 * s, groundY - 6.6 * s, 1.8 * s, s); R(o.x + 3.4 * s, groundY - 7.6 * s, s, s);
+    } else if (k === 'fernbig') { // großer Farn, mehrere Wedel
+      r(2 * s, 2 * s, s, 2 * s);
+      R(o.x - 1 * s, groundY - 4 * s, s, 2 * s); R(o.x + 0.5 * s, groundY - 5 * s, s, 3 * s);
+      R(o.x + 2 * s, groundY - 5.5 * s, s, 3.5 * s); R(o.x + 3.5 * s, groundY - 5 * s, s, 3 * s);
+      R(o.x + 5 * s, groundY - 4 * s, s, 2 * s);
+    } else if (k === 'boulder') { // großer Felsbrocken
+      r(0, 4 * s, 8 * s, 4 * s); r(1 * s, 6 * s, 6 * s, 2 * s); r(2 * s, 7 * s, 3 * s, s);
     } else if (k === 'leaf2') { // breiter, niedriger Baum
       r(3 * s, 4 * s, 1.5 * s, 4 * s);
       R(o.x - s, groundY - 9 * s, 8 * s, 4 * s);
@@ -2729,69 +2791,68 @@ const DINO = (() => {
       paint(Math.round(x0 + gx2), Math.round(base - colH), colH, gx2);
     }
   }
-  // Ferne Bergkette: mehrere sanfte Zacken, hell, dezenter Schnee auf den Spitzen
-  function drawFarRange(o, base) {
-    const P = 2, env = gx2 => Math.sin((gx2 / o.w) * Math.PI); // 0 an den Rändern
-    colBlocks(o.x, o.w, base, P, gx2 => {
-      const ridge = 0.6 + 0.4 * Math.abs(Math.sin((gx2 / o.w) * Math.PI * o.peaks + o.seed));
-      return o.h * env(gx2) * ridge;
-    }, (x, y, hh, gx2) => {
-      ctx.fillStyle = FAR; ctx.fillRect(x, y, P, hh);
-      if (hh > o.h * 0.6 && rnd(gx2 + o.seed) > 0.55) { ctx.fillStyle = SNOW; ctx.fillRect(x, y, P, P); }
-    });
+  // Höhenprofil je nach Form (0 an den Rändern -> sitzt sauber auf dem Boden)
+  function landH(o, gx2) {
+    const t = gx2 / o.w, env = Math.sin(t * Math.PI);
+    if (o.shape === 'peak') return o.h * (1 - Math.abs(t - 0.5) * 2);                              // Spitzberg (Dreieck)
+    if (o.shape === 'twin') return o.h * env * (0.62 + 0.38 * Math.abs(Math.sin(t * Math.PI * 2 + o.seed))); // Doppelgipfel
+    if (o.shape === 'mound') return o.h * Math.pow(env, 0.72);                                     // runde Kuppe
+    if (o.shape === 'broad') return o.h * Math.pow(env, 0.45);                                     // breiter flacher Hügel
+    return o.h * env * (0.55 + 0.45 * Math.abs(Math.sin(t * Math.PI * o.peaks + o.seed)));         // sanfte Hügelkette
   }
-  // Naher Schneeberg: dunkler Körper, geschattete Flanke, zackige Schneekappe (Beispiel)
-  function drawPeak(o, base) {
+  // Berge/Hügel ohne Schnee — einfach als Erhebung erkennbar, mit leicht geschatteter Flanke
+  function drawLand(o, base, far) {
     const P = 2, cx = o.w / 2;
-    colBlocks(o.x, o.w, base, P, gx2 => {
-      const t = Math.abs(gx2 - cx) / cx;
-      const jag = (rnd(((gx2 / 4) | 0) + o.seed) - 0.5) * o.h * 0.07;
-      return Math.max(0, o.h * (1 - t) + jag);
-    }, (x, y, hh, gx2) => {
-      const t = Math.abs(gx2 - cx) / cx;
-      ctx.fillStyle = (gx2 > cx) ? SHADE : NEAR;               // Licht von links
+    const body = far ? FAR : (o.dark ? NEAR : HILL);
+    colBlocks(o.x, o.w, base, P, gx2 => landH(o, gx2), (x, y, hh, gx2) => {
+      ctx.fillStyle = (o.dark && gx2 > cx) ? SHADE : body;   // nur markante Berge bekommen Schattenseite
       ctx.fillRect(x, y, P, hh);
-      if (t < 0.62) {                                          // Schnee mit „Fingern"
-        let sd = Math.round((hh * (0.55 - t * 0.6) * (0.4 + rnd(gx2 + o.seed * 2) * 1.0)) / P) * P;
-        sd = Math.min(sd, hh - P);
-        if (sd >= P) { ctx.fillStyle = SNOW; ctx.fillRect(x, y, P, sd); }
-      }
     });
   }
-  // Vulkan: abgeflachter Kegel mit Krater, Glut + aufsteigender Rauch
+  // Vulkan: Kegel mit Krater, Lavasee als Quelle oben + Lavaströme den Hang hinab + Rauch
   function drawVolcano(o, base) {
-    const P = 2, cx = o.w / 2, craterHalf = o.w * 0.16;
-    colBlocks(o.x, o.w, base, P, gx2 => {
-      const t = Math.abs(gx2 - cx) / cx;
-      let h = o.h * (1 - t * 0.8);
-      if (Math.abs(gx2 - cx) < craterHalf) h -= o.h * 0.16;    // Kratermulde
-      return Math.max(0, h);
-    }, (x, y, hh, gx2) => {
-      ctx.fillStyle = (gx2 > cx) ? SHADE : VOLC;
-      ctx.fillRect(x, y, P, hh);
-    });
-    const craterY = Math.round(base - (o.h - o.h * 0.16));
-    const ccx = Math.round(o.x + cx);
-    ctx.fillStyle = GLOW; R(ccx - craterHalf + 1, craterY, craterHalf * 2 - 2, 2); // Glut
+    const P = 2, cx = o.w / 2, craterHalf = Math.max(4, o.w * 0.15);
+    const coneH = gx2 => { const t = Math.abs(gx2 - cx) / cx; let h = o.h * (1 - t * 0.8); if (Math.abs(gx2 - cx) < craterHalf) h -= o.h * 0.18; return Math.max(0, h); };
+    colBlocks(o.x, o.w, base, P, coneH, (x, y, hh, gx2) => { ctx.fillStyle = (gx2 > cx) ? SHADE : VOLC; ctx.fillRect(x, y, P, hh); });
+    const ccx = o.x + cx, rimY = base - (o.h - o.h * 0.18);
+    // Lavasee (Quelle): unregelmäßige, flackernde Oberfläche – keine gerade Linie
+    for (let dx = -craterHalf + 1; dx <= craterHalf - 1; dx += P) {
+      const fl = (Math.sin((o.x + dx) * 0.9 + nowTs / 110) + 1) / 2;
+      const yy = rimY + Math.round(rnd(dx + (nowTs / 160 | 0)) * 2);
+      ctx.fillStyle = fl > 0.45 ? LAVA : GLOW;
+      R(ccx + dx, yy, P, 2 + (fl > 0.7 ? 1 : 0));
+    }
+    // Lavaströme: starten am Kraterrand und laufen außen den Hang hinab (erkalten unten)
+    for (let s = 0; s < o.streams.length; s++) {
+      const st = o.streams[s];
+      let lx = ccx + st.dir * (craterHalf - 1), ly = rimY + 1;
+      const len = st.len + (Math.sin(nowTs / 320 + s * 1.7) > 0.6 ? 1 : 0);
+      for (let k = 0; k < len; k++) {
+        ly += 2; lx += st.dir * (0.8 + rnd(k + st.seed) * 1.3);
+        const t = Math.abs((lx - o.x) - cx) / cx, slopeY = base - o.h * (1 - t * 0.8);
+        if (ly < slopeY - 1 || t > 0.98) break;                 // bleibt auf dem Berg
+        ctx.fillStyle = k < 2 ? LAVA : (k < len * 0.6 ? GLOW : SHADE);
+        R(Math.round(lx), Math.round(ly), 2, 2);
+      }
+    }
     // Rauch (aufsteigend, zeitlich versetzt)
     ctx.fillStyle = INK2;
     for (let i = 0; i < 3; i++) {
       const ph = nowTs / 900 + i * 0.8;
-      const sx = ccx + Math.round(Math.sin(ph) * 3);
-      const sy = craterY - 4 - i * 5 - Math.round((ph % 1) * 3);
-      R(sx - 1, sy, 2 + (i === 0 ? 1 : 0), 2);
+      R(Math.round(ccx + Math.sin(ph) * 3) - 1, Math.round(rimY - 5 - i * 5 - (ph % 1) * 3), 2 + (i === 0 ? 1 : 0), 2);
     }
   }
   function drawMount(o, base, far) {
     if (o.kind === 'volcano') return drawVolcano(o, base);
-    return far ? drawFarRange(o, base) : drawPeak(o, base);
+    return drawLand(o, base, far);
   }
+  // Kräftigere, klarer erkennbare Wolken (mehrere Ebenen)
   function drawCloud(c) {
     ctx.fillStyle = SKY;
     const x = Math.round(c.x), y = Math.round(c.y), s = c.s;
-    if (c.type === 'wisp') { R(x, y + 1, 26 * s, 1); R(x + 6, y + 3, 15 * s, 1); }
-    else if (c.type === 'big') { R(x + 3, y, 9 * s, 2); R(x, y + 2, 17 * s, 2); R(x + 2, y + 4, 21 * s, 2); }
-    else { R(x + 3, y, 6 * s, 2); R(x, y + 2, 12 * s, 2); } // small
+    if (c.type === 'wisp') { R(x, y + 1, 30 * s, 1); R(x + 7, y + 3, 19 * s, 1); R(x + 3, y + 5, 11 * s, 1); }
+    else if (c.type === 'big') { R(x + 5, y, 12 * s, 3); R(x, y + 3, 26 * s, 3); R(x + 3, y + 6, 30 * s, 2); R(x + 11, y - 2, 7 * s, 2); }
+    else { R(x + 3, y, 9 * s, 2); R(x, y + 2, 17 * s, 3); R(x + 5, y + 5, 10 * s, 2); } // small (kräftiger)
   }
   function drawUfo(u, groundY) {
     const x = Math.round(u.x), y = groundY - u.y - 14;
@@ -2823,10 +2884,11 @@ const DINO = (() => {
   function seedScene() {
     plants = []; farM = []; nearM = []; hiM = null;
     const w = cv.clientWidth || 300;
-    for (let i = 0; i < 5; i++) spawnPlant(Math.random() * w); // viele Pflanzen
-    spawnFar(Math.random() * w);   // nur 1 Berg
-    spawnNear(Math.random() * w);  // nur 1 Hügel
-    spawnHi(w * 0.5 + Math.random() * w * 0.4);
+    for (let i = 0; i < 6; i++) spawnPlant(Math.random() * w);
+    spawnFar(Math.random() * w * 0.5);
+    spawnFar(w * 0.5 + Math.random() * w * 0.5);
+    for (let i = 0; i < 4; i++) spawnNear(i * (w / 4) + Math.random() * 40); // mehrere Hügel, verteilt
+    spawnHi(w * 0.55 + Math.random() * w * 0.35);
   }
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
@@ -2840,10 +2902,10 @@ const DINO = (() => {
       gx += 16 * dt;
       if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
       if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 1600 + Math.random() * 2600; } // dichter bewachsen
-      if (ts > nextCloud) { if (clouds.length < 3) spawnCloud(w + 10); nextCloud = ts + 12000 + Math.random() * 13000; } // weniger Wolken
+      if (ts > nextCloud) { if (clouds.length < 4) spawnCloud(w + 10); nextCloud = ts + 9000 + Math.random() * 9000; }
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
-      if (ts > nextFar) { if (farM.length < 2) spawnFar(w + 30); nextFar = ts + 22000 + Math.random() * 28000; }
-      if (ts > nextNear) { if (nearM.length < 2) spawnNear(w + 20); nextNear = ts + 16000 + Math.random() * 20000; }
+      if (ts > nextFar) { if (farM.length < 2) spawnFar(w + 30); nextFar = ts + 18000 + Math.random() * 22000; }
+      if (ts > nextNear) { if (nearM.length < 5) spawnNear(w + 16); nextNear = ts + 4500 + Math.random() * 5000; } // viele Hügel
       if (ts > nextHi) { spawnHi(w + 30); nextHi = ts + 6000; } // füllt nach, wenn keiner da
       if (ts > nextUfo) { if (Math.random() < 0.5) spawnUfo(); nextUfo = ts + 45000 + Math.random() * 60000; }
       farM.forEach(m => m.x -= 3 * dt);   // Hintergrund-Ebene: langsam
