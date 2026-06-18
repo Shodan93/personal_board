@@ -53,6 +53,15 @@ header{
 }
 header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:nowrap}
 .header-meta{color:var(--text-weak); font-size:12px; white-space:nowrap}
+#viewerBadge{background:var(--yellow); color:#5a3b00; border-radius:10px; padding:1px 10px; font-size:11px; font-weight:700; white-space:nowrap}
+/* Nur-Lesen-Modus: Bearbeiten-Elemente ausblenden */
+body.viewer .col-add, body.viewer .ghost-card, body.viewer .card-menu, body.viewer .sticky .sticky-head button{display:none}
+body.viewer .card{cursor:default}
+.modal.viewer input,.modal.viewer select,.modal.viewer .richtext,.modal.viewer .prio-dot{pointer-events:none}
+.modal.viewer .richtext{background:var(--gray-bg)}
+.modal.viewer #btnSave,.modal.viewer #btnDelete,.modal.viewer #btnHousekeeper,
+.modal.viewer .task-grip,.modal.viewer .task-del,.modal.viewer .task-ghost,
+.modal.viewer .cat-add,.modal.viewer .att-zone,.modal.viewer #catChips [data-rm]{display:none}
 .badge-today{
   background:var(--red); color:#fff; border-radius:10px; padding:1px 10px;
   font-size:11px; font-weight:700; border:2px solid transparent; cursor:pointer;
@@ -378,7 +387,7 @@ tr.row.done-final td{opacity:.4}
 .set-row{display:flex; align-items:center; gap:8px; justify-content:space-between}
 .set-row label{font-size:12px}
 /* einheitliche, runde Eingabefelder in den Einstellungen (CI-konform) */
-.set-row select,.set-row input,#setColumns input,#setBoardTitle{
+.set-row select,.set-row input,#setColumns input,#setBoardTitle,#setJoinCode,#catManagerNew{
   border:1px solid var(--border); border-radius:var(--radius); padding:5px 8px; font-size:13px; background:var(--card); color:var(--text);
 }
 .set-row select,.set-row input[type=number]{width:130px}
@@ -464,6 +473,7 @@ tr.row.done-final td{opacity:.4}
   <span class="header-meta" id="todayDate"></span>
   <button class="header-meta" id="syncDot" title="Cloud-Status / Anmelden"
     style="border:none;background:none;cursor:pointer;padding:0"></button>
+  <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: auf diese Woche filtern">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
@@ -701,10 +711,37 @@ tr.row.done-final td{opacity:.4}
         <button class="btn" id="btnLogout">Abmelden</button>
       </div>
       <div class="settings-section" id="teamSection" hidden>
-        <h3>Boards</h3>
+        <h3>Boards &amp; Teilen</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnNewBoard">+ Neues Board</button>
           <button type="button" class="btn btn-danger" id="btnDeleteBoard">Board löschen…</button>
+        </div>
+        <!-- Besitzer: Lesezugriff teilen + verwalten -->
+        <div id="shareOwner" hidden style="margin-top:12px">
+          <div class="set-row">
+            <label>Teilen-Code (nur Lesezugriff)</label>
+            <span id="setShareCode" style="font-family:monospace;font-size:13px;user-select:all">–</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+            <button type="button" class="btn" id="btnCopyShare">Code kopieren</button>
+            <button type="button" class="btn" id="btnRotateShare">Code neu generieren</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Wer diesen Code eingibt, erhält ausschließlich <b>Lesezugriff</b> auf dieses Board. „Neu generieren" sperrt alle alten Codes aus.</div>
+          <div style="font-weight:700;font-size:12px;margin:12px 0 4px">Hat Zugriff:</div>
+          <div id="memberList" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <!-- Mitglied: Nur-Lesen-Hinweis + verlassen -->
+        <div id="shareViewer" hidden style="margin-top:12px">
+          <div style="font-size:12px;color:var(--text-weak)">👁 Du hast auf diesem Board nur <b>Lesezugriff</b><span id="shareOwnerName"></span>.</div>
+          <button type="button" class="btn" id="btnLeaveShared" style="margin-top:6px">Board verlassen</button>
+        </div>
+        <!-- Jeder: einem fremden Board (nur lesend) beitreten -->
+        <div style="margin-top:12px">
+          <div style="font-weight:700;font-size:12px;margin-bottom:4px">Einem geteilten Board beitreten:</div>
+          <div class="cat-add">
+            <input id="setJoinCode" placeholder="Teilen-Code eingeben…" maxlength="40">
+            <button type="button" class="btn" id="btnJoinBoard">Beitreten</button>
+          </div>
         </div>
       </div>
       <div class="settings-section">
@@ -895,7 +932,12 @@ function load() {
   state.notes = [];
   setColumnsFromSettings(); migrateTickets(); ensureCategories();
 }
+function requireEdit() { // false + Hinweis, wenn das Board nur lesbar ist
+  if (boardReadOnly) { toast('👁 Nur Lesezugriff auf diesem geteilten Board'); return false; }
+  return true;
+}
 function save() {
+  if (boardReadOnly) return;     // geteiltes Board mit Lesezugriff: nichts speichern
   lastLocalChange = Date.now();
   scheduleCloudSave();
 }
@@ -1007,6 +1049,7 @@ function setStatus(t, status) {
 /* Ticket auf einen Status verschieben (Drag/Drop oder Schnell-Status) — warnt bei
    noch offenen Aufgaben, wenn das Ziel eine „erledigt"-Säule ist. */
 function moveToStatus(t, status) {
+  if (boardReadOnly) { render(); return; }
   if (!t || t.status === status) { render(); return; }
   const open = (t.tasks || []).filter(x => !x.done).length;
   if (DONE.includes(status) && open > 0) {
@@ -1123,7 +1166,7 @@ function renderKanban() {
 function cardEl(t) {
   const el = document.createElement('div');
   el.className = ['card', 'prio-' + t.prio.toLowerCase(), deadlineClass(t), doneClass(t)].join(' ').trim();
-  el.draggable = true; el.dataset.id = t.id;
+  el.draggable = !boardReadOnly; el.dataset.id = t.id;
 
   const tags = t.cats.map(c =>
     '<span class="tag" style="background:' + catColor(c) + ';color:' + textOn(catColor(c)) + '">' + esc(c) + '</span>').join('');
@@ -1187,6 +1230,7 @@ function toggleCardMenu(cardEl, id) {
   cardEl.appendChild(m);
 }
 async function duplicateTicket(id) {
+  if (!requireEdit()) return;
   const src = state.tickets.find(x => x.id === id);
   if (!src) return;
   const t = JSON.parse(JSON.stringify(src));
@@ -1207,6 +1251,7 @@ async function duplicateTicket(id) {
   save(); render(); toast('Ticket dupliziert');
 }
 function deleteTicketById(id) {
+  if (!requireEdit()) return;
   const t = state.tickets.find(x => x.id === id);
   if (!t) return;
   if (!confirm('Ticket "' + t.title + '" wirklich löschen?')) return;
@@ -1335,9 +1380,10 @@ function modalFingerprint() {
 function isModalDirty() { return modalFingerprint() !== modalSnapshot; }
 
 function openModal(id, presetStatus, presetDesc) {
+  if (boardReadOnly && !id) return;   // im Nur-Lesen-Modus keine neuen Tickets
   editingId = id || null;
   const t = id ? state.tickets.find(x => x.id === id) : null;
-  document.getElementById('modalTitle').textContent = t ? 'Ticket bearbeiten' : 'Neues Ticket';
+  document.getElementById('modalTitle').textContent = boardReadOnly ? 'Ticket ansehen' : (t ? 'Ticket bearbeiten' : 'Neues Ticket');
   document.getElementById('btnDelete').hidden = !t;
   document.getElementById('fTitle').value = t ? t.title : '';
   document.getElementById('fStatus').value = t ? t.status : (presetStatus || 'Themenspeicher');
@@ -1363,8 +1409,9 @@ function openModal(id, presetStatus, presetDesc) {
     modalSnapshot = modalFingerprint(); // Basis erst nach dem (async) Befüllen setzen
   });
   overlay.querySelector('.modal').classList.toggle('wide', !!state.settings.modalWide);
+  overlay.querySelector('.modal').classList.toggle('viewer', boardReadOnly);
   overlay.classList.add('open');
-  document.getElementById('fTitle').focus();
+  if (!boardReadOnly) document.getElementById('fTitle').focus();
 }
 /* Schließen anfordern: bei ungespeicherten Änderungen erst nachfragen */
 function requestCloseModal() {
@@ -1507,6 +1554,7 @@ function addCategory(name) { // Neue Kategorie -> Liste (Outlook-Stil), Farbe au
 }
 
 function saveTicket() {
+  if (!requireEdit()) return;
   const form = document.getElementById('ticketForm');
   if (!form.reportValidity()) return;
   // Noch nicht bestätigte (aber ausgefüllte) Aufgabe aus der Geister-Zeile übernehmen
@@ -1546,6 +1594,7 @@ function saveTicket() {
   save(); closeModal(); render();
 }
 function deleteTicket() {
+  if (!requireEdit()) return;
   if (!editingId) return;
   const t = state.tickets.find(x => x.id === editingId);
   if (confirm('Ticket "' + t.title + '" wirklich löschen?')) {
@@ -1583,10 +1632,81 @@ function openSettings() {
   // Board-Verwaltung nur im angemeldeten (Supabase-)Modus
   const team = document.getElementById('teamSection');
   team.hidden = !(sb && sbSession && boardId);
+  if (!team.hidden) {
+    const b = myBoards.find(x => x.id === boardId);
+    const owner = !!(b && sbSession && b.owner === sbSession.user.id);
+    document.getElementById('shareOwner').hidden = !owner;
+    document.getElementById('shareViewer').hidden = owner;
+    document.getElementById('btnDeleteBoard').hidden = !owner;      // fremdes Board nicht löschbar
+    if (owner) {
+      document.getElementById('setShareCode').textContent = (b && b.share_code) || '–';
+      loadMembers();
+    }
+  }
   settingsOverlay.classList.add('open');
 }
 document.getElementById('btnNewBoard').onclick = createBoard;
 document.getElementById('btnDeleteBoard').onclick = deleteBoard;
+document.getElementById('btnJoinBoard').onclick = joinBoardByCode;
+document.getElementById('btnRotateShare').onclick = rotateShareCode;
+document.getElementById('btnLeaveShared').onclick = leaveSharedBoard;
+document.getElementById('btnCopyShare').onclick = () => {
+  const code = document.getElementById('setShareCode').textContent.trim();
+  if (code && code !== '–') navigator.clipboard?.writeText(code).then(() => toast('Code kopiert'), () => {});
+};
+async function loadMembers() {
+  const root = document.getElementById('memberList');
+  root.innerHTML = '<span style="font-size:12px;color:var(--text-weak)">lädt…</span>';
+  const { data, error } = await sb.rpc('board_members_list', { b: boardId });
+  if (error) { root.innerHTML = '<span style="font-size:12px;color:var(--red)">Fehler: ' + esc(error.message) + '</span>'; return; }
+  if (!data || !data.length) { root.innerHTML = '<span style="font-size:12px;color:var(--text-weak)">Noch niemand. Teile den Code oben.</span>'; return; }
+  root.innerHTML = '';
+  data.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.innerHTML = '<span style="font-size:12px">👁 ' + esc(m.email || m.user_id) + '</span>' +
+      '<button type="button" class="btn btn-danger" style="padding:2px 8px;font-size:11px">Entfernen</button>';
+    row.querySelector('button').onclick = () => removeMember(m.user_id, m.email);
+    root.appendChild(row);
+  });
+}
+async function joinBoardByCode() {
+  if (!sb) { alert('Bitte zuerst anmelden.'); return; }
+  const code = (document.getElementById('setJoinCode').value || '').trim().toLowerCase();
+  if (!code) return;
+  const { data, error } = await sb.rpc('join_board', { code });
+  if (error) { alert('Beitreten fehlgeschlagen: ' + error.message); return; }
+  document.getElementById('setJoinCode').value = '';
+  await ensureBoards(); renderBoardSwitch();
+  closeSettings(); setActiveBoard(data);
+  toast('👁 Board beigetreten (Lesezugriff)');
+}
+async function rotateShareCode() {
+  if (!confirm('Neuen Code generieren? Der alte Code funktioniert danach nicht mehr.')) return;
+  const { data, error } = await sb.rpc('rotate_share_code', { b: boardId });
+  if (error) { alert('Fehlgeschlagen: ' + error.message); return; }
+  const b = myBoards.find(x => x.id === boardId); if (b) b.share_code = data;
+  document.getElementById('setShareCode').textContent = data;
+  toast('Neuer Teilen-Code erzeugt');
+}
+async function removeMember(uid, email) {
+  if (!confirm('Zugriff von „' + (email || uid) + '" entfernen?\nDer Teilen-Code wird dabei neu generiert.')) return;
+  const { data, error } = await sb.rpc('remove_member', { b: boardId, uid });
+  if (error) { alert('Fehlgeschlagen: ' + error.message); return; }
+  const b = myBoards.find(x => x.id === boardId); if (b) b.share_code = data;
+  document.getElementById('setShareCode').textContent = data;
+  loadMembers();
+  toast('Zugriff entfernt, Code rotiert');
+}
+async function leaveSharedBoard() {
+  if (!confirm('Dieses geteilte Board verlassen?')) return;
+  const { error } = await sb.rpc('leave_board', { b: boardId });
+  if (error) { alert('Fehlgeschlagen: ' + error.message); return; }
+  if (boardChannel) { sb.removeChannel(boardChannel); boardChannel = null; }
+  boardId = null; closeSettings();
+  await ensureBoards(); setActiveBoard(myBoards[0].id);
+  toast('Board verlassen');
+}
 function closeSettings() {
   const s = state.settings;
   s.boardTitle = (document.getElementById('setBoardTitle').value.trim() || 'Mein Board').slice(0, 40);
@@ -2091,6 +2211,7 @@ let boardId = null;         // aktives Board
 let myBoards = [];          // alle erreichbaren Boards (eigene + geteilte)
 let boardChannel = null;
 let appStarted = false;
+let boardReadOnly = false;  // true, wenn das aktive Board nur geteilt/lesbar ist (nicht eigenes)
 const OFFLINE_PROFILE = { focus: true, reportAll: true, housekeeper: true };
 
 function applyProfile(p) {
@@ -2237,15 +2358,22 @@ function renderBoardSwitch() {
 function setActiveBoard(id) {
   const b = myBoards.find(x => x.id === id) || myBoards[0];
   boardId = b.id;
+  boardReadOnly = !!(sbSession && b.owner && b.owner !== sbSession.user.id); // fremdes (geteiltes) Board = nur Lesen
   loadBoardData(b);
   kanbanSortKey = state.settings.kanbanSort;
   document.getElementById('kanbanSort').value = kanbanSortKey;
   applyBoardConfig();
+  applyReadOnly();
   setView(state.settings.defaultView || 'kanban');
   applyGimmick(); applyTips(); renderNotes();
   renderBoardSwitch();
   subscribeBoard();
   setSync(true);
+}
+function applyReadOnly() {
+  document.body.classList.toggle('viewer', boardReadOnly);
+  const badge = document.getElementById('viewerBadge');
+  if (badge) badge.hidden = !boardReadOnly;
 }
 
 async function startSupabase(session) {
@@ -3358,6 +3486,7 @@ document.getElementById('stickyCancel').onclick = document.getElementById('stick
   document.getElementById('stickyDlg').classList.remove('open'); stickyDlgNote = null;
 };
 function addNote(x, y, w, h) {
+  if (boardReadOnly) return;
   ensureNotes();
   w = Math.max(140, Math.round(w || 200)); // Größe = gezogenes Rechteck (mit Minimum)
   h = Math.max(110, Math.round(h || 170));
