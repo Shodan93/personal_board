@@ -810,22 +810,27 @@ tr.row.done-final td{opacity:.4}
 <!-- Login -->
 <div class="overlay" id="loginOverlay" style="z-index:250">
   <div class="modal" role="dialog" aria-modal="true" style="max-width:380px">
-    <div class="modal-head"><h2>🪐 Orbit — Anmelden</h2></div>
+    <div class="modal-head"><h2 id="loginHead">🪐 Orbit — Anmelden</h2></div>
     <div class="modal-body">
-      <p style="font-size:12px;color:var(--text-weak)">
+      <p id="loginIntro" style="font-size:12px;color:var(--text-weak)">
         Mit E-Mail und Passwort anmelden — dein Board wird aus der Cloud geladen und
-        Änderungen automatisch gespeichert.
+        Änderungen automatisch gespeichert. Zugang nur auf Einladung.
       </p>
       <input id="loginEmail" type="email" autocomplete="username" placeholder="E-Mail"
         style="width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-size:14px">
       <input id="loginPass" type="password" autocomplete="current-password" placeholder="Passwort"
         style="width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-size:14px">
+      <input id="loginNewPass" type="password" autocomplete="new-password" placeholder="Neues Passwort (min. 6 Zeichen)" hidden
+        style="width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-size:14px">
       <div id="loginErr" style="color:var(--red);font-size:12px" hidden></div>
       <div id="loginDiag" style="font-size:11px;color:var(--text-weak)" hidden></div>
+      <button type="button" id="btnForgot" style="border:none;background:none;color:var(--blue);font-size:12px;cursor:pointer;padding:0;text-align:left">Passwort vergessen?</button>
     </div>
     <div class="modal-foot">
       <button class="btn" id="btnLoginTest" style="margin-right:auto" title="Verbindung prüfen">Test</button>
-      <button class="btn" id="btnSignup" title="Neues Konto anlegen">Registrieren</button>
+      <button class="btn" id="btnBackLogin" hidden>Zurück</button>
+      <button class="btn btn-primary" id="btnSendReset" hidden>Reset-Link senden</button>
+      <button class="btn btn-primary" id="btnSetPass" hidden>Passwort speichern</button>
       <button class="btn btn-primary" id="btnLogin">Anmelden</button>
     </div>
   </div>
@@ -2276,6 +2281,8 @@ const SUPABASE_ANON_KEY = 'sb_publishable_z0RG83SZ7ChiPVid-2ojLQ_4sqOJ2Iw'; // p
 let sb = null;
 try { if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
 catch (e) { console.warn('Supabase-Init fehlgeschlagen:', e); }
+// Per Einladungs-/Reset-Link gekommen? (URL-Hash auslesen, bevor Supabase ihn verbraucht)
+const authLinkType = ((location.hash || '').match(/[#&]type=(\w+)/) || [])[1] || '';
 
 let auth = null;            // { user: email|'local', name }
 let sbSession = null;       // Supabase-Session (access_token)
@@ -2487,26 +2494,60 @@ document.getElementById('btnLogin').onclick = async () => {
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPass').value;
   const err = document.getElementById('loginErr');
-  if (!email || !password) { err.textContent = 'Bitte E-Mail und Passwort eingeben.'; err.hidden = false; return; }
-  if (!sb) { err.textContent = 'Supabase ist nicht konfiguriert (SUPABASE_URL/SUPABASE_ANON_KEY im Code eintragen).'; err.hidden = false; return; }
+  if (!email || !password) { err.style.color = 'var(--red)'; err.textContent = 'Bitte E-Mail und Passwort eingeben.'; err.hidden = false; return; }
+  if (!sb) { err.style.color = 'var(--red)'; err.textContent = 'Supabase ist nicht konfiguriert.'; err.hidden = false; return; }
   err.hidden = true;
   const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) { err.textContent = 'E-Mail oder Passwort falsch.'; err.hidden = false; }
+  if (error) { err.style.color = 'var(--red)'; err.textContent = 'E-Mail oder Passwort falsch.'; err.hidden = false; }
   // Erfolg -> onAuthStateChange startet die App
 };
-document.getElementById('btnSignup').onclick = async () => {
+/* Auth-Modus: 'login' | 'forgot' | 'setpw' (Einladung/Reset-Link) */
+let authNeedsPassword = false;
+function setAuthMode(mode) {
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
+  document.getElementById('loginErr').hidden = true;
+  document.getElementById('loginErr').style.color = 'var(--red)';
+  const head = document.getElementById('loginHead'), intro = document.getElementById('loginIntro');
+  show('loginEmail', mode !== 'setpw');
+  show('loginPass', mode === 'login');
+  show('loginNewPass', mode === 'setpw');
+  show('btnForgot', mode === 'login');
+  show('btnLogin', mode === 'login');
+  show('btnLoginTest', mode === 'login');
+  show('btnSendReset', mode === 'forgot');
+  show('btnBackLogin', mode === 'forgot');
+  show('btnSetPass', mode === 'setpw');
+  if (mode === 'login') { head.textContent = '🪐 Orbit — Anmelden'; intro.textContent = 'Mit E-Mail und Passwort anmelden. Zugang nur auf Einladung.'; }
+  else if (mode === 'forgot') { head.textContent = '🔑 Passwort zurücksetzen'; intro.textContent = 'Gib deine E-Mail ein — wir senden dir einen Link zum Zurücksetzen.'; }
+  else { head.textContent = '🔒 Passwort festlegen'; intro.textContent = 'Lege jetzt dein Passwort fest, um deinen Zugang zu aktivieren.'; }
+}
+document.getElementById('btnForgot').onclick = () => setAuthMode('forgot');
+document.getElementById('btnBackLogin').onclick = () => setAuthMode('login');
+document.getElementById('btnSendReset').onclick = async () => {
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const password = document.getElementById('loginPass').value;
   const err = document.getElementById('loginErr');
-  if (!email || !password) { err.textContent = 'Bitte E-Mail und Passwort eingeben.'; err.hidden = false; return; }
-  if (password.length < 6) { err.textContent = 'Passwort: mindestens 6 Zeichen.'; err.hidden = false; return; }
+  if (!email) { err.textContent = 'Bitte E-Mail eingeben.'; err.hidden = false; return; }
   if (!sb) { err.textContent = 'Supabase ist nicht konfiguriert.'; err.hidden = false; return; }
-  err.hidden = true;
-  const { data, error } = await sb.auth.signUp({ email, password });
-  if (error) { err.textContent = 'Registrierung fehlgeschlagen: ' + error.message; err.hidden = false; return; }
-  if (!data.session) { err.style.color = 'var(--green)'; err.textContent = '✓ Konto angelegt. Falls E-Mail-Bestätigung aktiv ist: Postfach prüfen, sonst direkt anmelden.'; err.hidden = false; }
-  // mit Session startet onAuthStateChange automatisch
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  err.hidden = false;
+  if (error) { err.style.color = 'var(--red)'; err.textContent = 'Fehler: ' + error.message; }
+  else { err.style.color = 'var(--green)'; err.textContent = '✓ Falls ein Konto existiert, ist eine E-Mail mit Reset-Link unterwegs.'; }
 };
+document.getElementById('btnSetPass').onclick = async () => {
+  const pw = document.getElementById('loginNewPass').value;
+  const err = document.getElementById('loginErr');
+  if (pw.length < 6) { err.style.color = 'var(--red)'; err.textContent = 'Passwort: mindestens 6 Zeichen.'; err.hidden = false; return; }
+  if (!sb) { err.style.color = 'var(--red)'; err.textContent = 'Supabase ist nicht konfiguriert.'; err.hidden = false; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { err.style.color = 'var(--red)'; err.textContent = 'Fehler: ' + error.message; err.hidden = false; return; }
+  authNeedsPassword = false;
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  toast('✓ Passwort gesetzt');
+  const { data } = await sb.auth.getSession();
+  if (data && data.session) { document.getElementById('loginOverlay').classList.remove('open'); startSupabase(data.session); }
+  else setAuthMode('login');
+};
+document.getElementById('loginNewPass').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnSetPass').click(); });
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
 document.getElementById('btnLoginTest').onclick = async () => {
   const d = document.getElementById('loginDiag');
@@ -3721,19 +3762,26 @@ idbOpen().then(db => { idb = db; }).catch(() => { idb = null; console.warn('Inde
 setInterval(tickClock, 1000); tickClock();
 bindBoardControls();
 if (sb) {
+  authNeedsPassword = (authLinkType === 'recovery' || authLinkType === 'invite');
+  const showSetPw = () => { setAuthMode('setpw'); document.getElementById('loginOverlay').classList.add('open'); };
   // Bestehende Session prüfen + auf An-/Abmeldungen reagieren
   sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') { authNeedsPassword = true; sbSession = session; showSetPw(); return; }
     if (session) {
       sbSession = session;
+      if (authNeedsPassword) { showSetPw(); return; }   // erst Passwort festlegen (Einladung/Reset)
       if (!appStarted) startSupabase(session);
     } else if (event === 'SIGNED_OUT') {
       location.reload();
     }
   });
   sb.auth.getSession().then(({ data }) => {
-    if (data && data.session) { if (!appStarted) startSupabase(data.session); }
-    else document.getElementById('loginOverlay').classList.add('open');
-  }).catch(() => document.getElementById('loginOverlay').classList.add('open'));
+    if (data && data.session) {
+      sbSession = data.session;
+      if (authNeedsPassword) showSetPw();
+      else if (!appStarted) startSupabase(data.session);
+    } else { setAuthMode('login'); document.getElementById('loginOverlay').classList.add('open'); }
+  }).catch(() => { setAuthMode('login'); document.getElementById('loginOverlay').classList.add('open'); });
 } else {
   // Supabase nicht konfiguriert -> Anmeldung nicht möglich (Konfigurationsfehler).
   // Es gibt bewusst KEINEN Offline-/Gast-Zugang mehr: Nutzung nur mit Anmeldung.
