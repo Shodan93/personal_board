@@ -126,7 +126,9 @@ body.viewer .card{cursor:default}
 .col-count{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:0 8px; font-size:11px; color:var(--text)}
 .col-head-l{display:flex; align-items:center; gap:4px; min-width:0}
 .col-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:text}
+.col-name:hover{text-decoration:underline dotted; text-underline-offset:2px}
 body.viewer .col-name{cursor:default}
+body.viewer .col-name:hover{text-decoration:none}
 .col-name.editing{cursor:text; background:var(--card); color:var(--text); border:1px solid var(--blue); border-radius:4px; padding:0 4px; text-transform:none; letter-spacing:normal; overflow:visible}
 
 .col[data-status="Blocked / Wartend"] .col-head span:first-child{color:var(--red)}
@@ -458,11 +460,13 @@ tr.row.done-final td{opacity:.4}
 /* ---------- Responsiv ---------- */
 @media (max-width:1180px){ .kanban{grid-template-columns:repeat(min(var(--ncols,5),3),1fr)} }
 @media (max-width:860px){ .kanban{grid-template-columns:repeat(min(var(--ncols,5),2),1fr)} }
-/* Smartphone: Spalten horizontal swipebar statt stapeln (Kanban-Überblick bleibt) */
+/* Smartphone: aufs Nötigste reduzieren + Spalten horizontal swipebar */
 @media (max-width:600px){
   header{padding:8px 12px; gap:8px}
   header h1{font-size:15px}
   .toolbar{padding:8px 12px 0}
+  /* Unnötiges auf dem Handy ausblenden: Fälligkeits-Badges, Fokus/Report, Pixel-Lauf */
+  #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #btnFocus, #btnReportAll, #todayDate{display:none !important}
   .kanban{
     display:flex; overflow-x:auto; gap:10px; padding:10px 12px 20px;
     scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
@@ -484,6 +488,11 @@ tr.row.done-final td{opacity:.4}
 .modal{display:flex; flex-direction:column; max-height:92vh}
 .modal-head,.modal-foot{flex:0 0 auto}
 .modal-body{overflow:auto}
+/* ---------- Dino-Spiel ---------- */
+#dinoGameBox{background:var(--card); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.4); padding:14px; position:relative; width:min(92vw,720px)}
+#dinoGameCv{display:block; width:100%; height:auto; border-radius:8px; background:var(--gray-bg); image-rendering:pixelated; touch-action:manipulation}
+#dinoGameClose{position:absolute; top:6px; right:8px; border:none; background:none; font-size:18px; color:var(--text-weak); cursor:pointer; z-index:2}
+#dinoGameHint{text-align:center; font-size:12px; color:var(--text-weak); margin-top:8px}
 @media (prefers-reduced-motion:reduce){ .card{transition:none} .card:hover{transform:none} }
 </style>
 </head>
@@ -867,6 +876,15 @@ tr.row.done-final td{opacity:.4}
 
 <div class="lightbox" id="lightbox"><img id="lightboxImg" alt="Anhang"></div>
 
+<!-- Dino-Spiel (Leertaste) -->
+<div class="overlay" id="dinoGame" style="z-index:300">
+  <div id="dinoGameBox">
+    <button id="dinoGameClose" title="Schließen (Esc)">✕</button>
+    <canvas id="dinoGameCv"></canvas>
+    <div id="dinoGameHint">Leertaste / Tippen = springen · ↓ = ducken · Esc = schließen</div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    KONSTANTEN & STATE
@@ -1147,8 +1165,8 @@ function isoWeek(d) {
 function tickClock() {
   const n = new Date();
   document.getElementById('todayDate').textContent =
+    'KW ' + isoWeek(n) + ' · ' +
     n.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) +
-    ' · KW ' + isoWeek(n) +
     ' · ' + n.toLocaleTimeString('de-DE');
 }
 function renderHeader() {
@@ -1186,7 +1204,7 @@ function renderKanban() {
     const collapsed = !kanbanSearch && COLLAPSIBLE.includes(status) && !!(state.settings.collapsed || {})[status];
     col.innerHTML = '<div class="col-head"><span class="col-head-l">' +
       (COLLAPSIBLE.includes(status) ? '<button class="col-toggle" title="Ein-/ausklappen">' + (collapsed ? '▸' : '▾') + '</button>' : '') +
-      '<span class="col-name"' + (boardReadOnly ? '' : ' title="Doppelklick zum Umbenennen"') + '>' + esc(status) + '</span>' +
+      '<span class="col-name"' + (boardReadOnly ? '' : ' title="Klick zum Umbenennen"') + '>' + esc(status) + '</span>' +
       '</span><span class="col-count">' + items.length + '</span></div>';
     const tg = col.querySelector('.col-toggle');
     if (tg) tg.onclick = e => {
@@ -1196,7 +1214,10 @@ function renderKanban() {
       save(); render();
     };
     const nameEl = col.querySelector('.col-name');
-    if (nameEl && !boardReadOnly) nameEl.addEventListener('dblclick', () => startColRename(nameEl, status));
+    if (nameEl && !boardReadOnly) nameEl.addEventListener('click', () => {
+      if (nameEl.classList.contains('editing')) return; // schon im Edit -> Klick nicht erneut starten
+      startColRename(nameEl, status);
+    });
     // Mini-Auswertung in der letzten Done-Spalte: Anzahl + durchschnittliche Laufzeit
     if (status === DONE[DONE.length - 1]) {
       const doneAll = state.tickets.filter(t => t.status === status && t.createdAt && t.completedAt);
@@ -2844,15 +2865,21 @@ function toast(msg) {
   el._t = setTimeout(() => el.classList.remove('show'), 2400);
 }
 
-/* Keyboard: N = neues Ticket, Esc = Modal schließen */
+/* Keyboard: N = neues Ticket, Esc = Modal schließen, Leertaste = Dino-Spiel */
 document.addEventListener('keydown', e => {
   const tag = document.activeElement.tagName;
   const ae = document.activeElement;
   const typing = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(tag) || (ae && ae.isContentEditable);
   const anyOverlay = overlay.classList.contains('open') || settingsOverlay.classList.contains('open') ||
     document.getElementById('loginOverlay').classList.contains('open');
+  // Während das Dino-Spiel offen ist, nur Spiel-Steuerung
+  if (typeof DinoGame !== 'undefined' && DinoGame.isOpen()) {
+    if (e.key === 'Escape') { DinoGame.close(); return; }
+    if (e.key === ' ' || e.code === 'Space' || e.key === 'ArrowUp') { e.preventDefault(); DinoGame.jump(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); DinoGame.setDuck(true); return; }
+    return;
+  }
   if (e.key === 'Escape') {
-    if (typeof DINO !== 'undefined' && DINO.isPlaying() && !anyOverlay) { DINO.stopPlay(); return; }
     const lb = document.getElementById('lightbox');
     if (lb.classList.contains('open')) { lb.classList.remove('open'); return; }
     if (confirmOverlay.classList.contains('open')) { confirmOverlay.classList.remove('open'); return; } // weiter bearbeiten
@@ -2864,10 +2891,13 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'n' || e.key === 'N') && !typing && !anyOverlay) {
     e.preventDefault(); openModal(null);
   }
-  // Leertaste: Dino-Minigame starten bzw. springen (T-Rex läuft, du hüpfst über Hindernisse)
+  // Leertaste: startet das Dino-Spiel (Chrome-Style)
   if ((e.key === ' ' || e.code === 'Space') && !typing && !anyOverlay && state.settings.dino !== false) {
-    e.preventDefault(); if (typeof DINO !== 'undefined') DINO.jump();
+    e.preventDefault(); if (typeof DinoGame !== 'undefined') DinoGame.start();
   }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowDown' && typeof DinoGame !== 'undefined' && DinoGame.isOpen()) DinoGame.setDuck(false);
 });
 
 /* ============================================================
@@ -2924,21 +2954,6 @@ const DINO = (() => {
   let curX = -999, curY = -999;   // Mauszeiger im Canvas (Tiere reagieren)
   let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [], bursts = [];
   let hiM = null, gx = 0, meteor = null, flash = 0, strobe = 0, shake = 0, shock = [];
-  let playMode = false, hero = null, obs = [], nextObs = 0, gameFlash = 0;  // Dino-Minigame (Leertaste)
-  function startPlay() {
-    playMode = true; running = true; if (!started) DINO.start();
-    hero = { y: 0, vy: 0, ft: 0, frame: 0 }; obs = []; nextObs = performance.now() + 1000; animals = [];
-    toast('🦖 Dino-Spiel: Leertaste/Tippen = springen · Esc = beenden');
-  }
-  function heroJump() { if (hero && hero.y <= 0.6) hero.vy = 150; }
-  function drawHero(x, base, frame) {
-    const sp = SPRITES[0], p = 2, top = base - sp.length * p;
-    ctx.fillStyle = INK;
-    for (let r = 0; r < sp.length; r++) for (let c = 0; c < sp[r].length; c++) {
-      const ch = sp[r][c];
-      if (ch === '#' || (ch === 'a' && frame === 0) || (ch === 'b' && frame === 1)) R(x + c * p, top + r * p, p, p);
-    }
-  }
   let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
@@ -3206,7 +3221,7 @@ const DINO = (() => {
     updatePalette();
     if (running) {
       gx += 16 * dt;
-      if (!playMode && ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
+      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
       if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 1600 + Math.random() * 2600; } // dichter bewachsen
       if (ts > nextCloud) { if (clouds.length < 4) spawnCloud(w + 10); nextCloud = ts + 9000 + Math.random() * 9000; }
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
@@ -3230,21 +3245,6 @@ const DINO = (() => {
         const fr = flee ? 0.12 : 0.22;
         if (a.ft > fr) { a.ft = 0; a.frame = 1 - a.frame; }
       });
-      // Dino-Minigame: Hero-Physik, Hindernisse, Kollision
-      if (playMode && hero) {
-        const G = 700;
-        hero.y += hero.vy * dt; hero.vy -= G * dt;
-        if (hero.y < 0) { hero.y = 0; hero.vy = 0; }
-        hero.ft += dt; if (hero.ft > 0.12) { hero.ft = 0; hero.frame = 1 - hero.frame; }
-        if (ts > nextObs) { obs.push({ x: w + 8, hh: 7 + (Math.random() * 8 | 0), kind: Math.random() < 0.6 ? 'cactus' : 'rock' }); nextObs = ts + 950 + Math.random() * 1500; }
-        obs.forEach(o => o.x -= 72 * dt);
-        obs = obs.filter(o => o.x > -16);
-        const hx = 16, hw = 9 * 2;
-        for (const o of obs) {
-          if (o.x < hx + hw - 3 && o.x + 5 > hx + 3 && hero.y < o.hh - 1) { gameFlash = 0.6; obs = []; nextObs = ts + 1100; break; }
-        }
-        if (gameFlash > 0) gameFlash = Math.max(0, gameFlash - dt * 2);
-      }
       // Meteor kommt NUR manuell (10 Klicks ins Minispiel), nicht mehr von selbst
       if (meteor) {
         meteor.t += dt / meteor.dur;
@@ -3279,14 +3279,6 @@ const DINO = (() => {
     drawGround(w, groundY);
     plants.forEach(o => drawPlant(o, groundY));
     animals.forEach(a => drawAnimal(a, groundY));
-    if (playMode && hero) {
-      ctx.fillStyle = INK2;
-      obs.forEach(o => {
-        if (o.kind === 'cactus') { R(o.x, groundY - o.hh, 3, o.hh); R(o.x - 2, groundY - o.hh * 0.6, 2, 2); R(o.x + 3, groundY - o.hh * 0.7, 2, 2); }
-        else { R(o.x - 1, groundY - o.hh, 6, o.hh); }
-      });
-      drawHero(16, groundY - hero.y, hero.frame);
-    }
     if (meteor) {
       const [mxf, myf] = meteorPos(groundY);
       const mx = Math.round(mxf), my = Math.round(myf);
@@ -3319,7 +3311,6 @@ const DINO = (() => {
       ctx.fillRect(0, 0, w, h);
       ctx.globalAlpha = 1;
     }
-    if (gameFlash > 0) { ctx.globalAlpha = gameFlash * 0.55; ctx.fillStyle = '#ff3b30'; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1; }
   }
   // Mauszeiger verfolgen, damit Tiere flüchten können
   cv.addEventListener('mousemove', e => {
@@ -3332,7 +3323,6 @@ const DINO = (() => {
   function animalWidth(a) { return a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px; }
   let clickCount = 0, lastClickTs = 0; // Easter-Egg: 5 Klicks -> UFO, 10 -> Meteor (Zähler nur 5s gültig)
   cv.addEventListener('click', e => {
-    if (playMode) { heroJump(); return; }   // im Spiel = springen
     const rect = cv.getBoundingClientRect();
     const cx = (e.clientX - rect.left) * (cv.width / rect.width);
     const cy = (e.clientY - rect.top) * (cv.height / rect.height);
@@ -3373,11 +3363,152 @@ const DINO = (() => {
     resume() { running = true; spawnAnimal(true); },
     pause() { running = false; },
     running: () => running,
-    jump() { if (!playMode) startPlay(); else heroJump(); },  // Leertaste: starten bzw. springen
-    stopPlay() { playMode = false; hero = null; obs = []; },
-    isPlaying: () => playMode,
   };
 })();
+
+/* ============================================================
+   DINO-SPIEL — eigenständiges Chrome-Dino-Spiel (Leertaste)
+   ============================================================ */
+const DinoGame = (() => {
+  const overlay = document.getElementById('dinoGame');
+  const cv = document.getElementById('dinoGameCv');
+  const g = cv.getContext('2d');
+  const W = 660, H = 180, GY = H - 26;     // interne Auflösung; CSS skaliert auf Box-Breite
+  cv.width = W; cv.height = H;
+  const GRAV = 2600, JUMP = 660;
+  let raf = null, last = 0, running = false, over = false, started = false;
+  let dino, obs, clouds, speed, dist, nextSpawn, high = 0, gx = 0;
+  const dark = () => document.documentElement.dataset.theme === 'dark';
+  const INK = () => dark() ? '#e7e9ee' : '#454545';
+  const DIM = () => dark() ? '#4a5260' : '#cfd4da';
+  function reset() {
+    dino = { x: 56, dy: 0, vy: 0, duck: false, ft: 0, frame: 0 };
+    obs = []; clouds = [{ x: 220, y: 34 }, { x: 500, y: 56 }]; speed = 320; dist = 0; nextSpawn = 480; over = false; gx = 0;
+  }
+  function start() {
+    overlay.classList.add('open'); started = true;
+    reset(); last = performance.now(); running = true;
+    if (!raf) raf = requestAnimationFrame(loop);
+  }
+  function close() {
+    overlay.classList.remove('open'); running = false; started = false;
+    if (raf) cancelAnimationFrame(raf); raf = null;
+  }
+  function jump() {
+    if (!started) { start(); return; }
+    if (over) { reset(); return; }
+    if (dino.dy <= 0.5) dino.vy = JUMP;
+  }
+  function setDuck(on) { if (dino) dino.duck = !!on; }
+  function isOpen() { return started; }
+  function spawn() {
+    if (dist > 800 && Math.random() < 0.3) {
+      const ys = [GY - 64, GY - 42, GY - 24];
+      obs.push({ type: 'bird', x: W + 24, y: ys[(Math.random() * ys.length) | 0], ft: 0, frame: 0 });
+    } else {
+      const n = 1 + (Math.random() * 3 | 0);
+      obs.push({ type: 'cactus', x: W + 24, n, h: 26 + (Math.random() * 16 | 0) });
+    }
+    nextSpawn = dist + speed * (0.7 + Math.random() * 0.7);   // Lücke skaliert mit Tempo (faire Zeit-Lücke)
+  }
+  function drawDino() {
+    const x = dino.x, feet = GY - dino.dy, c = INK();
+    g.fillStyle = c;
+    if (dino.duck && dino.dy <= 0.5) {                        // ducken
+      g.fillRect(x - 6, feet - 16, 30, 12);                   // Körper
+      g.fillRect(x + 22, feet - 18, 20, 13);                  // Kopf
+      g.fillStyle = dark() ? '#1e2128' : '#fff'; g.fillRect(x + 36, feet - 14, 3, 3);
+      g.fillStyle = c;
+      g.fillRect(x - 2, feet - 4, 6, 4); g.fillRect(x + 12 + (dino.frame ? 3 : 0), feet - 4, 6, 4);
+      return;
+    }
+    g.fillRect(x - 4, feet - 26, 8, 6);                       // Schwanzspitze
+    g.fillRect(x - 1, feet - 30, 9, 8);
+    g.fillRect(x + 4, feet - 34, 18, 26);                     // Körper
+    g.fillRect(x + 16, feet - 44, 20, 16);                    // Kopf
+    g.fillRect(x + 14, feet - 40, 6, 10);                     // Hals
+    g.fillRect(x + 16, feet - 30, 11, 3);                     // Kiefer
+    g.fillStyle = dark() ? '#1e2128' : '#fff'; g.fillRect(x + 30, feet - 40, 3, 3); // Auge
+    g.fillStyle = c;
+    g.fillRect(x + 14, feet - 22, 6, 3);                      // Ärmchen
+    if (dino.dy > 0.5) { g.fillRect(x + 5, feet - 9, 6, 9); g.fillRect(x + 16, feet - 9, 6, 9); } // Sprung: Beine an
+    else if (dino.frame === 0) { g.fillRect(x + 5, feet - 11, 6, 11); g.fillRect(x + 16, feet - 7, 6, 7); }
+    else { g.fillRect(x + 5, feet - 7, 6, 7); g.fillRect(x + 16, feet - 11, 6, 11); }
+  }
+  function drawObs(o) {
+    g.fillStyle = INK();
+    if (o.type === 'cactus') {
+      for (let i = 0; i < o.n; i++) {
+        const cx = o.x + i * 9, hh = o.h - (i % 2) * 5;
+        g.fillRect(cx, GY - hh, 5, hh);                       // Stamm
+        g.fillRect(cx - 3, GY - hh * 0.7, 3, 2); g.fillRect(cx - 3, GY - hh * 0.7, 2, hh * 0.4); // linker Arm
+        g.fillRect(cx + 5, GY - hh * 0.6, 3, 2); g.fillRect(cx + 6, GY - hh * 0.6, 2, hh * 0.35); // rechter Arm
+      }
+    } else { // bird
+      const yy = o.y;
+      g.fillRect(o.x + 4, yy + 2, 12, 5);                     // Körper
+      g.fillRect(o.x + 14, yy, 6, 4);                         // Kopf
+      if (o.frame) { g.fillRect(o.x, yy - 4, 8, 4); }         // Flügel oben
+      else { g.fillRect(o.x, yy + 6, 8, 4); }                 // Flügel unten
+    }
+  }
+  function obsBox(o) {
+    if (o.type === 'cactus') return { l: o.x, r: o.x + o.n * 9, t: GY - o.h, b: GY };
+    return { l: o.x + 2, r: o.x + 20, t: o.y - 2, b: o.y + 8 };
+  }
+  function dinoBox() {
+    const feet = GY - dino.dy, duck = dino.duck && dino.dy <= 0.5;
+    return { l: dino.x + 2, r: dino.x + (duck ? 40 : 34), t: duck ? feet - 17 : feet - 42, b: feet - 1 };
+  }
+  function overlapsAABB(a, b) { return a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t; }
+  function loop(ts) {
+    raf = requestAnimationFrame(loop);
+    const dt = Math.min((ts - last) / 1000, 0.05) || 0; last = ts;
+    g.clearRect(0, 0, W, H);
+    // Wolken
+    g.fillStyle = DIM();
+    clouds.forEach(c => { if (running && !over) c.x -= speed * 0.22 * dt; g.fillRect(c.x, c.y, 24, 4); g.fillRect(c.x + 5, c.y - 3, 13, 3); });
+    clouds = clouds.filter(c => c.x > -30);
+    if (clouds.length < 2 && Math.random() < 0.012) clouds.push({ x: W + 20, y: 18 + Math.random() * 50 });
+    // Update
+    if (running && !over) {
+      speed = Math.min(660, speed + 14 * dt);
+      dist += speed * dt; gx += speed * dt;
+      dino.vy -= GRAV * dt; dino.dy += dino.vy * dt;
+      if (dino.dy < 0) { dino.dy = 0; dino.vy = 0; }
+      if (dino.dy <= 0.5 && !dino.duck) { dino.ft += dt; if (dino.ft > 0.085) { dino.ft = 0; dino.frame = 1 - dino.frame; } }
+      if (dist > nextSpawn) spawn();
+      obs.forEach(o => { o.x -= speed * dt; if (o.type === 'bird') { o.ft += dt; if (o.ft > 0.18) { o.ft = 0; o.frame = 1 - o.frame; } } });
+      obs = obs.filter(o => o.x > -40);
+      const db = dinoBox();
+      for (const o of obs) { if (overlapsAABB(db, obsBox(o))) { over = true; high = Math.max(high, dist / 10 | 0); break; } }
+    }
+    // Boden
+    g.fillStyle = INK(); g.fillRect(0, GY + 1, W, 2);
+    for (let x = 0; x < W; x += 7) { const wx = Math.floor(x + gx); if ((Math.sin(wx * 0.7) > 0.8)) g.fillRect(x, GY + 5, 2, 1); }
+    // Spielfiguren
+    obs.forEach(drawObs);
+    drawDino();
+    // Score
+    g.fillStyle = INK(); g.font = 'bold 13px monospace'; g.textAlign = 'right';
+    g.fillText('HI ' + String(high).padStart(5, '0') + '   ' + String(dist / 10 | 0).padStart(5, '0'), W - 10, 18);
+    g.textAlign = 'left';
+    if (over) {
+      g.textAlign = 'center'; g.font = 'bold 22px monospace';
+      g.fillText('GAME OVER', W / 2, H / 2 - 4);
+      g.font = 'bold 12px monospace'; g.fillStyle = DIM() === '#4a5260' ? '#aab' : '#888';
+      g.fillStyle = INK();
+      g.fillText('Leertaste / Tippen = neu', W / 2, H / 2 + 16);
+      g.textAlign = 'left';
+    }
+  }
+  // Steuerung im Spiel
+  cv.addEventListener('pointerdown', () => jump());
+  document.getElementById('dinoGameClose').onclick = close;
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
+  return { start, close, jump, setDuck, isOpen };
+})();
+
 function applyGimmick() {
   const on = state.settings.dino !== false;
   document.getElementById('dinoWrap').hidden = !on;
