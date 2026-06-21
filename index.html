@@ -124,6 +124,10 @@ body.viewer .card{cursor:default}
   color:var(--text-weak); padding:2px 4px 8px;
 }
 .col-count{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:0 8px; font-size:11px; color:var(--text)}
+.col-head-l{display:flex; align-items:center; gap:4px; min-width:0}
+.col-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:text}
+body.viewer .col-name{cursor:default}
+.col-name.editing{cursor:text; background:var(--card); color:var(--text); border:1px solid var(--blue); border-radius:4px; padding:0 4px; text-transform:none; letter-spacing:normal; overflow:visible}
 
 .col[data-status="Blocked / Wartend"] .col-head span:first-child{color:var(--red)}
 
@@ -454,13 +458,32 @@ tr.row.done-final td{opacity:.4}
 /* ---------- Responsiv ---------- */
 @media (max-width:1180px){ .kanban{grid-template-columns:repeat(min(var(--ncols,5),3),1fr)} }
 @media (max-width:860px){ .kanban{grid-template-columns:repeat(min(var(--ncols,5),2),1fr)} }
-@media (max-width:560px){
-  .kanban{grid-template-columns:1fr}
+/* Smartphone: Spalten horizontal swipebar statt stapeln (Kanban-Überblick bleibt) */
+@media (max-width:600px){
+  header{padding:8px 12px; gap:8px}
+  header h1{font-size:15px}
+  .toolbar{padding:8px 12px 0}
+  .kanban{
+    display:flex; overflow-x:auto; gap:10px; padding:10px 12px 20px;
+    scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+  }
+  .kanban > .col{flex:0 0 84%; min-width:240px; scroll-snap-align:start}
   .grid2{grid-template-columns:1fr}
   .card select.quick-status{display:block}
-  header h1{font-size:15px}
+  .modal-foot{flex-wrap:wrap}
+  .modal-foot .foot-left{flex-basis:100%; margin-bottom:6px}
 }
-@media (pointer:coarse){ .card select.quick-status{display:block} }
+/* Touch-Geräte: größere Tap-Flächen + Schnellstatus sichtbar */
+@media (pointer:coarse){
+  .card select.quick-status{display:block}
+  .btn, .chip, .toggle button, .csel-btn{min-height:38px}
+  .card{padding:12px 13px}
+  .col-toggle{padding:4px 6px}
+}
+/* Modal passt sich der Höhe an und scrollt intern (auch auf kleinen Screens) */
+.modal{display:flex; flex-direction:column; max-height:92vh}
+.modal-head,.modal-foot{flex:0 0 auto}
+.modal-body{overflow:auto}
 @media (prefers-reduced-motion:reduce){ .card{transition:none} .card:hover{transform:none} }
 </style>
 </head>
@@ -1039,6 +1062,44 @@ function isHidden(t) {
   if (!days || t.status !== DONE[DONE.length - 1] || !t.completedAt) return false;
   return (new Date(todayStr()) - new Date(t.completedAt)) / 86400000 > days;
 }
+/* Spalte direkt am Board umbenennen (Doppelklick auf den Spaltennamen) */
+function startColRename(el, oldName) {
+  if (boardReadOnly) return;
+  el.contentEditable = 'true';
+  el.classList.add('editing');
+  const r = document.createRange(); r.selectNodeContents(el);
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  el.focus();
+  let finished = false;
+  const finish = keep => {
+    if (finished) return; finished = true;
+    el.contentEditable = 'false'; el.classList.remove('editing');
+    const newName = (el.textContent || '').trim().slice(0, 30);
+    if (keep && newName && newName !== oldName) renameStatus(oldName, newName);
+    else render(); // verwerfen -> Originalname zurück
+  };
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  el.addEventListener('blur', () => finish(true));
+}
+function renameStatus(oldName, newName) {
+  if (!requireEdit()) return;
+  if (STATUSES.includes(newName)) { toast('Name bereits vergeben'); render(); return; }
+  const idx = STATUSES.indexOf(oldName);
+  if (idx < 0) { render(); return; }
+  const st = STATUSES.slice(); st[idx] = newName;
+  state.settings.statuses = st;
+  if (Array.isArray(state.settings.doneStatuses))
+    state.settings.doneStatuses = state.settings.doneStatuses.map(s => s === oldName ? newName : s);
+  if (state.settings.collapsed && oldName in state.settings.collapsed) {
+    state.settings.collapsed[newName] = state.settings.collapsed[oldName];
+    delete state.settings.collapsed[oldName];
+  }
+  state.tickets.forEach(t => { if (t.status === oldName) t.status = newName; });
+  setColumnsFromSettings(); save(); applyBoardConfig(); render();
+}
 function setStatus(t, status) {
   const wasDone = DONE.includes(t.status);
   t.status = status;
@@ -1071,10 +1132,18 @@ function render() {
   if (view === 'kanban') renderKanban(); else renderList();
 }
 
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;          // Mo=1 … So=7
+  t.setUTCDate(t.getUTCDate() + 4 - day);  // auf Donnerstag dieser Woche
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
+}
 function tickClock() {
   const n = new Date();
   document.getElementById('todayDate').textContent =
     n.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) +
+    ' · KW ' + isoWeek(n) +
     ' · ' + n.toLocaleTimeString('de-DE');
 }
 function renderHeader() {
@@ -1110,9 +1179,10 @@ function renderKanban() {
       : a.deadline.localeCompare(b.deadline) || (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]));
     // Bei aktiver Suche alle Spalten aufklappen, damit Treffer sichtbar sind
     const collapsed = !kanbanSearch && COLLAPSIBLE.includes(status) && !!(state.settings.collapsed || {})[status];
-    col.innerHTML = '<div class="col-head"><span>' +
+    col.innerHTML = '<div class="col-head"><span class="col-head-l">' +
       (COLLAPSIBLE.includes(status) ? '<button class="col-toggle" title="Ein-/ausklappen">' + (collapsed ? '▸' : '▾') + '</button>' : '') +
-      esc(status) + '</span><span class="col-count">' + items.length + '</span></div>';
+      '<span class="col-name"' + (boardReadOnly ? '' : ' title="Doppelklick zum Umbenennen"') + '>' + esc(status) + '</span>' +
+      '</span><span class="col-count">' + items.length + '</span></div>';
     const tg = col.querySelector('.col-toggle');
     if (tg) tg.onclick = e => {
       e.stopPropagation();
@@ -1120,6 +1190,8 @@ function renderKanban() {
       state.settings.collapsed[status] = !collapsed;
       save(); render();
     };
+    const nameEl = col.querySelector('.col-name');
+    if (nameEl && !boardReadOnly) nameEl.addEventListener('dblclick', () => startColRename(nameEl, status));
     // Mini-Auswertung in der letzten Done-Spalte: Anzahl + durchschnittliche Laufzeit
     if (status === DONE[DONE.length - 1]) {
       const doneAll = state.tickets.filter(t => t.status === status && t.createdAt && t.completedAt);
@@ -2734,7 +2806,12 @@ function toast(msg) {
 /* Keyboard: N = neues Ticket, Esc = Modal schließen */
 document.addEventListener('keydown', e => {
   const tag = document.activeElement.tagName;
+  const ae = document.activeElement;
+  const typing = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(tag) || (ae && ae.isContentEditable);
+  const anyOverlay = overlay.classList.contains('open') || settingsOverlay.classList.contains('open') ||
+    document.getElementById('loginOverlay').classList.contains('open');
   if (e.key === 'Escape') {
+    if (typeof DINO !== 'undefined' && DINO.isPlaying() && !anyOverlay) { DINO.stopPlay(); return; }
     const lb = document.getElementById('lightbox');
     if (lb.classList.contains('open')) { lb.classList.remove('open'); return; }
     if (confirmOverlay.classList.contains('open')) { confirmOverlay.classList.remove('open'); return; } // weiter bearbeiten
@@ -2743,10 +2820,12 @@ document.addEventListener('keydown', e => {
     else if (settingsOverlay.classList.contains('open')) closeSettings();
     return;
   }
-  if ((e.key === 'n' || e.key === 'N') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)
-      && !overlay.classList.contains('open') && !settingsOverlay.classList.contains('open')
-      && !document.getElementById('loginOverlay').classList.contains('open')) {
+  if ((e.key === 'n' || e.key === 'N') && !typing && !anyOverlay) {
     e.preventDefault(); openModal(null);
+  }
+  // Leertaste: Dino-Minigame starten bzw. springen (T-Rex läuft, du hüpfst über Hindernisse)
+  if ((e.key === ' ' || e.code === 'Space') && !typing && !anyOverlay && state.settings.dino !== false) {
+    e.preventDefault(); if (typeof DINO !== 'undefined') DINO.jump();
   }
 });
 
@@ -2804,6 +2883,21 @@ const DINO = (() => {
   let curX = -999, curY = -999;   // Mauszeiger im Canvas (Tiere reagieren)
   let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [], bursts = [];
   let hiM = null, gx = 0, meteor = null, flash = 0, strobe = 0, shake = 0, shock = [];
+  let playMode = false, hero = null, obs = [], nextObs = 0, gameFlash = 0;  // Dino-Minigame (Leertaste)
+  function startPlay() {
+    playMode = true; running = true; if (!started) DINO.start();
+    hero = { y: 0, vy: 0, ft: 0, frame: 0 }; obs = []; nextObs = performance.now() + 1000; animals = [];
+    toast('🦖 Dino-Spiel: Leertaste/Tippen = springen · Esc = beenden');
+  }
+  function heroJump() { if (hero && hero.y <= 0.6) hero.vy = 150; }
+  function drawHero(x, base, frame) {
+    const sp = SPRITES[0], p = 2, top = base - sp.length * p;
+    ctx.fillStyle = INK;
+    for (let r = 0; r < sp.length; r++) for (let c = 0; c < sp[r].length; c++) {
+      const ch = sp[r][c];
+      if (ch === '#' || (ch === 'a' && frame === 0) || (ch === 'b' && frame === 1)) R(x + c * p, top + r * p, p, p);
+    }
+  }
   let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
@@ -3071,7 +3165,7 @@ const DINO = (() => {
     updatePalette();
     if (running) {
       gx += 16 * dt;
-      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
+      if (!playMode && ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
       if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 1600 + Math.random() * 2600; } // dichter bewachsen
       if (ts > nextCloud) { if (clouds.length < 4) spawnCloud(w + 10); nextCloud = ts + 9000 + Math.random() * 9000; }
       if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
@@ -3095,6 +3189,21 @@ const DINO = (() => {
         const fr = flee ? 0.12 : 0.22;
         if (a.ft > fr) { a.ft = 0; a.frame = 1 - a.frame; }
       });
+      // Dino-Minigame: Hero-Physik, Hindernisse, Kollision
+      if (playMode && hero) {
+        const G = 700;
+        hero.y += hero.vy * dt; hero.vy -= G * dt;
+        if (hero.y < 0) { hero.y = 0; hero.vy = 0; }
+        hero.ft += dt; if (hero.ft > 0.12) { hero.ft = 0; hero.frame = 1 - hero.frame; }
+        if (ts > nextObs) { obs.push({ x: w + 8, hh: 7 + (Math.random() * 8 | 0), kind: Math.random() < 0.6 ? 'cactus' : 'rock' }); nextObs = ts + 950 + Math.random() * 1500; }
+        obs.forEach(o => o.x -= 72 * dt);
+        obs = obs.filter(o => o.x > -16);
+        const hx = 16, hw = 9 * 2;
+        for (const o of obs) {
+          if (o.x < hx + hw - 3 && o.x + 5 > hx + 3 && hero.y < o.hh - 1) { gameFlash = 0.6; obs = []; nextObs = ts + 1100; break; }
+        }
+        if (gameFlash > 0) gameFlash = Math.max(0, gameFlash - dt * 2);
+      }
       // Meteor kommt NUR manuell (10 Klicks ins Minispiel), nicht mehr von selbst
       if (meteor) {
         meteor.t += dt / meteor.dur;
@@ -3129,6 +3238,14 @@ const DINO = (() => {
     drawGround(w, groundY);
     plants.forEach(o => drawPlant(o, groundY));
     animals.forEach(a => drawAnimal(a, groundY));
+    if (playMode && hero) {
+      ctx.fillStyle = INK2;
+      obs.forEach(o => {
+        if (o.kind === 'cactus') { R(o.x, groundY - o.hh, 3, o.hh); R(o.x - 2, groundY - o.hh * 0.6, 2, 2); R(o.x + 3, groundY - o.hh * 0.7, 2, 2); }
+        else { R(o.x - 1, groundY - o.hh, 6, o.hh); }
+      });
+      drawHero(16, groundY - hero.y, hero.frame);
+    }
     if (meteor) {
       const [mxf, myf] = meteorPos(groundY);
       const mx = Math.round(mxf), my = Math.round(myf);
@@ -3161,6 +3278,7 @@ const DINO = (() => {
       ctx.fillRect(0, 0, w, h);
       ctx.globalAlpha = 1;
     }
+    if (gameFlash > 0) { ctx.globalAlpha = gameFlash * 0.55; ctx.fillStyle = '#ff3b30'; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1; }
   }
   // Mauszeiger verfolgen, damit Tiere flüchten können
   cv.addEventListener('mousemove', e => {
@@ -3173,6 +3291,7 @@ const DINO = (() => {
   function animalWidth(a) { return a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px; }
   let clickCount = 0, lastClickTs = 0; // Easter-Egg: 5 Klicks -> UFO, 10 -> Meteor (Zähler nur 5s gültig)
   cv.addEventListener('click', e => {
+    if (playMode) { heroJump(); return; }   // im Spiel = springen
     const rect = cv.getBoundingClientRect();
     const cx = (e.clientX - rect.left) * (cv.width / rect.width);
     const cy = (e.clientY - rect.top) * (cv.height / rect.height);
@@ -3213,6 +3332,9 @@ const DINO = (() => {
     resume() { running = true; spawnAnimal(true); },
     pause() { running = false; },
     running: () => running,
+    jump() { if (!playMode) startPlay(); else heroJump(); },  // Leertaste: starten bzw. springen
+    stopPlay() { playMode = false; hero = null; obs = []; },
+    isPlaying: () => playMode,
   };
 })();
 function applyGimmick() {
