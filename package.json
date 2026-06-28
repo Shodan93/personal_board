@@ -1,0 +1,8 @@
+{
+  "name": "orbit-board",
+  "private": true,
+  "description": "Orbit — Single-File Kanban-Board (Supabase + Cloudflare Worker)",
+  "scripts": {
+    "test": "node tests/test-dom.mjs && node tests/test-supabase.mjs && node tests/test-worker.mjs"
+  }
+}
