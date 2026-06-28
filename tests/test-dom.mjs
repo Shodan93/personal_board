@@ -118,6 +118,14 @@ try {
   for (let i = 0; i < 120; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
   ok(true, 'Urzeit-Szene: 120 weitere Frames (Pflanzen/Berge/Vulkan/Boden) ohne Fehler');
 
+  // Ozean-Szene: umschalten + Frames pumpen (Wellen/Sonne/Möwen/Delfin) ohne Fehler
+  vm.runInContext('DINO.setMode("ocean")', context);
+  ok(vm.runInContext('DINO.getMode()', context) === 'ocean', 'Szene auf „Ozean" umgeschaltet');
+  for (let i = 0; i < 120; i++) { perf += 33; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
+  ok(true, 'Ozean-Szene: 120 Frames (Wellen/Sonnenuntergang/Möwen/Delfin) ohne Fehler');
+  ok(vm.runInContext('DINO.cycle(1)', context) === 'run', 'Szene wieder zurück auf „Urzeit" (cycle)');
+  for (let i = 0; i < 10; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
+
   // Sticky Note + Ticket-render INNERHALB des vm (Zugriff auf let-Variablen)
   const probe = vm.runInContext(`(function(){
     addNote(100,200);

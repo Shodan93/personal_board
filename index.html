@@ -510,6 +510,8 @@ tr.row.done-final td{opacity:.4}
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: auf diese Woche filtern">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
   <div id="dinoWrap">
+    <button id="dinoScenePrev" title="Vorige Szene">‹</button>
+    <button id="dinoSceneNext" title="Nächste Szene (Urzeit ⇄ Meer)">›</button>
     <button id="dinoStart" title="Neues Tier losschicken">▶</button>
     <button id="dinoPause" title="Pause">⏸</button>
     <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
@@ -925,7 +927,7 @@ function defaultSettings() {
            dino: true, tips: true, tipsAuto: true, collapsed: {},
            statuses: DEFAULT_STATUSES.slice(),
            doneStatuses: [DEFAULT_STATUSES[DEFAULT_STATUSES.length - 1]],
-           theme: 'light',
+           theme: 'light', dinoScene: 'run',
            boardTitle: 'Mein Board' };
 }
 /* Dark/Light umschalten (Einstellung liegt im Board und synchronisiert über Supabase) */
@@ -2955,6 +2957,10 @@ const DINO = (() => {
   let animals = [], plants = [], clouds = [], birds = [], farM = [], nearM = [], ufos = [], bursts = [];
   let hiM = null, gx = 0, meteor = null, flash = 0, strobe = 0, shake = 0, shock = [];
   let nextSpawn = 0, nextPlant = 0, nextCloud = 0, nextBird = 0, nextFar = 0, nextNear = 0, nextUfo = 0, nextHi = 0;
+  // Szenen-Modus: 'run' (Urzeit-Pixellauf) | 'ocean' (Sonnenuntergang am Meer)
+  const SCENES = ['run', 'ocean'];
+  let mode = 'run';
+  let waves = [], oClouds = [], gulls = [], jumper = null, splashes = [], nextGull = 0, nextJump = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -2963,7 +2969,7 @@ const DINO = (() => {
   function spawnAnimal(force) {
     if (!force && animals.length >= 5) return;
     const v = VARIANTS[(Math.random() * VARIANTS.length) | 0];
-    animals.push({ v, x: -40, speed: 16 + Math.random() * 26, ft: 0, frame: 0 });
+    animals.push({ v, x: -40, speed: 13 + Math.random() * 22, ft: 0, frame: 0 });
   }
   const spawnPlant = x => plants.push({ kind: pick(PLANTS), x, s: 1 + Math.random() });
   const spawnCloud = x => clouds.push({ x, y: 1 + Math.random() * 8, type: pick(['small', 'small', 'big', 'wisp']), s: 0.8 + Math.random() * 0.7 });
@@ -3205,11 +3211,78 @@ const DINO = (() => {
   function seedScene() {
     plants = []; farM = []; nearM = []; hiM = null;
     const w = cv.clientWidth || 300;
-    for (let i = 0; i < 6; i++) spawnPlant(Math.random() * w);
+    for (let i = 0; i < 4; i++) spawnPlant(Math.random() * w);
     spawnFar(Math.random() * w * 0.5);
     spawnFar(w * 0.5 + Math.random() * w * 0.5);
-    for (let i = 0; i < 4; i++) spawnNear(i * (w / 4) + Math.random() * 40); // mehrere Hügel, verteilt
+    for (let i = 0; i < 3; i++) spawnNear(i * (w / 3) + Math.random() * 40); // ein paar Hügel, verteilt
     spawnHi(w * 0.55 + Math.random() * w * 0.35);
+  }
+  /* ---------- Ozean-Szene (Sonnenuntergang, Wellen auf den Betrachter zu) ---------- */
+  function seedOcean() {
+    waves = []; for (let i = 0; i < 7; i++) waves.push({ z: i / 7, ph: Math.random() * Math.PI * 2 });
+    oClouds = [{ x: 0.2, y: 4, s: 1 }, { x: 0.7, y: 7, s: 0.8 }];
+    gulls = []; jumper = null; splashes = []; nextGull = nowTs + 3000; nextJump = nowTs + 4000;
+  }
+  function spawnJumper(px) {
+    if (jumper) return;
+    const w = cv.clientWidth || 300;
+    jumper = { x: px != null ? px : (0.2 + Math.random() * 0.6) * w, t: 0, dur: 0.9 + Math.random() * 0.5, dir: Math.random() < 0.5 ? 1 : -1, peak: 9 + Math.random() * 5 };
+  }
+  function oceanFrame(w, h, ts, dt) {
+    const horizon = Math.round(h * 0.46), sunX = Math.round(w * 0.5), sunR = 6;
+    // Himmel (Sonnenuntergang)
+    let sky = ctx.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, '#3a2256'); sky.addColorStop(0.55, '#c14e57'); sky.addColorStop(1, '#ff9d52');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, horizon);
+    // Sonne (volle Scheibe; Wasser deckt später die untere Hälfte ab)
+    let sg = ctx.createLinearGradient(0, horizon - sunR * 2, 0, horizon + sunR);
+    sg.addColorStop(0, '#ffe9a0'); sg.addColorStop(1, '#ff8a3c');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sunX, horizon - 1, sunR, 0, Math.PI * 2); ctx.fill();
+    // Wolken (sanft driftend, sunset-getönt)
+    if (running) oClouds.forEach(c => { c.x -= 0.012 * dt; if (c.x < -0.2) c.x = 1.15; });
+    ctx.fillStyle = 'rgba(255,200,150,.55)';
+    oClouds.forEach(c => { const x = Math.round(c.x * w), y = Math.round(c.y); R(x, y + 2, 22 * c.s, 2); R(x + 5, y, 12 * c.s, 2); });
+    // Möwen
+    if (running && ts > nextGull) { gulls.push({ x: w + 6, y: 3 + Math.random() * (horizon - 6), dir: -1, ft: 0, frame: 0, sp: 14 + Math.random() * 10 }); nextGull = ts + 7000 + Math.random() * 9000; }
+    ctx.fillStyle = '#5a3a4a';
+    gulls.forEach(b => { if (running) { b.x += b.dir * b.sp * dt; b.ft += dt; if (b.ft > 0.35) { b.ft = 0; b.frame = 1 - b.frame; } } const dy = b.frame ? 0 : 1; R(b.x - 3, b.y + dy, 3, 1); R(b.x, b.y, 1, 1); R(b.x + 1, b.y + dy, 3, 1); });
+    gulls = gulls.filter(b => b.x > -8);
+    // Wasser (Verlauf)
+    let sea = ctx.createLinearGradient(0, horizon, 0, h);
+    sea.addColorStop(0, '#e87a45'); sea.addColorStop(0.22, '#9a5f7e'); sea.addColorStop(0.6, '#3f5f86'); sea.addColorStop(1, '#243f63');
+    ctx.fillStyle = sea; ctx.fillRect(0, horizon, w, h - horizon);
+    // Sonnen-Spiegelung (glitzernder Streifen unter der Sonne, weitet sich zum Betrachter)
+    for (let y = horizon + 1; y < h; y += 1) {
+      const z = (y - horizon) / (h - horizon), bw = 2 + z * (w * 0.13);
+      if (Math.sin(y * 1.4 + ts * 0.006) > -0.1) { ctx.fillStyle = 'rgba(255,214,130,' + (0.5 - z * 0.32) + ')'; R(sunX - bw / 2, y, bw, 1); }
+    }
+    // Wellen ROLLEN AUF DEN BETRACHTER ZU (Perspektive: unten größer/schneller)
+    if (running) waves.forEach(wv => { wv.z += (0.05 + wv.z * 0.32) * dt; if (wv.z >= 1) { wv.z -= 1; wv.ph = Math.random() * Math.PI * 2; } });
+    waves.slice().sort((a, b) => a.z - b.z).forEach(wv => {
+      const z = wv.z, y = horizon + (h - horizon) * Math.pow(z, 1.7);
+      const amp = 0.4 + z * 2.3, th = 1 + Math.round(z * 2);
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.16 + z * 0.5) + ')';
+      for (let x = 0; x < w; x += 2) { const yy = y + Math.sin(x * 0.16 + wv.ph + ts * 0.002) * amp; R(x, Math.round(yy), 2, th); }
+    });
+    // Springender Fisch/Delfin
+    if (running && !jumper && ts > nextJump) { spawnJumper(); nextJump = ts + 9000 + Math.random() * 12000; }
+    if (jumper) {
+      if (running) jumper.t += dt / jumper.dur;
+      const t = jumper.t, baseY = horizon + 3;
+      const jx = Math.round(jumper.x + jumper.dir * t * 14), jy = Math.round(baseY - Math.sin(Math.min(t, 1) * Math.PI) * jumper.peak);
+      if (t <= 1) {
+        const up = t < 0.5;
+        ctx.fillStyle = '#3a4a63';
+        R(jx, jy, 5, 2); R(jx + (jumper.dir > 0 ? 4 : -1), jy + (up ? -1 : 1), 2, 2); R(jx + (jumper.dir > 0 ? -1 : 4), jy + 1, 2, 2);
+        R(jx + 1, jy - 2, 2, 2); // Rückenflosse
+      }
+      if (jumper.t >= 0.02 && jumper.t <= 0.12 || (jumper.t >= 0.9 && jumper.t <= 1)) splashes.push({ x: jumper.x + (jumper.t > 0.5 ? jumper.dir * 14 : 0), y: baseY, vx: (Math.random() - 0.5) * 1.2, vy: -(0.6 + Math.random()), life: 0.5 });
+      if (jumper.t >= 1) jumper = null;
+    }
+    if (running) splashes.forEach(s => { s.x += s.vx; s.y += s.vy; s.vy += 0.12; s.life -= dt * 2; });
+    splashes = splashes.filter(s => s.life > 0);
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    splashes.forEach(s => R(Math.round(s.x), Math.round(s.y), 1, 1));
   }
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
@@ -3219,22 +3292,23 @@ const DINO = (() => {
     const h = cv.height, groundY = h - 6;
     const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts; nowTs = ts;
     updatePalette();
+    if (mode === 'ocean') { oceanFrame(w, h, ts, dt); return; }
     if (running) {
-      gx += 16 * dt;
-      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 4000 + Math.random() * 6000; }
-      if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 1600 + Math.random() * 2600; } // dichter bewachsen
-      if (ts > nextCloud) { if (clouds.length < 4) spawnCloud(w + 10); nextCloud = ts + 9000 + Math.random() * 9000; }
-      if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 12000 + Math.random() * 16000; }
-      if (ts > nextFar) { if (farM.length < 2) spawnFar(w + 30); nextFar = ts + 18000 + Math.random() * 22000; }
-      if (ts > nextNear) { if (nearM.length < 5) spawnNear(w + 16); nextNear = ts + 4500 + Math.random() * 5000; } // viele Hügel
+      gx += 13 * dt;
+      if (ts > nextSpawn) { spawnAnimal(); nextSpawn = ts + 5500 + Math.random() * 7000; }       // etwas ruhiger
+      if (ts > nextPlant) { spawnPlant(w + 10); nextPlant = ts + 2400 + Math.random() * 3200; }   // weniger dicht
+      if (ts > nextCloud) { if (clouds.length < 3) spawnCloud(w + 10); nextCloud = ts + 12000 + Math.random() * 10000; }
+      if (ts > nextBird) { spawnBird(w + 10); nextBird = ts + 16000 + Math.random() * 18000; }
+      if (ts > nextFar) { if (farM.length < 2) spawnFar(w + 30); nextFar = ts + 20000 + Math.random() * 24000; }
+      if (ts > nextNear) { if (nearM.length < 4) spawnNear(w + 16); nextNear = ts + 6500 + Math.random() * 6000; } // weniger Hügel
       if (ts > nextHi) { spawnHi(w + 30); nextHi = ts + 6000; } // füllt nach, wenn keiner da
       if (ts > nextUfo) { if (Math.random() < 0.5) spawnUfo(); nextUfo = ts + 45000 + Math.random() * 60000; }
-      farM.forEach(m => m.x -= 3 * dt);   // Hintergrund-Ebene: langsam
-      if (hiM) hiM.x -= 3 * dt;
-      nearM.forEach(m => m.x -= 6 * dt);  // Vordergrund-Ebene: schneller
-      plants.forEach(o => o.x -= 16 * dt);
-      clouds.forEach(c => c.x -= 4 * dt);
-      birds.forEach(b => { b.x -= 28 * dt; b.ft += dt; if (b.ft > 0.25) { b.ft = 0; b.frame = 1 - b.frame; } });
+      farM.forEach(m => m.x -= 2.5 * dt);   // Hintergrund-Ebene: langsam
+      if (hiM) hiM.x -= 2.5 * dt;
+      nearM.forEach(m => m.x -= 5 * dt);    // Vordergrund-Ebene: etwas langsamer
+      plants.forEach(o => o.x -= 13 * dt);
+      clouds.forEach(c => c.x -= 3 * dt);
+      birds.forEach(b => { b.x -= 22 * dt; b.ft += dt; if (b.ft > 0.25) { b.ft = 0; b.frame = 1 - b.frame; } });
       ufos.forEach(u => u.x += u.speed * dt);
       animals.forEach(a => {
         const aw = animalWidth(a), acx = a.x + aw / 2;
@@ -3326,6 +3400,7 @@ const DINO = (() => {
     const rect = cv.getBoundingClientRect();
     const cx = (e.clientX - rect.left) * (cv.width / rect.width);
     const cy = (e.clientY - rect.top) * (cv.height / rect.height);
+    if (mode === 'ocean') { spawnJumper(cx); return; }   // Ozean: Klick = Delfin springt
     const groundY = cv.height - 6;
     for (let i = animals.length - 1; i >= 0; i--) {
       const a = animals[i], h = a.v.sp.length * a.v.px, w = animalWidth(a), top = groundY - h;
@@ -3351,18 +3426,21 @@ const DINO = (() => {
   return {
     start() {
       if (started) return;
-      started = true; lastTs = performance.now();
+      started = true; lastTs = performance.now(); nowTs = lastTs;
       nextSpawn = lastTs + 800; nextPlant = lastTs + 400; nextCloud = lastTs + 800;
       nextBird = lastTs + 6000; nextFar = lastTs + 3000; nextNear = lastTs + 1500; nextUfo = lastTs + 40000; nextHi = lastTs + 2000;
       meteor = null; flash = 0; strobe = 0; shake = 0; shock = [];
-      seedScene();
+      seedScene(); seedOcean();
       spawnCloud(30 + Math.random() * 200);
       rafId = requestAnimationFrame(frame);
     },
     stop() { started = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; },
-    resume() { running = true; spawnAnimal(true); },
+    resume() { running = true; if (mode === 'run') spawnAnimal(true); },
     pause() { running = false; },
     running: () => running,
+    setMode(m) { if (!SCENES.includes(m)) return; mode = m; nowTs = performance.now(); if (m === 'ocean') seedOcean(); else seedScene(); },
+    cycle(dir) { const i = (SCENES.indexOf(mode) + (dir || 1) + SCENES.length) % SCENES.length; this.setMode(SCENES[i]); return mode; },
+    getMode: () => mode,
   };
 })();
 
@@ -3512,7 +3590,7 @@ const DinoGame = (() => {
 function applyGimmick() {
   const on = state.settings.dino !== false;
   document.getElementById('dinoWrap').hidden = !on;
-  if (on) DINO.start(); else DINO.stop();
+  if (on) { DINO.start(); if (state.settings.dinoScene) DINO.setMode(state.settings.dinoScene); } else DINO.stop();
 }
 // Quick-Toggle (Auge): blendet nur die Animation aus, Buttons bleiben
 let dinoHidden = false;
@@ -3524,6 +3602,14 @@ function toggleDinoEye() {
   if (dinoHidden) DINO.pause(); else DINO.resume();
 }
 document.getElementById('dinoEye').onclick = toggleDinoEye;
+function switchScene(dir) {
+  if (dinoHidden) toggleDinoEye();
+  const m = DINO.cycle(dir); DINO.resume();
+  state.settings.dinoScene = m; save();
+  toast(m === 'ocean' ? '🌅 Szene: Sonnenuntergang am Meer' : '🦖 Szene: Urzeit');
+}
+document.getElementById('dinoScenePrev').onclick = () => switchScene(-1);
+document.getElementById('dinoSceneNext').onclick = () => switchScene(1);
 
 /* ============================================================
    OFFICE-TIPPS — Gesundheit, Haltung, Motivation, Humor
