@@ -117,7 +117,9 @@ body.viewer .card{cursor:default}
   padding:10px 16px 24px; align-items:start;
 }
 .col{background:var(--col-bg); border-radius:var(--radius); padding:10px; min-height:140px}
-.col.dragover{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
+/* Sobald ein Ticket angehoben wird, leuchten ALLE Ablage-Spalten blau (nicht erst beim Hovern) */
+.col.drop-active{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
+.col.dragover{outline:2px solid var(--blue); outline-offset:-2px; background:var(--blue-bg); box-shadow:inset 0 0 0 9999px rgba(60,120,240,.08)}
 .col-head{
   display:flex; align-items:center; justify-content:space-between;
   font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
@@ -186,10 +188,12 @@ body.viewer .col-name:hover{text-decoration:none}
 .card-menu-pop button:hover{background:var(--blue-bg)}
 
 /* Pixel-Lauf (Gimmick) in der Kopfzeile */
-#dinoWrap{display:flex; align-items:flex-end; gap:1px; flex:1 1 200px; min-width:150px; height:34px}
-#dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:11px; padding:0 3px 2px; cursor:pointer}
+#dinoWrap{display:flex; align-items:stretch; gap:4px; flex:1 1 200px; min-width:150px; height:34px; overflow:hidden}
+#dinoControls{display:flex; flex-direction:column; justify-content:center; gap:1px; flex:0 0 auto}
+#dinoControls .dino-row{display:flex; gap:1px; justify-content:center}
+#dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:11px; line-height:1.1; padding:0 3px; cursor:pointer}
 #dinoWrap button:hover{color:var(--blue)}
-#dinoCv{flex:1; width:100%; height:34px}
+#dinoCv{flex:1 1 auto; min-width:0; height:34px}
 
 /* Astronaut */
 #astro{position:fixed; right:18px; bottom:18px; z-index:90; width:88px; cursor:pointer; display:none}
@@ -388,9 +392,6 @@ tr.row.done-final td{opacity:.4}
 .cat-row input[type=text]{flex:1}
 .cat-row input[type=color]{width:34px; height:28px; padding:1px; border:1px solid var(--border); border-radius:4px; background:var(--card); cursor:pointer}
 .cat-row .btn{padding:3px 8px}
-/* Server-Verbindungs-Popup (an den Status-Punkt in der Kopfzeile angedockt) */
-#connPopup{position:fixed; top:46px; right:12px; z-index:120; background:var(--card); border:1px solid var(--border);
-  border-radius:10px; padding:12px 14px; box-shadow:0 8px 28px rgba(0,0,0,.18); max-width:280px}
 /* Undo/Redo-Tasten in der Taskleiste (mit sichtbarem Tastenkürzel) */
 .undo-btn,.redo-btn{font-variant-numeric:tabular-nums}
 .undo-btn:disabled,.redo-btn:disabled{opacity:.4; cursor:default}
@@ -509,23 +510,27 @@ tr.row.done-final td{opacity:.4}
   <select id="boardSwitch" title="Board wechseln" hidden
     style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
   <span class="header-meta" id="todayDate"></span>
-  <button id="connDot" title="Server-Verbindung" aria-label="Server-Verbindung"
-    style="border:none;background:none;cursor:pointer;padding:0 2px;font-size:13px;line-height:1;color:var(--text-weak)">●</button>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: auf diese Woche filtern">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
   <div id="dinoWrap">
-    <button id="dinoScenePrev" title="Vorige Szene">‹</button>
-    <button id="dinoSceneNext" title="Nächste Szene (Urzeit ⇄ Weltall)">›</button>
-    <button id="dinoStart" title="Neues Tier losschicken">▶</button>
-    <button id="dinoPause" title="Pause">⏸</button>
-    <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
+    <div id="dinoControls">
+      <div class="dino-row">
+        <button id="dinoScenePrev" title="Vorige Szene">‹</button>
+        <button id="dinoSceneNext" title="Nächste Szene (Urzeit ⇄ Weltall)">›</button>
+      </div>
+      <div class="dino-row">
+        <button id="dinoStart" title="Neues Tier losschicken">▶</button>
+        <button id="dinoPause" title="Pause">⏸</button>
+        <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
+      </div>
+    </div>
     <canvas id="dinoCv" height="34"></canvas>
   </div>
   <div id="globalCat" title="Nach Kategorie filtern"></div>
   <button class="btn" id="btnFocus" title="Claude fragen: Worum soll ich mich jetzt kümmern?">🚀 Fokus</button>
-  <button class="btn" id="btnReportAll" title="Claude fasst alle ERLEDIGTEN Tickets zusammen (letzte Säule)">🗂 Report: Erledigtes</button>
+  <button class="btn" id="btnReportAll" title="Claude fasst alle ERLEDIGTEN Tickets zusammen (letzte Säule)">🗂 Report</button>
   <div class="toggle">
     <button id="btnKanban" class="active">Kanban</button>
     <button id="btnList">Liste</button>
@@ -534,12 +539,6 @@ tr.row.done-final td{opacity:.4}
   <button class="btn btn-icon" id="btnTheme" title="Dark Mode umschalten">🌙</button>
   <button class="btn btn-icon" id="btnSettings" title="Einstellungen">⚙</button>
 </header>
-
-<!-- Server-Verbindungs-Popup (Klick auf den Status-Punkt in der Kopfzeile) -->
-<div id="connPopup" hidden>
-  <div id="connPopupBody"></div>
-  <button class="btn" id="connPopupLogin" hidden style="margin-top:8px">🔑 Anmelden</button>
-</div>
 
 <div class="banner" id="exportBanner" hidden>
   <span>⚠ Letzter Export liegt länger zurück. Lege bei Gelegenheit ein JSON-Backup an.</span>
@@ -559,15 +558,14 @@ tr.row.done-final td{opacity:.4}
 
 <!-- Kanban-Toolbar -->
 <div class="toolbar" id="kanbanBar">
-  <span class="lbl">Sortierung:</span>
-  <select id="kanbanSort">
+  <button class="chip undo-btn" title="Rückgängig" disabled>↶ Strg+Z</button>
+  <button class="chip redo-btn" title="Wiederholen" disabled>↷ Strg+⇧+Z</button>
+  <select id="kanbanSort" title="Sortierung">
     <option value="deadline">Fälligkeit</option>
     <option value="prio">Priorität</option>
   </select>
   <input type="search" id="kanbanSearch" placeholder="Tickets durchsuchen…" title="Filtert die Karten nach Titel, Beschreibung und Notiz">
   <span class="spacer"></span>
-  <button class="chip undo-btn" title="Rückgängig" disabled>↶ Strg+Z</button>
-  <button class="chip redo-btn" title="Wiederholen" disabled>↷ Strg+⇧+Z</button>
   <span class="lbl" id="kanbanStats"></span>
   <button class="chip" id="chipShowHidden" title="Auch automatisch ausgeblendete erledigte Tickets zeigen">Ausgeblendete anzeigen</button>
 </div>
@@ -1195,7 +1193,7 @@ function tickClock() {
   document.getElementById('todayDate').textContent =
     'KW ' + isoWeek(n) + ' · ' +
     n.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) +
-    ' · ' + n.toLocaleTimeString('de-DE');
+    ' · ' + n.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
 }
 function renderHeader() {
   tickClock();
@@ -1321,8 +1319,14 @@ function cardEl(t) {
   menuBtn.addEventListener('click', e => { e.stopPropagation(); toggleCardMenu(el, t.id); });
   el.appendChild(menuBtn);
 
-  el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', t.id); el.classList.add('dragging'); });
-  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  el.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', t.id); el.classList.add('dragging');
+    document.querySelectorAll('#kanban .col').forEach(c => c.classList.add('drop-active'));
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    document.querySelectorAll('#kanban .col').forEach(c => c.classList.remove('drop-active', 'dragover'));
+  });
   el.addEventListener('click', e => {
     if (e.target.closest('a') || e.target.closest('select') || e.target.closest('.card-menu-pop')) return;
     openModal(t.id);
@@ -2362,55 +2366,29 @@ function cloudFetch(p, opts) {
   opts.headers = Object.assign({ 'X-Supabase-Token': sbSession ? sbSession.access_token : '' }, opts.headers || {});
   return fetch(CLAUDE_WORKER_URL + p, opts);
 }
-/* Server-Verbindung: persistenter grün/roter Status-Punkt in der Kopfzeile.
-   Klick zeigt ein Popup; die An-/Abmeldung liegt jetzt in den Einstellungen. */
+/* Server-Verbindung: Status lebt jetzt nur noch in den Einstellungen
+   (Cloud-Verbindung + Anmelden). Kein Indikator mehr in der Kopfzeile. */
 let connOk = false;
 function connInfo() {
   if (!auth || auth.user === 'local')
-    return { dot: 'var(--blue)', label: '🔑 Nicht angemeldet',
-      detail: 'Du arbeitest lokal. Melde dich an, um dein Board in der Cloud zu speichern und geräteübergreifend zu synchronisieren.', login: true };
+    return { color: 'var(--blue)', label: '🔑 Nicht angemeldet', login: true };
   if (connOk)
-    return { dot: 'var(--green)', label: '● Verbunden',
-      detail: 'Live mit dem Server verbunden. Änderungen werden automatisch in der Cloud gespeichert.', login: false };
-  return { dot: 'var(--red)', label: '● Offline',
-    detail: 'Keine Verbindung zum Server. Deine letzten Änderungen sind evtl. noch nicht gespeichert — sie werden nachgeholt, sobald die Verbindung zurück ist.', login: false };
+    return { color: 'var(--green)', label: 'Verbunden', login: false };
+  return { color: 'var(--red)', label: 'Offline', login: false };
 }
 function setSync(ok) {
   if (typeof ok === 'boolean') connOk = ok;
   const c = connInfo();
-  const dot = document.getElementById('connDot');
-  if (dot) { dot.style.color = c.dot; dot.title = c.label.replace(/^[●🔑]\s*/, ''); }
   const ss = document.getElementById('setConnStatus');
-  if (ss) { ss.textContent = c.label; ss.style.color = c.dot; }
+  if (ss) { ss.textContent = c.label; ss.style.color = c.color; }
   const lr = document.getElementById('setLoginRow'); if (lr) lr.hidden = !c.login;
-  const pop = document.getElementById('connPopup');
-  if (pop && !pop.hidden) renderConnPopup();
-}
-function renderConnPopup() {
-  const c = connInfo();
-  document.getElementById('connPopupBody').innerHTML =
-    '<div style="font-weight:700;margin-bottom:4px;color:' + c.dot + '">' + c.label + '</div>' +
-    '<div style="font-size:12px;color:var(--text-weak);line-height:1.45">' + c.detail + '</div>';
-  document.getElementById('connPopupLogin').hidden = !c.login;
 }
 function openLoginOverlay() {
-  document.getElementById('connPopup').hidden = true;
   document.getElementById('loginErr').hidden = true;
   document.getElementById('loginOverlay').classList.add('open');
   document.getElementById('loginEmail').focus();
 }
-document.getElementById('connDot').onclick = (e) => {
-  e.stopPropagation();
-  const p = document.getElementById('connPopup');
-  if (p.hidden) { renderConnPopup(); p.hidden = false; } else p.hidden = true;
-};
-document.getElementById('connPopupLogin').onclick = openLoginOverlay;
 document.getElementById('btnSettingsLogin').onclick = openLoginOverlay;
-// Klick außerhalb schließt das Verbindungs-Popup
-document.addEventListener('click', (e) => {
-  const p = document.getElementById('connPopup');
-  if (p && !p.hidden && !p.contains(e.target) && e.target.id !== 'connDot') p.hidden = true;
-});
 
 function boardSnapshot() { return { tickets: state.tickets, categories: state.categories, settings: state.settings, notes: state.notes || [] }; }
 
@@ -3351,26 +3329,25 @@ const DINO = (() => {
     for (let i = 0; i < 3; i++) spawnNear(i * (w / 3) + Math.random() * 40); // ein paar Hügel, verteilt
     spawnHi(w * 0.55 + Math.random() * w * 0.35);
   }
-  /* ---------- Weltall-Szene (funkelnde Sterne + gelegentliche Sternschnuppen) ---------- */
+  /* ---------- Weltall-Szene (Flug durchs All: Sterne strömen langsam nach außen) ---------- */
+  // Ein Stern startet nahe der Bildmitte und driftet von dort nach außen (Fluchtpunkt-Perspektive).
+  function newStar(r) {
+    return { a: Math.random() * Math.PI * 2, r, sp: 0.55 + Math.random() * 0.7,
+      ph: Math.random() * Math.PI * 2, tw: 1.2 + Math.random() * 2.6, blue: Math.random() < 0.25 };
+  }
   function seedSpace() {
     stars = [];
-    const n = 48;
-    for (let i = 0; i < n; i++) stars.push({
-      x: Math.random(), y: Math.random(),
-      s: Math.random() < 0.18 ? 2 : 1,                 // wenige größere Sterne
-      sp: 1.2 + Math.random() * 2.8,                   // Funkel-Geschwindigkeit
-      ph: Math.random() * Math.PI * 2,                 // Funkel-Phase
-      b: 0.35 + Math.random() * 0.6,                   // Grundhelligkeit
-      blue: Math.random() < 0.25                       // leicht bläuliche Sterne
-    });
+    const n = 72;
+    for (let i = 0; i < n; i++) stars.push(newStar(Math.random()));   // anfangs überall verteilt
     shooters = []; nextShoot = nowTs + 1600 + Math.random() * 2600;
   }
-  // Sternschnuppe (optional an einer Klickposition starten)
+  // Sternschnuppe in ZUFÄLLIGER Richtung (optional an einer Klickposition starten)
   function spawnShooter(px, py) {
     const w = cv.clientWidth || 300, h = cv.height;
-    const sx = px != null ? px : Math.random() * w * 0.6;
-    const sy = py != null ? py : Math.random() * h * 0.45;
-    shooters.push({ x: sx, y: sy, vx: 110 + Math.random() * 90, vy: 30 + Math.random() * 40, life: 1, len: 7 + (Math.random() * 7 | 0) });
+    const ang = Math.random() * Math.PI * 2, sp = 110 + Math.random() * 90;
+    const sx = px != null ? px : Math.random() * w;
+    const sy = py != null ? py : Math.random() * h;
+    shooters.push({ x: sx, y: sy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 1, len: 7 + (Math.random() * 7 | 0) });
   }
   function spaceFrame(w, h, ts, dt) {
     // Tiefes Weltall (theme-abhängig minimal heller im Light-Mode für Kontrast)
@@ -3379,23 +3356,22 @@ const DINO = (() => {
     if (dark) { g.addColorStop(0, '#05060f'); g.addColorStop(1, '#0e1026'); }
     else { g.addColorStop(0, '#0a0b1e'); g.addColorStop(1, '#141632'); }
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    // Kleine Mondsichel oben rechts (Pixel-Flair)
-    const mx = Math.round(w - 16), my = 8;
-    ctx.fillStyle = '#e9ecf5'; ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = dark ? '#0b0d22' : '#0f1230'; ctx.beginPath(); ctx.arc(mx + 2.4, my - 1, 4.4, 0, Math.PI * 2); ctx.fill();
-    // Funkelnde Sterne
+    const cx = w * 0.5, cy = h * 0.5;
+    // Sterne strömen ganz langsam aus der Mitte nach außen (als säße man in einem Raumschiff)
     stars.forEach(st => {
-      const tw = 0.45 + 0.55 * Math.sin(ts * 0.001 * st.sp + st.ph);   // 0..1 Funkeln
-      const a = Math.max(0.05, Math.min(1, st.b * tw));
+      if (running) { st.r += st.sp * dt * (0.01 + st.r * 0.05); if (st.r > 1.25) Object.assign(st, newStar(Math.random() * 0.04)); }
+      const px = cx + Math.cos(st.a) * st.r * w * 0.7, py = cy + Math.sin(st.a) * st.r * h * 0.7;
+      if (px < 0 || px > w || py < 0 || py > h) return;
+      const tw = 0.5 + 0.5 * Math.sin(ts * 0.001 * st.tw + st.ph);     // Funkeln
+      const a = Math.max(0.05, Math.min(1, (0.22 + st.r * 0.78) * tw));
+      const s = st.r > 0.8 ? 2 : 1;                                    // außen = näher = größer
       ctx.fillStyle = st.blue ? 'rgba(180,205,255,' + a.toFixed(3) + ')' : 'rgba(255,255,255,' + a.toFixed(3) + ')';
-      R(st.x * w, st.y * h, st.s, st.s);
-      // hellste große Sterne bekommen ein kleines Kreuz-Glitzern
-      if (st.s === 2 && tw > 0.85) { R(st.x * w - 1, st.y * h + 0.5, 1, 1); R(st.x * w + 2, st.y * h + 0.5, 1, 1); R(st.x * w + 0.5, st.y * h - 1, 1, 1); R(st.x * w + 0.5, st.y * h + 2, 1, 1); }
+      R(px, py, s, s);
     });
-    // Gelegentliche Sternschnuppen
+    // Gelegentliche Sternschnuppen (zufällige Richtungen)
     if (running && ts > nextShoot) { spawnShooter(); nextShoot = ts + 3200 + Math.random() * 5200; }
     if (running) shooters.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 0.55; });
-    shooters = shooters.filter(s => s.life > 0 && s.x < w + 30 && s.y < h + 30);
+    shooters = shooters.filter(s => s.life > 0 && s.x > -40 && s.x < w + 40 && s.y > -40 && s.y < h + 40);
     shooters.forEach(s => {
       for (let k = s.len; k >= 1; k--) {                                // Schweif (hinter dem Kopf)
         const a = s.life * (1 - k / (s.len + 1)) * 0.85;

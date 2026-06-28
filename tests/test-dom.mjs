@@ -186,17 +186,17 @@ try {
   ok(hist.afterUndo === 0, 'Strg+Z macht das Hinzufügen rückgängig');
   ok(hist.afterRedo === 1, 'Strg+Shift+Z stellt es wieder her');
 
-  // Verbindungs-Punkt: grün bei Verbindung, rot bei Trennung
+  // Verbindungsstatus in den Einstellungen: „Verbunden" bzw. „Offline"
   const conn = vm.runInContext(`(function(){
     var prev = auth;
     auth = { user: 'tester@example.com', name: 't' };
-    setSync(true);  var g = document.getElementById('connDot').style.color;
-    setSync(false); var r = document.getElementById('connDot').style.color;
+    setSync(true);  var g = document.getElementById('setConnStatus').textContent;
+    setSync(false); var r = document.getElementById('setConnStatus').textContent;
     auth = prev;
     return { g, r };
   })()`, context);
-  ok(/green/.test(conn.g), 'Verbindungs-Punkt grün bei aktiver Verbindung');
-  ok(/red/.test(conn.r), 'Verbindungs-Punkt rot bei Trennung');
+  ok(/Verbunden/.test(conn.g), 'Einstellungen: Status „Verbunden" bei aktiver Verbindung');
+  ok(/Offline/.test(conn.r), 'Einstellungen: Status „Offline" bei Trennung');
 
   // Generalisiertes Board: eigene Säulen + Titel über die Einstellungen
   const gen = vm.runInContext(`(function(){
