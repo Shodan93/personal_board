@@ -422,6 +422,25 @@ try {
   ok(vm.runInContext('isoWeek(new Date(2024,0,1))', context) === 1, 'isoWeek: 01.01.2024 (Mo) = KW 1');
   ok(typeof vm.runInContext('isoWeek(new Date())', context) === 'number', 'isoWeek liefert Zahl für heute');
 
+  // Fällig-Fenster: rollierend ab heute, nächste 30 Tage statt Kalendermonat
+  const win = vm.runInContext(`(function(){
+    var mk = (off, status) => ({ deadline: addDays(todayStr(), off), status: status || 'In Arbeit' });
+    return {
+      heute:    isToday(mk(0)),
+      woche5:   isThisWeek(mk(5)),     // in 5 Tagen -> diese Woche
+      woche9:   isThisWeek(mk(9)),     // in 9 Tagen -> NICHT mehr diese Woche
+      t20:      isNext30Days(mk(20)),  // in 20 Tagen -> in 30 Tagen
+      t40:      isNext30Days(mk(40)),  // in 40 Tagen -> NICHT in 30 Tagen
+      ueber:    isNext30Days(mk(-3)),  // überfällig -> NICHT (nur zukünftig)
+      erledigt: isNext30Days(mk(5, DONE[DONE.length-1] || 'Erledigt'))  // erledigt zählt nicht
+    };
+  })()`, context);
+  ok(win.heute === true,  'isToday: heute fällig');
+  ok(win.woche5 === true && win.woche9 === false, 'isThisWeek: rollierendes 7-Tage-Fenster');
+  ok(win.t20 === true && win.t40 === false, 'isNext30Days: nächste 30 Tage (nicht Kalendermonat)');
+  ok(win.ueber === false, 'Fällig-Fenster ignoriert überfällige Tickets');
+  ok(win.erledigt === false, 'Fällig-Fenster ignoriert erledigte Tickets');
+
   // Spalte direkt umbenennen
   const rename = vm.runInContext(`(function(){
     state.settings.statuses = ['A','B','C']; state.settings.doneStatuses = ['C']; applyBoardConfig();

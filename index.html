@@ -102,6 +102,13 @@ body.viewer .card{cursor:default}
   padding:5px 8px; background:var(--card); font-size:12px;
 }
 .toolbar input[type=search]{min-width:180px; flex:1; max-width:320px}
+/* Linke Toolbar-Gruppe (Undo/Redo, Sortierung, Suche) endet bündig mit der RECHTEN
+   Kante der ersten Kanban-Spalte: gleiche Breite wie eine Spalte, Suche füllt den Rest. */
+#kanbanLeft{display:flex; gap:8px; align-items:center; flex:0 0 auto;
+  width:calc((100% - (var(--ncols,5) - 1) * 10px) / var(--ncols,5))}
+#kanbanLeft #kanbanSearch{flex:1 1 auto; min-width:0; max-width:none}
+@media (max-width:1180px){ #kanbanLeft{ width:calc((100% - (min(var(--ncols,5),3) - 1) * 10px) / min(var(--ncols,5),3)) } }
+@media (max-width:860px){ #kanbanLeft{ width:calc((100% - (min(var(--ncols,5),2) - 1) * 10px) / min(var(--ncols,5),2)) } }
 .toolbar .lbl{font-size:11px; color:var(--text-weak); font-weight:700}
 .chips{display:flex; gap:6px; flex-wrap:wrap}
 .chip{
@@ -189,9 +196,9 @@ body.viewer .col-name:hover{text-decoration:none}
 
 /* Pixel-Lauf (Gimmick) in der Kopfzeile */
 #dinoWrap{display:flex; align-items:stretch; gap:4px; flex:1 1 200px; min-width:150px; height:34px; overflow:hidden}
-#dinoControls{display:flex; flex-direction:column; justify-content:center; gap:1px; flex:0 0 auto}
-#dinoControls .dino-row{display:flex; gap:1px; justify-content:center}
-#dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:11px; line-height:1.1; padding:0 3px; cursor:pointer}
+#dinoControls{display:grid; grid-template-columns:repeat(2, 18px); gap:1px 2px; align-content:center; flex:0 0 auto}
+#dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:12px; line-height:1; padding:0; cursor:pointer;
+  width:18px; height:15px; display:inline-flex; align-items:center; justify-content:center}
 #dinoWrap button:hover{color:var(--blue)}
 #dinoCv{flex:1 1 auto; min-width:0; height:34px}
 
@@ -472,6 +479,7 @@ tr.row.done-final td{opacity:.4}
   header{padding:8px 12px; gap:8px}
   header h1{font-size:15px}
   .toolbar{padding:8px 12px 0}
+  #kanbanLeft{width:100%}   /* Handy: Spalten scrollen horizontal -> Suche volle Breite */
   /* Unnötiges auf dem Handy ausblenden: Fälligkeits-Badges, Fokus/Report, Pixel-Lauf */
   #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #btnFocus, #btnReportAll, #todayDate{display:none !important}
   .kanban{
@@ -512,19 +520,14 @@ tr.row.done-final td{opacity:.4}
   <span class="header-meta" id="todayDate"></span>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
-  <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: auf diese Woche filtern">0 diese Woche</button>
-  <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: auf diesen Monat filtern">0 diesen Monat</button>
+  <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: fällig in den nächsten 7 Tagen">0 diese Woche</button>
+  <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: fällig in den nächsten 30 Tagen">0 in 30 Tagen</button>
   <div id="dinoWrap">
     <div id="dinoControls">
-      <div class="dino-row">
-        <button id="dinoScenePrev" title="Vorige Szene">‹</button>
-        <button id="dinoSceneNext" title="Nächste Szene (Urzeit ⇄ Weltall)">›</button>
-      </div>
-      <div class="dino-row">
-        <button id="dinoStart" title="Neues Tier losschicken">▶</button>
-        <button id="dinoPause" title="Pause">⏸</button>
-        <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
-      </div>
+      <button id="dinoScenePrev" title="Vorige Szene">‹</button>
+      <button id="dinoSceneNext" title="Nächste Szene (Urzeit ⇄ Weltall)">›</button>
+      <button id="dinoPlay" title="Pause">⏸</button>
+      <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
     </div>
     <canvas id="dinoCv" height="34"></canvas>
   </div>
@@ -558,13 +561,15 @@ tr.row.done-final td{opacity:.4}
 
 <!-- Kanban-Toolbar -->
 <div class="toolbar" id="kanbanBar">
-  <button class="chip undo-btn" title="Rückgängig" disabled>↶ Strg+Z</button>
-  <button class="chip redo-btn" title="Wiederholen" disabled>↷ Strg+⇧+Z</button>
-  <select id="kanbanSort" title="Sortierung">
-    <option value="deadline">Fälligkeit</option>
-    <option value="prio">Priorität</option>
-  </select>
-  <input type="search" id="kanbanSearch" placeholder="Tickets durchsuchen…" title="Filtert die Karten nach Titel, Beschreibung und Notiz">
+  <div id="kanbanLeft">
+    <button class="chip undo-btn" title="Rückgängig" disabled>↶ Strg+Z</button>
+    <button class="chip redo-btn" title="Wiederholen" disabled>↷ Strg+⇧+Z</button>
+    <select id="kanbanSort" title="Sortierung">
+      <option value="deadline">Fälligkeit</option>
+      <option value="prio">Priorität</option>
+    </select>
+    <input type="search" id="kanbanSearch" placeholder="Suchen…" title="Filtert die Karten nach Titel, Beschreibung und Notiz">
+  </div>
   <span class="spacer"></span>
   <span class="lbl" id="kanbanStats"></span>
   <button class="chip" id="chipShowHidden" title="Auch automatisch ausgeblendete erledigte Tickets zeigen">Ausgeblendete anzeigen</button>
@@ -582,7 +587,7 @@ tr.row.done-final td{opacity:.4}
     <button class="chip" data-q="today">Heute fällig</button>
     <button class="chip" data-q="overdue">Überfällig</button>
     <button class="chip" data-q="week">Diese Woche</button>
-    <button class="chip" data-q="month">Diesen Monat</button>
+    <button class="chip" data-q="month">Nächste 30 Tage</button>
     <button class="chip" data-q="active">Aktiv</button>
   </div>
   <span class="spacer"></span>
@@ -983,6 +988,7 @@ function applyBoardConfig() {
   document.getElementById('boardTitle').textContent = '🪐 Orbit';
   document.title = (state.settings.boardTitle || 'Orbit') + ' · Orbit';
   document.getElementById('kanban').style.setProperty('--ncols', STATUSES.length);
+  document.documentElement.style.setProperty('--ncols', STATUSES.length);  // auch für die Toolbar-Ausrichtung
   // aktuellen Boardnamen in der Pickliste aktualisieren
   if (typeof myBoards !== 'undefined' && boardId) {
     const b = myBoards.find(x => x.id === boardId); if (b) b.title = state.settings.boardTitle;
@@ -1069,18 +1075,23 @@ function todayStr() {
   const t = new Date();
   return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
 }
-function weekBounds() { // Mo–So der aktuellen Woche
-  const d = new Date(); const day = (d.getDay() + 6) % 7;
-  const mon = new Date(d); mon.setDate(d.getDate() - day);
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  const f = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
-  return [f(mon), f(sun)];
+// ISO-Datum (lokal) um n Tage verschieben
+function addDays(iso, n) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// Offen + fällig im rollierenden Fenster [heute … heute+n] (keine überfälligen, keine erledigten)
+function dueWithin(t, n) {
+  if (!t.deadline || DONE.includes(t.status)) return false;
+  const today = todayStr();
+  return t.deadline >= today && t.deadline <= addDays(today, n);
 }
 function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return d + '.' + m + '.' + y; }
 function isOverdue(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline < todayStr(); }
-function isToday(t)   { return !!t.deadline && !DONE.includes(t.status) && t.deadline === todayStr(); }
-function isThisWeek(t)  { const [m, s] = weekBounds(); return !!t.deadline && !DONE.includes(t.status) && t.deadline >= m && t.deadline <= s; }
-function isThisMonth(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline.slice(0, 7) === todayStr().slice(0, 7); }
+function isToday(t)       { return !!t.deadline && !DONE.includes(t.status) && t.deadline === todayStr(); }
+function isThisWeek(t)    { return dueWithin(t, 7); }    // fällig in den nächsten 7 Tagen
+function isNext30Days(t)  { return dueWithin(t, 30); }   // fällig in den nächsten 30 Tagen
 function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
 function deadlineLabel(t) {
   if (!t.deadline) return 'kein Datum';
@@ -1200,7 +1211,7 @@ function renderHeader() {
   const cur = view === 'kanban' ? kanbanQuick : quick;
   [['dueTodayBadge', isToday, ' heute fällig', 'today'],
    ['dueWeekBadge', isThisWeek, ' diese Woche', 'week'],
-   ['dueMonthBadge', isThisMonth, ' diesen Monat', 'month']
+   ['dueMonthBadge', isNext30Days, ' in 30 Tagen', 'month']
   ].forEach(([id, fn, label, q]) => {
     const n = state.tickets.filter(fn).length;
     const b = document.getElementById(id);
@@ -1220,7 +1231,7 @@ function renderKanban() {
     let items = state.tickets.filter(t => t.status === status && !isHidden(t));
     if (kanbanQuick === 'today') items = items.filter(isToday);
     else if (kanbanQuick === 'week') items = items.filter(isThisWeek);
-    else if (kanbanQuick === 'month') items = items.filter(isThisMonth);
+    else if (kanbanQuick === 'month') items = items.filter(isNext30Days);
     if (globalCat) items = items.filter(t => t.cats.includes(globalCat));
     if (kanbanSearch) items = items.filter(t => matchesSearch(t, kanbanSearch));
     items.sort((a, b) => kanbanSortKey === 'prio'
@@ -1405,7 +1416,7 @@ function renderList() {
     (quick !== 'today'   || isToday(t)) &&
     (quick !== 'overdue' || isOverdue(t)) &&
     (quick !== 'week'    || isThisWeek(t)) &&
-    (quick !== 'month'   || isThisMonth(t)) &&
+    (quick !== 'month'   || isNext30Days(t)) &&
     (quick !== 'active'  || !DONE.includes(t.status))
   );
 
@@ -3329,16 +3340,16 @@ const DINO = (() => {
     for (let i = 0; i < 3; i++) spawnNear(i * (w / 3) + Math.random() * 40); // ein paar Hügel, verteilt
     spawnHi(w * 0.55 + Math.random() * w * 0.35);
   }
-  /* ---------- Weltall-Szene (Flug durchs All: Sterne strömen langsam nach außen) ---------- */
-  // Ein Stern startet nahe der Bildmitte und driftet von dort nach außen (Fluchtpunkt-Perspektive).
-  function newStar(r) {
-    return { a: Math.random() * Math.PI * 2, r, sp: 0.55 + Math.random() * 0.7,
-      ph: Math.random() * Math.PI * 2, tw: 1.2 + Math.random() * 2.6, blue: Math.random() < 0.25 };
-  }
+  /* ---------- Weltall-Szene (statisches Sternenfeld, funkelnd + Sternschnuppen) ---------- */
   function seedSpace() {
     stars = [];
-    const n = 72;
-    for (let i = 0; i < n; i++) stars.push(newStar(Math.random()));   // anfangs überall verteilt
+    const n = 60;
+    for (let i = 0; i < n; i++) stars.push({
+      x: Math.random(), y: Math.random(),
+      s: Math.random() < 0.18 ? 2 : 1,                 // wenige größere Sterne
+      tw: 1.2 + Math.random() * 2.6, ph: Math.random() * Math.PI * 2,  // Funkeln
+      b: 0.35 + Math.random() * 0.6, blue: Math.random() < 0.25
+    });
     shooters = []; nextShoot = nowTs + 1600 + Math.random() * 2600;
   }
   // Sternschnuppe in ZUFÄLLIGER Richtung (optional an einer Klickposition starten)
@@ -3356,17 +3367,12 @@ const DINO = (() => {
     if (dark) { g.addColorStop(0, '#05060f'); g.addColorStop(1, '#0e1026'); }
     else { g.addColorStop(0, '#0a0b1e'); g.addColorStop(1, '#141632'); }
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    const cx = w * 0.5, cy = h * 0.5;
-    // Sterne strömen ganz langsam aus der Mitte nach außen (als säße man in einem Raumschiff)
+    // Statisches Sternenfeld, nur funkelnd (kein Vorwärtsflug)
     stars.forEach(st => {
-      if (running) { st.r += st.sp * dt * (0.01 + st.r * 0.05); if (st.r > 1.25) Object.assign(st, newStar(Math.random() * 0.04)); }
-      const px = cx + Math.cos(st.a) * st.r * w * 0.7, py = cy + Math.sin(st.a) * st.r * h * 0.7;
-      if (px < 0 || px > w || py < 0 || py > h) return;
-      const tw = 0.5 + 0.5 * Math.sin(ts * 0.001 * st.tw + st.ph);     // Funkeln
-      const a = Math.max(0.05, Math.min(1, (0.22 + st.r * 0.78) * tw));
-      const s = st.r > 0.8 ? 2 : 1;                                    // außen = näher = größer
+      const tw = 0.45 + 0.55 * Math.sin(ts * 0.001 * st.tw + st.ph);
+      const a = Math.max(0.05, Math.min(1, st.b * tw));
       ctx.fillStyle = st.blue ? 'rgba(180,205,255,' + a.toFixed(3) + ')' : 'rgba(255,255,255,' + a.toFixed(3) + ')';
-      R(px, py, s, s);
+      R(st.x * w, st.y * h, st.s, st.s);
     });
     // Gelegentliche Sternschnuppen (zufällige Richtungen)
     if (running && ts > nextShoot) { spawnShooter(); nextShoot = ts + 3200 + Math.random() * 5200; }
@@ -3689,21 +3695,36 @@ function applyGimmick() {
   const on = state.settings.dino !== false;
   document.getElementById('dinoWrap').hidden = !on;
   if (on) { DINO.start(); if (state.settings.dinoScene) DINO.setMode(state.settings.dinoScene); } else DINO.stop();
+  updateDinoPlayIcon();
 }
 // Quick-Toggle (Auge): blendet nur die Animation aus, Buttons bleiben
 let dinoHidden = false;
-document.getElementById('dinoStart').onclick = () => { if (dinoHidden) toggleDinoEye(); DINO.resume(); };
-document.getElementById('dinoPause').onclick = () => DINO.pause();
+// Ein Knopf für Play/Pause: Symbol & Tooltip folgen dem Zustand
+function updateDinoPlayIcon() {
+  const b = document.getElementById('dinoPlay');
+  if (!b) return;
+  const playing = DINO.running() && !dinoHidden;
+  b.textContent = playing ? '⏸' : '▶';
+  b.title = playing ? 'Pause' : 'Weiter';
+}
+document.getElementById('dinoPlay').onclick = () => {
+  if (dinoHidden) toggleDinoEye();              // ausgeblendet -> wieder zeigen und laufen lassen
+  else if (DINO.running()) DINO.pause();
+  else DINO.resume();
+  updateDinoPlayIcon();
+};
 function toggleDinoEye() {
   dinoHidden = !dinoHidden;
   document.getElementById('dinoCv').style.visibility = dinoHidden ? 'hidden' : 'visible';
   if (dinoHidden) DINO.pause(); else DINO.resume();
+  updateDinoPlayIcon();
 }
 document.getElementById('dinoEye').onclick = toggleDinoEye;
 function switchScene(dir) {
   if (dinoHidden) toggleDinoEye();
   const m = DINO.cycle(dir); DINO.resume();
   state.settings.dinoScene = m; save();
+  updateDinoPlayIcon();
   toast(m === 'space' ? '🌌 Szene: Weltall' : '🦖 Szene: Urzeit');
 }
 document.getElementById('dinoScenePrev').onclick = () => switchScene(-1);
