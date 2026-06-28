@@ -118,11 +118,11 @@ try {
   for (let i = 0; i < 120; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
   ok(true, 'Urzeit-Szene: 120 weitere Frames (Pflanzen/Berge/Vulkan/Boden) ohne Fehler');
 
-  // Ozean-Szene: umschalten + Frames pumpen (Wellen/Sonne/Möwen/Delfin) ohne Fehler
-  vm.runInContext('DINO.setMode("ocean")', context);
-  ok(vm.runInContext('DINO.getMode()', context) === 'ocean', 'Szene auf „Ozean" umgeschaltet');
+  // Weltall-Szene: umschalten + Frames pumpen (Sterne/Funkeln/Sternschnuppen) ohne Fehler
+  vm.runInContext('DINO.setMode("space")', context);
+  ok(vm.runInContext('DINO.getMode()', context) === 'space', 'Szene auf „Weltall" umgeschaltet');
   for (let i = 0; i < 120; i++) { perf += 33; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
-  ok(true, 'Ozean-Szene: 120 Frames (Wellen/Sonnenuntergang/Möwen/Delfin) ohne Fehler');
+  ok(true, 'Weltall-Szene: 120 Frames (Sterne/Funkeln/Sternschnuppen) ohne Fehler');
   ok(vm.runInContext('DINO.cycle(1)', context) === 'run', 'Szene wieder zurück auf „Urzeit" (cycle)');
   for (let i = 0; i < 10; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
 
@@ -161,6 +161,42 @@ try {
            /Erstellt am/.test(document.getElementById('fCreated').textContent);
   })()`, context);
   ok(created, 'Erstelldatum wird im Modal angezeigt (nicht in der Kachel)');
+
+  // Öffnen eines Tickets setzt automatisch status „geöffnet"
+  const openedStatus = vm.runInContext(`(function(){
+    state.tickets = [{ id:'o1', title:'Open', prio:'Mittel', deadline:'2026-06-25', desc:'', note:'', cats:[], imgs:[], status:'In Arbeit', createdAt:'2026-06-01' }];
+    openModal('o1');
+    return state.tickets[0].opened;
+  })()`, context);
+  ok(openedStatus === 'geöffnet', 'openModal markiert Ticket automatisch als „geöffnet"');
+
+  // Rückgängig / Wiederholen (Strg+Z / Strg+Shift+Z)
+  const hist = vm.runInContext(`(function(){
+    state.tickets = []; resetHistory();
+    state.tickets.push({ id:'u1', title:'Undo', prio:'Mittel', deadline:'2026-06-25', desc:'', note:'', cats:[], imgs:[], status:'In Arbeit', createdAt:'2026-06-01' });
+    save();                       // captureHistory -> ein Verlaufseintrag
+    var afterAdd = state.tickets.length;
+    undo();                       // zurück auf leer
+    var afterUndo = state.tickets.length;
+    redo();                       // wieder her
+    var afterRedo = state.tickets.length;
+    return { afterAdd, afterUndo, afterRedo };
+  })()`, context);
+  ok(hist.afterAdd === 1, 'Verlauf: Ticket hinzugefügt');
+  ok(hist.afterUndo === 0, 'Strg+Z macht das Hinzufügen rückgängig');
+  ok(hist.afterRedo === 1, 'Strg+Shift+Z stellt es wieder her');
+
+  // Verbindungs-Punkt: grün bei Verbindung, rot bei Trennung
+  const conn = vm.runInContext(`(function(){
+    var prev = auth;
+    auth = { user: 'tester@example.com', name: 't' };
+    setSync(true);  var g = document.getElementById('connDot').style.color;
+    setSync(false); var r = document.getElementById('connDot').style.color;
+    auth = prev;
+    return { g, r };
+  })()`, context);
+  ok(/green/.test(conn.g), 'Verbindungs-Punkt grün bei aktiver Verbindung');
+  ok(/red/.test(conn.r), 'Verbindungs-Punkt rot bei Trennung');
 
   // Generalisiertes Board: eigene Säulen + Titel über die Einstellungen
   const gen = vm.runInContext(`(function(){
