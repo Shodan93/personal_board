@@ -1,0 +1,8 @@
+/worker.js
+/supabase.sql
+/package.json
+/wrangler.jsonc
+/.assetsignore
+/.gitignore
+/tests/
+/.github/
