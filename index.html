@@ -52,6 +52,8 @@ header{
   position:sticky; top:0; z-index:50; box-shadow:var(--shadow);
 }
 header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:nowrap}
+/* Weltall-Hintergrund: füllt den ganzen Header, liegt hinter den Bedienelementen, fängt keine Klicks ab */
+#spaceCv{position:absolute; inset:0; width:100%; height:100%; z-index:-1; display:none; pointer-events:none}
 .header-meta{color:var(--text-weak); font-size:12px; white-space:nowrap}
 #viewerBadge{background:var(--yellow); color:#5a3b00; border-radius:10px; padding:1px 10px; font-size:11px; font-weight:700; white-space:nowrap}
 /* Nur-Lesen-Modus: Bearbeiten-Elemente ausblenden */
@@ -514,6 +516,8 @@ tr.row.done-final td{opacity:.4}
 <body>
 
 <header>
+  <!-- Weltall-Hintergrund (nur Dark Mode): über die gesamte Headerbreite, hinter den Bedienelementen -->
+  <canvas id="spaceCv"></canvas>
   <h1 id="boardTitle">🪐 Orbit</h1>
   <select id="boardSwitch" title="Board wechseln" hidden
     style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
@@ -524,8 +528,6 @@ tr.row.done-final td{opacity:.4}
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: fällig in den nächsten 30 Tagen">0 in 30 Tagen</button>
   <div id="dinoWrap">
     <div id="dinoControls">
-      <button id="dinoScenePrev" title="Vorige Szene">‹</button>
-      <button id="dinoSceneNext" title="Nächste Szene (Urzeit ⇄ Weltall)">›</button>
       <button id="dinoPlay" title="Pause">⏸</button>
       <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
     </div>
@@ -964,6 +966,11 @@ function applyTheme() {
   document.documentElement.dataset.theme = dark ? 'dark' : '';
   const btn = document.getElementById('btnTheme');
   if (btn) { btn.textContent = dark ? '☀️' : '🌙'; btn.title = dark ? 'Light Mode' : 'Dark Mode'; }
+  // Pixel-Lauf ist an den Modus gebunden: Light = Urzeit, Dark = Weltall (volle Breite)
+  if (typeof DINO !== 'undefined' && DINO.getMode() !== (dark ? 'space' : 'run')) {
+    DINO.setMode(dark ? 'space' : 'run');
+    if (typeof updateDinoPlayIcon === 'function') updateDinoPlayIcon();
+  }
 }
 /* Säulen aus den (board-eigenen) Einstellungen übernehmen — letzte Säule = erledigt */
 function setColumnsFromSettings() {
@@ -3031,8 +3038,12 @@ document.addEventListener('keyup', e => {
    '#' = immer, 'a'/'b' = nur im jeweiligen Laufframe (Beine).
    ============================================================ */
 const DINO = (() => {
-  const cv = document.getElementById('dinoCv');
-  const ctx = cv.getContext('2d');
+  // Zwei Leinwände: Urzeit läuft im kleinen Header-Streifen (#dinoCv),
+  // das Weltall (Dark Mode) als Hintergrund über die GANZE Headerbreite (#spaceCv).
+  const dinoCv = document.getElementById('dinoCv');
+  const spaceCv = document.getElementById('spaceCv');
+  let cv = dinoCv, ctx = dinoCv.getContext('2d');
+  function useCanvas(el) { cv = el; ctx = el.getContext('2d'); }
   // Theme-abhängige Palette (hell/dunkel) — wird pro Frame aktualisiert
   let INK, INK2, SKY, FAR, HILL, NEAR, SHADE, VOLC, GLOW, LAVA;
   function updatePalette() {
@@ -3083,7 +3094,7 @@ const DINO = (() => {
   // Szenen-Modus: 'run' (Urzeit-Pixellauf) | 'space' (Weltall, funkelnde Sterne + Sternschnuppen)
   const SCENES = ['run', 'space'];
   let mode = 'run';
-  let stars = [], shooters = [], nextShoot = 0;
+  let stars = [], shooters = [], nextShoot = 0, rocket = null, ufo = null, nextRocket = 0, nextSpaceUfo = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -3340,59 +3351,106 @@ const DINO = (() => {
     for (let i = 0; i < 3; i++) spawnNear(i * (w / 3) + Math.random() * 40); // ein paar Hügel, verteilt
     spawnHi(w * 0.55 + Math.random() * w * 0.35);
   }
-  /* ---------- Weltall-Szene (statisches Sternenfeld, funkelnd + Sternschnuppen) ---------- */
+  /* ---------- Weltall-Szene (volle Headerbreite): statisches Sternenfeld + Sternschnuppen,
+       dazu selten eine Rakete (mit Kondensstreifen) und ein UFO. Dynamische Objekte nur
+       im MITTLEREN Bereich, damit sie nicht hinter UI-Elementen liegen. ---------- */
+  const midBand = w => [w * 0.30, w * 0.70];           // [links, rechts] des mittleren Bereichs
   function seedSpace() {
     stars = [];
-    const n = 60;
+    const n = 70;
     for (let i = 0; i < n; i++) stars.push({
       x: Math.random(), y: Math.random(),
       s: Math.random() < 0.18 ? 2 : 1,                 // wenige größere Sterne
       tw: 1.2 + Math.random() * 2.6, ph: Math.random() * Math.PI * 2,  // Funkeln
       b: 0.35 + Math.random() * 0.6, blue: Math.random() < 0.25
     });
-    shooters = []; nextShoot = nowTs + 1600 + Math.random() * 2600;
+    shooters = []; rocket = null; ufo = null;
+    nextShoot = nowTs + 1600 + Math.random() * 2600;
+    nextRocket = nowTs + 9000 + Math.random() * 14000;     // erste Rakete bald, danach >= 1/min
+    nextSpaceUfo = nowTs + 28000 + Math.random() * 40000;  // UFO selten
   }
-  // Sternschnuppe in ZUFÄLLIGER Richtung (optional an einer Klickposition starten)
+  // Sternschnuppe in ZUFÄLLIGER Richtung, Start im mittleren Bereich (optional an Klickposition)
   function spawnShooter(px, py) {
-    const w = cv.clientWidth || 300, h = cv.height;
+    const w = cv.clientWidth || 300, h = cv.height, [bl, br] = midBand(w);
     const ang = Math.random() * Math.PI * 2, sp = 110 + Math.random() * 90;
-    const sx = px != null ? px : Math.random() * w;
-    const sy = py != null ? py : Math.random() * h;
+    const sx = px != null ? px : bl + Math.random() * (br - bl);
+    const sy = py != null ? py : h * (0.15 + Math.random() * 0.5);
     shooters.push({ x: sx, y: sy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 1, len: 7 + (Math.random() * 7 | 0) });
   }
+  function spawnRocket(w, h) { const [bl, br] = midBand(w); rocket = { x: bl, y: h * (0.34 + Math.random() * 0.3), v: (br - bl) / (2.6 + Math.random() * 1.2), trail: [] }; }
+  function spawnSpaceUfo(w, h) { const [bl, br] = midBand(w); ufo = { x: bl, y: h * (0.16 + Math.random() * 0.28), v: (br - bl) / (5 + Math.random() * 3) }; }
+  function drawSpaceRocket(x, y, ts) {
+    x = Math.round(x); y = Math.round(y);
+    const fl = (Math.sin(ts * 0.05) > 0) ? 3 : 2;                    // flackernde Flamme (hinten)
+    ctx.fillStyle = '#ff8c1a'; R(x - 6, y, 2, 2);
+    ctx.fillStyle = '#ffd23f'; R(x - 4, y, fl, 2);
+    ctx.fillStyle = '#ff3b30'; R(x - 2, y - 2, 2, 1); R(x - 2, y + 3, 2, 1);  // Finnen
+    ctx.fillStyle = '#e9ecf5'; R(x - 2, y - 1, 6, 4);                // Körper
+    ctx.fillStyle = '#c3c8d3'; R(x + 4, y, 2, 2);                    // Nase (zeigt nach rechts)
+    ctx.fillStyle = '#4aa3ff'; R(x + 1, y, 2, 2);                    // Fenster
+  }
+  function drawSpaceUfo(x, y, ts) {
+    x = Math.round(x); y = Math.round(y);
+    ctx.fillStyle = '#9aa6c8'; R(x - 6, y, 12, 2);                   // Untertasse
+    ctx.fillStyle = '#c3c8d3'; R(x - 3, y - 2, 6, 2);               // Kuppel
+    const on = Math.sin(ts * 0.012) > 0;                            // blinkende Lichter
+    ctx.fillStyle = on ? '#4aff8c' : '#ff4a6e';
+    R(x - 5, y + 2, 1, 1); R(x, y + 2, 1, 1); R(x + 4, y + 2, 1, 1);
+  }
   function spaceFrame(w, h, ts, dt) {
-    // Tiefes Weltall (theme-abhängig minimal heller im Light-Mode für Kontrast)
-    const dark = document.documentElement.dataset.theme === 'dark';
+    // Tiefes Weltall, volle Headerbreite
     let g = ctx.createLinearGradient(0, 0, 0, h);
-    if (dark) { g.addColorStop(0, '#05060f'); g.addColorStop(1, '#0e1026'); }
-    else { g.addColorStop(0, '#0a0b1e'); g.addColorStop(1, '#141632'); }
+    g.addColorStop(0, '#05060f'); g.addColorStop(1, '#0e1026');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    // Statisches Sternenfeld, nur funkelnd (kein Vorwärtsflug)
+    const [bl, br] = midBand(w);
+    // Statisches Sternenfeld (über die ganze Breite), nur funkelnd
     stars.forEach(st => {
       const tw = 0.45 + 0.55 * Math.sin(ts * 0.001 * st.tw + st.ph);
       const a = Math.max(0.05, Math.min(1, st.b * tw));
       ctx.fillStyle = st.blue ? 'rgba(180,205,255,' + a.toFixed(3) + ')' : 'rgba(255,255,255,' + a.toFixed(3) + ')';
       R(st.x * w, st.y * h, st.s, st.s);
     });
-    // Gelegentliche Sternschnuppen (zufällige Richtungen)
+    // Sternschnuppen (zufällige Richtungen, Start im mittleren Bereich)
     if (running && ts > nextShoot) { spawnShooter(); nextShoot = ts + 3200 + Math.random() * 5200; }
     if (running) shooters.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 0.55; });
     shooters = shooters.filter(s => s.life > 0 && s.x > -40 && s.x < w + 40 && s.y > -40 && s.y < h + 40);
     shooters.forEach(s => {
-      for (let k = s.len; k >= 1; k--) {                                // Schweif (hinter dem Kopf)
+      for (let k = s.len; k >= 1; k--) {
         const a = s.life * (1 - k / (s.len + 1)) * 0.85;
         ctx.fillStyle = 'rgba(190,210,255,' + Math.max(0, a).toFixed(3) + ')';
         R(s.x - s.vx * 0.013 * k, s.y - s.vy * 0.013 * k, 1, 1);
       }
       ctx.fillStyle = 'rgba(255,255,255,' + Math.max(0, s.life).toFixed(3) + ')';
-      R(s.x, s.y, 2, 2);                                                // heller Kopf
+      R(s.x, s.y, 2, 2);
     });
+    // Rakete (max. 1×/Minute): von links nach rechts durch die Mitte, mit Kondensstreifen
+    if (running && !rocket && ts > nextRocket) { spawnRocket(w, h); nextRocket = ts + 60000 + Math.random() * 40000; }
+    if (rocket) {
+      if (running) {
+        rocket.x += rocket.v * dt;
+        rocket.trail.push({ x: rocket.x - 5, y: rocket.y + 1, life: 1 });
+        rocket.trail.forEach(p => p.life -= dt * 0.7);
+        rocket.trail = rocket.trail.filter(p => p.life > 0);
+      }
+      rocket.trail.forEach(p => { ctx.fillStyle = 'rgba(220,230,255,' + (p.life * 0.5).toFixed(3) + ')'; R(p.x, p.y, 2, 2); });
+      drawSpaceRocket(rocket.x, rocket.y, ts);
+      if (rocket.x > br + 8) rocket = null;
+    }
+    // UFO (selten, max. 1×/Minute): gleitet durch die Mitte, blinkende Lichter
+    if (running && !ufo && ts > nextSpaceUfo) { spawnSpaceUfo(w, h); nextSpaceUfo = ts + 90000 + Math.random() * 120000; }
+    if (ufo) {
+      if (running) ufo.x += ufo.v * dt;
+      drawSpaceUfo(ufo.x, ufo.y, ts);
+      if (ufo.x > br + 8) ufo = null;
+    }
   }
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
     if (document.hidden) { lastTs = ts; return; }
     const w = cv.clientWidth || 200;
     if (cv.width !== w) cv.width = w;
+    // Weltall füllt die volle Header-Höhe; Urzeit bleibt beim festen 34px-Streifen
+    if (mode === 'space' && cv.clientHeight && cv.height !== cv.clientHeight) cv.height = cv.clientHeight;
     const h = cv.height, groundY = h - 6;
     const dt = Math.min((ts - lastTs) / 1000, 0.1) || 0; lastTs = ts; nowTs = ts;
     updatePalette();
@@ -3490,22 +3548,24 @@ const DINO = (() => {
       ctx.globalAlpha = 1;
     }
   }
+  // Interaktion nur im Urzeit-Streifen (#dinoCv). Das Weltall ist Hintergrund (pointer-events:none).
   // Mauszeiger verfolgen, damit Tiere flüchten können
-  cv.addEventListener('mousemove', e => {
-    const r = cv.getBoundingClientRect();
-    curX = (e.clientX - r.left) * (cv.width / r.width);
-    curY = (e.clientY - r.top) * (cv.height / r.height);
+  dinoCv.addEventListener('mousemove', e => {
+    if (mode !== 'run') return;
+    const r = dinoCv.getBoundingClientRect();
+    curX = (e.clientX - r.left) * (dinoCv.width / r.width);
+    curY = (e.clientY - r.top) * (dinoCv.height / r.height);
   });
-  cv.addEventListener('mouseleave', () => { curX = -999; curY = -999; });
+  dinoCv.addEventListener('mouseleave', () => { curX = -999; curY = -999; });
   // Tier anklicken -> bleibt stehen und zerplatzt
   function animalWidth(a) { return a.v.sp.reduce((m, r) => Math.max(m, r.length), 0) * a.v.px; }
   let clickCount = 0, lastClickTs = 0; // Easter-Egg: 5 Klicks -> UFO, 10 -> Meteor (Zähler nur 5s gültig)
-  cv.addEventListener('click', e => {
-    const rect = cv.getBoundingClientRect();
-    const cx = (e.clientX - rect.left) * (cv.width / rect.width);
-    const cy = (e.clientY - rect.top) * (cv.height / rect.height);
-    if (mode === 'space') { spawnShooter(cx, cy); return; }   // Weltall: Klick = Sternschnuppe
-    const groundY = cv.height - 6;
+  dinoCv.addEventListener('click', e => {
+    if (mode !== 'run') return;
+    const rect = dinoCv.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * (dinoCv.width / rect.width);
+    const cy = (e.clientY - rect.top) * (dinoCv.height / rect.height);
+    const groundY = dinoCv.height - 6;
     for (let i = animals.length - 1; i >= 0; i--) {
       const a = animals[i], h = a.v.sp.length * a.v.px, w = animalWidth(a), top = groundY - h;
       if (cx >= a.x - 2 && cx <= a.x + w + 2 && cy >= top - 2 && cy <= groundY + 2) {
@@ -3523,10 +3583,10 @@ const DINO = (() => {
     if (now - lastClickTs > 5000) clickCount = 0;   // länger als 5s keine Klicks -> Zähler verfällt
     lastClickTs = now;
     clickCount++;
-    if (clickCount >= 10) { clickCount = 0; spawnMeteor(cv.clientWidth || cv.width || 300); }
+    if (clickCount >= 10) { clickCount = 0; spawnMeteor(dinoCv.clientWidth || dinoCv.width || 300); }
     else if (clickCount % 5 === 0) spawnUfo();
   });
-  cv.style.cursor = 'pointer';
+  dinoCv.style.cursor = 'pointer';
   return {
     start() {
       if (started) return;
@@ -3542,7 +3602,18 @@ const DINO = (() => {
     resume() { running = true; if (mode === 'run') spawnAnimal(true); },
     pause() { running = false; },
     running: () => running,
-    setMode(m) { if (!SCENES.includes(m)) return; mode = m; nowTs = performance.now(); if (m === 'space') seedSpace(); else seedScene(); },
+    setMode(m) {
+      if (!SCENES.includes(m)) return;
+      mode = m; nowTs = performance.now();
+      if (m === 'space') {
+        useCanvas(spaceCv); spaceCv.style.display = 'block';
+        try { dinoCv.getContext('2d').clearRect(0, 0, dinoCv.width, dinoCv.height); } catch (e) {}  // Streifen leeren -> Weltall scheint durch
+        seedSpace();
+      } else {
+        useCanvas(dinoCv); spaceCv.style.display = 'none';
+        seedScene();
+      }
+    },
     cycle(dir) { const i = (SCENES.indexOf(mode) + (dir || 1) + SCENES.length) % SCENES.length; this.setMode(SCENES[i]); return mode; },
     getMode: () => mode,
   };
@@ -3694,7 +3765,9 @@ const DinoGame = (() => {
 function applyGimmick() {
   const on = state.settings.dino !== false;
   document.getElementById('dinoWrap').hidden = !on;
-  if (on) { DINO.start(); if (state.settings.dinoScene) DINO.setMode(state.settings.dinoScene); } else DINO.stop();
+  // Szene ist an den Modus gebunden: Light = Urzeit, Dark = Weltall (kein manuelles Umschalten mehr)
+  if (on) { DINO.start(); DINO.setMode(state.settings.theme === 'dark' ? 'space' : 'run'); }
+  else { DINO.stop(); document.getElementById('spaceCv').style.display = 'none'; }  // aus -> auch Weltall-Hintergrund weg
   updateDinoPlayIcon();
 }
 // Quick-Toggle (Auge): blendet nur die Animation aus, Buttons bleiben
@@ -3715,20 +3788,13 @@ document.getElementById('dinoPlay').onclick = () => {
 };
 function toggleDinoEye() {
   dinoHidden = !dinoHidden;
-  document.getElementById('dinoCv').style.visibility = dinoHidden ? 'hidden' : 'visible';
+  const vis = dinoHidden ? 'hidden' : 'visible';
+  document.getElementById('dinoCv').style.visibility = vis;
+  document.getElementById('spaceCv').style.visibility = vis;   // im Dark Mode den Weltall-Hintergrund mit ein-/ausblenden
   if (dinoHidden) DINO.pause(); else DINO.resume();
   updateDinoPlayIcon();
 }
 document.getElementById('dinoEye').onclick = toggleDinoEye;
-function switchScene(dir) {
-  if (dinoHidden) toggleDinoEye();
-  const m = DINO.cycle(dir); DINO.resume();
-  state.settings.dinoScene = m; save();
-  updateDinoPlayIcon();
-  toast(m === 'space' ? '🌌 Szene: Weltall' : '🦖 Szene: Urzeit');
-}
-document.getElementById('dinoScenePrev').onclick = () => switchScene(-1);
-document.getElementById('dinoSceneNext').onclick = () => switchScene(1);
 
 /* ============================================================
    OFFICE-TIPPS — Gesundheit, Haltung, Motivation, Humor

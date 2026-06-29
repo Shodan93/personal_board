@@ -118,12 +118,20 @@ try {
   for (let i = 0; i < 120; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
   ok(true, 'Urzeit-Szene: 120 weitere Frames (Pflanzen/Berge/Vulkan/Boden) ohne Fehler');
 
-  // Weltall-Szene: umschalten + Frames pumpen (Sterne/Funkeln/Sternschnuppen) ohne Fehler
+  // Weltall-Szene: umschalten + lange laufen lassen, damit Rakete UND UFO spawnen (kein Fehler)
   vm.runInContext('DINO.setMode("space")', context);
   ok(vm.runInContext('DINO.getMode()', context) === 'space', 'Szene auf „Weltall" umgeschaltet');
-  for (let i = 0; i < 120; i++) { perf += 33; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
-  ok(true, 'Weltall-Szene: 120 Frames (Sterne/Funkeln/Sternschnuppen) ohne Fehler');
-  ok(vm.runInContext('DINO.cycle(1)', context) === 'run', 'Szene wieder zurück auf „Urzeit" (cycle)');
+  for (let i = 0; i < 2600; i++) { perf += 33; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
+  ok(true, 'Weltall-Szene: ~85s Frames (Sterne/Sternschnuppen/Rakete/UFO) ohne Fehler');
+
+  // Pixel-Lauf ist an den Modus gebunden: Dark = Weltall, Light = Urzeit
+  const bound = vm.runInContext(`(function(){
+    state.settings.theme = 'dark';  applyTheme(); var d = DINO.getMode();
+    state.settings.theme = 'light'; applyTheme(); var l = DINO.getMode();
+    return { d, l };
+  })()`, context);
+  ok(bound.d === 'space', 'Dark Mode -> Weltall-Szene (automatisch gebunden)');
+  ok(bound.l === 'run', 'Light Mode -> Urzeit-Szene (automatisch gebunden)');
   for (let i = 0; i < 10; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
 
   // Sticky Note + Ticket-render INNERHALB des vm (Zugriff auf let-Variablen)
