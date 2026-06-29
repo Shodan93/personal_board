@@ -208,17 +208,11 @@ body.viewer .col-name:hover{text-decoration:none}
 #dinoWrap button:hover{color:var(--blue)}
 #dinoCv{flex:1 1 auto; min-width:0; height:34px}
 
-/* Schlafende Katze (Office-Tipps) — liegt auf einem transparenten „Glas-Regal".
-   Orbit-Vibe: als säße man im Raumschiff und die Schiffskatze döst auf der Fensterbank. */
-#astro{position:fixed; right:16px; bottom:16px; z-index:90; width:96px; cursor:pointer; display:none;
-  transition:transform 2.4s cubic-bezier(.4,0,.2,1)}
-#astroBody{position:relative; width:100%; z-index:1; transform-origin:bottom center; animation:catBreathe 5.2s ease-in-out infinite}
-/* ganz ruhiges Atmen im Schlaf (kein Schweben) */
-@keyframes catBreathe{
-  0%,100%{transform:translateY(0) scaleY(1)}
-  50%{transform:translateY(-1px) scaleY(1.035)}}
-#astroCv{display:block; image-rendering:pixelated; transition:transform .5s ease}
-#astroCv.flip{transform:scaleX(-1)}            /* Katze dreht sich gelegentlich auf die andere Seite */
+/* Schwarze Schiffskatze (Office-Tipps) auf einem Glas-Balken mit Datum/Uhrzeit.
+   Orbit-Vibe: als säße man im Raumschiff und die Schiffskatze döst auf der Konsole. */
+#astro{position:fixed; right:22px; bottom:18px; z-index:90; width:300px; cursor:pointer; display:none}
+#astroBody{position:relative; width:100%; z-index:1}
+#astroCv{display:block; image-rendering:pixelated}      /* keine Animation -> kein Flimmern */
 #astroBubble{position:absolute; bottom:calc(100% + 8px); right:0; width:230px; max-width:62vw; z-index:5;
   background:var(--card); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
@@ -525,7 +519,6 @@ tr.row.done-final td{opacity:.4}
   <h1 id="boardTitle">🪐 Orbit</h1>
   <select id="boardSwitch" title="Board wechseln" hidden
     style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
-  <span class="header-meta" id="todayDate"></span>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: fällig in den nächsten 7 Tagen">0 diese Woche</button>
@@ -900,7 +893,7 @@ tr.row.done-final td{opacity:.4}
 <div id="astro" title="Streichel mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
   <div id="astroBody">
-    <canvas id="astroCv" width="96" height="80"></canvas>
+    <canvas id="astroCv" width="300" height="150"></canvas>
     <button id="astroGear" title="Katzen-Einstellungen">⚙</button>
   </div>
   <div id="astroMenu" hidden>
@@ -1209,13 +1202,14 @@ function isoWeek(d) {
   const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
   return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
 }
-function tickClock() {
+// Datum/Uhrzeit für den Glas-Balken der Katze (kompakt, inkl. Kalenderwoche)
+function catClockStr() {
   const n = new Date();
-  document.getElementById('todayDate').textContent =
-    'KW ' + isoWeek(n) + ' · ' +
-    n.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) +
+  return 'KW ' + isoWeek(n) + ' · ' +
+    n.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) +
     ' · ' + n.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
 }
+function tickClock() { if (typeof drawCat === 'function') drawCat(); }   // aktualisiert die Uhr auf dem Balken
 function renderHeader() {
   tickClock();
   const cur = view === 'kanban' ? kanbanQuick : quick;
@@ -4166,48 +4160,61 @@ function fadeGrad(W, a, mid) {                            // horizontaler Verlau
   g.addColorStop(0.82, a + mid + ')'); g.addColorStop(1, a + '0)');
   return g;
 }
+const CAT_BOX = 150;                                     // Breite der Katzen-Zone (links)
+function catCount() { return (catSheet && catFrameRects.length) ? catFrameRects.length : POSE_ORDER.length; }
 function drawCat() {
-  const W = catCv.width, H = catCv.height, sy = SHELF_ROW * CP;
+  const W = catCv.width, H = catCv.height, BAR = 26, sy = H - BAR;
   cctx.clearRect(0, 0, W, H);
-  // Transparentes Glas-Regal — läuft an beiden Enden weich aus (kein abrupter Balken)
-  cctx.fillStyle = fadeGrad(W, 'rgba(150,180,235,.', '13'); cctx.fillRect(0, sy, W, H - sy);   // Glasfläche
-  cctx.fillStyle = fadeGrad(W, 'rgba(215,233,255,.', '6');  cctx.fillRect(0, sy, W, 1);        // obere Glanzkante
-  cctx.fillStyle = fadeGrad(W, 'rgba(120,150,210,.', '28'); cctx.fillRect(0, H - 1, W, 1);     // untere Kante
-  cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);          // Kontaktschatten
-  // Liegt das EIGENE Sprite-Sheet vor? -> Originalbild rendern (Hintergrund freigestellt, je Pose zugeschnitten)
+  // Langer Glas-Balken, Enden weich auslaufend
+  cctx.fillStyle = fadeGrad(W, 'rgba(150,180,235,.', '13'); cctx.fillRect(0, sy, W, BAR);   // Glasfläche
+  cctx.fillStyle = fadeGrad(W, 'rgba(215,233,255,.', '6');  cctx.fillRect(0, sy, W, 1);     // obere Glanzkante
+  cctx.fillStyle = fadeGrad(W, 'rgba(120,150,210,.', '28'); cctx.fillRect(0, H - 1, W, 1);  // untere Kante
+  cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);        // Kontaktschatten
+  // Katze (links, größer, sitzt auf dem Balken; eigenes Bild bevorzugt)
   if (catSheet && catFrameRects.length) {
     const r = catFrameRects[catPoseIdx % catFrameRects.length];
-    const avail = sy - 2;                                  // Platz über dem Regal
-    const sc = Math.min((W - 4) / r.w, avail / r.h);       // einpassen (verkleinert das große Original sauber)
+    const sc = Math.min((CAT_BOX - 10) / r.w, (sy - 10) / r.h);
     const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
-    const dx = Math.round((W - dw) / 2), dy = Math.round(sy - dh);
-    cctx.imageSmoothingEnabled = false;                    // knackscharf statt verwaschen
+    const dx = Math.round(6 + (CAT_BOX - dw) / 2), dy = Math.round(sy - 4 - dh);
+    cctx.imageSmoothingEnabled = false;                  // knackscharf
     cctx.drawImage(catSheet, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
-    return;
+  } else {
+    const pose = CAT_POSES[POSE_ORDER[catPoseIdx % POSE_ORDER.length]];
+    const pw = pose[0].length, ph = pose.length;
+    const sc = Math.max(1, Math.floor(Math.min((CAT_BOX - 10) / pw, (sy - 10) / ph)));
+    const dx = Math.round(6 + (CAT_BOX - pw * sc) / 2), dy = Math.round(sy - 4 - ph * sc);
+    pose.forEach((row, y) => [...row].forEach((ch, x) => {
+      let c = ch;
+      if (catBlink && (c === 'E' || c === 'W')) c = 'B';
+      else if (catBlink && c === 'P') c = 'o';
+      const col = catCol[c];
+      if (col) { cctx.fillStyle = col; cctx.fillRect(dx + x * sc, dy + y * sc, sc, sc); }
+    }));
   }
-  // Fallback: handgebaute Sprites, bis die Datei vorhanden ist
-  CAT_POSES[POSE_ORDER[catPoseIdx]].forEach((row, y) => [...row].forEach((ch, x) => {
-    let c = ch;
-    if (catBlink && (c === 'E' || c === 'W')) c = 'B';   // Blinzeln: Augen kurz zu
-    else if (catBlink && c === 'P') c = 'o';             // schmaler geschlossener Lidstrich
-    const col = catCol[c];
-    if (col) { cctx.fillStyle = col; cctx.fillRect(x * CP, y * CP, CP, CP); }
-  }));
+  // Datum/Uhrzeit auf dem Balken (Schriftgröße auto-angepasst, Farbe je nach Theme)
+  try {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    const txt = catClockStr(); let fz = 13;
+    const setF = () => cctx.font = '600 ' + fz + 'px ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif';
+    cctx.textBaseline = 'middle'; cctx.textAlign = 'center'; setF();
+    while (cctx.measureText(txt).width > W - 16 && fz > 8) { fz--; setF(); }
+    cctx.fillStyle = dark ? '#d2d9e6' : '#2b313d';
+    cctx.fillText(txt, W / 2, sy + BAR / 2 + 1);
+  } catch (e) {}                                          // Test-Stubs ohne measureText/fillText
 }
 function catBlinkOnce() {
   catBlink = true; drawCat();
   setTimeout(() => { catBlink = false; drawCat(); }, 170);
   catBlinkT = setTimeout(catBlinkOnce, 3500 + Math.random() * 5500);
 }
-function catCyclePose() {  // automatischer Posenwechsel (alle ~9–18 s), gelegentlich gespiegelt
-  catPoseIdx = (catPoseIdx + 1) % POSE_ORDER.length;
-  catCv.classList.toggle('flip', Math.random() < 0.5);
+function catCyclePose() {  // automatischer Posenwechsel — selten und ohne Animation (sofort)
+  catPoseIdx = (catPoseIdx + 1) % catCount();
   drawCat();
-  catMoveT = setTimeout(catCyclePose, 9000 + Math.random() * 9000);
+  catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);   // alle ~24–46 s
 }
 drawCat();
 catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
-catMoveT = setTimeout(catCyclePose, 9000 + Math.random() * 7000);
+catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);
 // Eigenes Sprite-Sheet laden (4 Posen nebeneinander). Hintergrund wird freigestellt
 // (Eckfarbe wird transparent), jede Pose auf ihre Bounding-Box zugeschnitten.
 function processCatSheet(img) {
@@ -4220,28 +4227,31 @@ function processCatSheet(img) {
     catSheet = img; catFrameRects = Array.from({ length: catFrames }, (_, f) => ({ x: f * fw, y: 0, w: fw, h: img.height }));
     return;
   }
-  const d = data.data, br = d[0], bg = d[1], bb = d[2], tol = 40;
+  const d = data.data, W = img.width, fh = img.height, br = d[0], bg = d[1], bb = d[2], tol = 40;
   for (let p = 0; p < d.length; p += 4) {
     const r = d[p], g = d[p + 1], b = d[p + 2];
     if (Math.abs(r - br) < tol && Math.abs(g - bg) < tol && Math.abs(b - bb) < tol) { d[p + 3] = 0; continue; }  // Hintergrund -> transparent
-    // Vorlage ist ein braunes Tabby -> auf eine SCHWARZE Katze umfärben:
-    if (r >= 232 && g >= 176 && b <= 122) { d[p] = 240; d[p + 1] = 206; d[p + 2] = 80; }                          // Augen: Gold-Glanz
-    else if (r > 150 && (r - g) > 40 && (r - b) < 58 && b > 95 && g < 150) { d[p] = 201; d[p + 1] = 128; d[p + 2] = 133; } // Nase: rosa
-    else { let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.5 - 8; nl = nl < 7 ? 7 : nl > 108 ? 108 : nl;     // Fell -> dunkles Grau (kühler Stich)
+    // Vorlage ist ein braunes Tabby -> auf eine SCHWARZE Katze umfärben (Augen grün, keine rosa Flecken):
+    if (r >= 232 && g >= 176 && b <= 122) { d[p] = 138; d[p + 1] = 205; d[p + 2] = 96; }   // Augen: grün
+    else { let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.5 - 8; nl = nl < 7 ? 7 : nl > 108 ? 108 : nl; // Fell -> dunkles Grau (kühler Stich)
       d[p] = Math.round(nl * 0.92); d[p + 1] = Math.round(nl * 0.97); d[p + 2] = Math.round(nl * 1.12); }
   }
   o.putImageData(data, 0, 0);
   catSheet = oc;
-  const fw = Math.floor(img.width / catFrames), fh = img.height, pad = 2;
-  catFrameRects = [];
-  for (let f = 0; f < catFrames; f++) {
-    let minx = fw, miny = fh, maxx = 0, maxy = 0, found = false;
-    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++)
-      if (d[(y * img.width + f * fw + x) * 4 + 3] > 16) { found = true; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
-    if (!found) { minx = 0; miny = 0; maxx = fw - 1; maxy = fh - 1; }
-    catFrameRects.push({ x: f * fw + Math.max(0, minx - pad), y: Math.max(0, miny - pad),
-      w: Math.min(fw, maxx - minx + 1 + pad * 2), h: Math.min(fh, maxy - miny + 1 + pad * 2) });
-  }
+  // Posen über LEERSPALTEN segmentieren (robust gegen Schwänze, die Zellgrenzen überqueren)
+  const col = new Array(W).fill(0);
+  for (let x = 0; x < W; x++) for (let y = 0; y < fh; y++) if (d[(y * W + x) * 4 + 3] > 16) col[x]++;
+  const clusters = []; let s = -1;
+  for (let x = 0; x < W; x++) { const on = col[x] >= 2;
+    if (on && s < 0) s = x;
+    if ((!on || x === W - 1) && s >= 0) { const e = on ? x : x - 1; if (e - s + 1 >= 20) clusters.push([s, e]); s = -1; } }
+  catFrameRects = clusters.map(([x0, x1]) => {
+    let miny = fh, maxy = 0;
+    for (let x = x0; x <= x1; x++) for (let y = 0; y < fh; y++) if (d[(y * W + x) * 4 + 3] > 16) { if (y < miny) miny = y; if (y > maxy) maxy = y; }
+    return { x: x0, y: miny, w: x1 - x0 + 1, h: maxy - miny + 1 };
+  });
+  if (!catFrameRects.length) catFrameRects = [{ x: 0, y: 0, w: W, h: fh }];
+  catFrames = catFrameRects.length;
 }
 (function loadCatSheet() {
   if (typeof Image === 'undefined') return;
