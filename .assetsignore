@@ -1,4 +1,5 @@
 /worker.js
+/mcp-worker.js
 /supabase.sql
 /package.json
 /wrangler.jsonc
