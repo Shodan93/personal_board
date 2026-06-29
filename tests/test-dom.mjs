@@ -121,8 +121,8 @@ try {
   // Weltall-Szene: umschalten + lange laufen lassen, damit Rakete UND UFO spawnen (kein Fehler)
   vm.runInContext('DINO.setMode("space")', context);
   ok(vm.runInContext('DINO.getMode()', context) === 'space', 'Szene auf „Weltall" umgeschaltet');
-  for (let i = 0; i < 2600; i++) { perf += 33; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
-  ok(true, 'Weltall-Szene: ~85s Frames (Sterne/Sternschnuppen/Rakete/UFO) ohne Fehler');
+  for (let i = 0; i < 5200; i++) { perf += 33; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
+  ok(true, 'Weltall-Szene: ~170s Frames (Sterne/Wandern/Sternschnuppen/Überflug) ohne Fehler');
 
   // Pixel-Lauf ist an den Modus gebunden: Dark = Weltall, Light = Urzeit
   const bound = vm.runInContext(`(function(){

@@ -33,6 +33,10 @@
 :root[data-theme="dark"] th{background:var(--col-bg)}
 :root[data-theme="dark"] .due-today .deadline{color:#e0a955}
 :root[data-theme="dark"] .badge-today{color:#fff}
+/* Dark Mode: Kopfzeile liegt über dem Weltall — Texte gut lesbar halten (best practice:
+   helles, aber nicht reinweißes Off-White + dezenter Schatten gegen Sterne/Rakete dahinter) */
+:root[data-theme="dark"] header h1{color:#aecdf6; text-shadow:0 1px 3px rgba(0,0,0,.75)}
+:root[data-theme="dark"] .header-meta{color:#c7cedd; text-shadow:0 1px 3px rgba(0,0,0,.75)}
 *{box-sizing:border-box;margin:0;padding:0}
 /* FIX v2: hidden-Attribut muss display:grid/flex etc. immer schlagen
    (Ursache des Listenansicht-Bugs in v1) */
@@ -3094,7 +3098,7 @@ const DINO = (() => {
   // Szenen-Modus: 'run' (Urzeit-Pixellauf) | 'space' (Weltall, funkelnde Sterne + Sternschnuppen)
   const SCENES = ['run', 'space'];
   let mode = 'run';
-  let stars = [], shooters = [], nextShoot = 0, rocket = null, ufo = null, nextRocket = 0, nextSpaceUfo = 0;
+  let stars = [], shooters = [], nextShoot = 0, rocket = null, ufo = null, nextFlyby = 0;
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -3351,43 +3355,67 @@ const DINO = (() => {
     for (let i = 0; i < 3; i++) spawnNear(i * (w / 3) + Math.random() * 40); // ein paar Hügel, verteilt
     spawnHi(w * 0.55 + Math.random() * w * 0.35);
   }
-  /* ---------- Weltall-Szene (volle Headerbreite): statisches Sternenfeld + Sternschnuppen,
-       dazu selten eine Rakete (mit Kondensstreifen) und ein UFO. Dynamische Objekte nur
-       im MITTLEREN Bereich, damit sie nicht hinter UI-Elementen liegen. ---------- */
-  const midBand = w => [w * 0.30, w * 0.70];           // [links, rechts] des mittleren Bereichs
+  /* ---------- Weltall-Szene (volle Headerbreite): funkelndes Sternenfeld, das super subtil
+       wandert (nie ganz dieselbe Formation), Sternschnuppen, dazu SELTEN — alle ~5 Min eines
+       von beiden — eine Rakete (Bogenbahn über die ganze Breite, Richtung wechselnd) ODER ein
+       UFO (immer kerzengerade von links/rechts). Raketen & UFOs nutzen die ganze Breite. ---------- */
+  const TAU = Math.PI * 2;
   function seedSpace() {
     stars = [];
-    const n = 70;
+    const n = 84;                                          // ~20 % mehr Sterne
     for (let i = 0; i < n; i++) stars.push({
       x: Math.random(), y: Math.random(),
-      s: Math.random() < 0.18 ? 2 : 1,                 // wenige größere Sterne
-      tw: 1.2 + Math.random() * 2.6, ph: Math.random() * Math.PI * 2,  // Funkeln
-      b: 0.35 + Math.random() * 0.6, blue: Math.random() < 0.25
+      s: Math.random() < 0.18 ? 2 : 1,                     // wenige größere Sterne
+      tw: 1.2 + Math.random() * 2.6, ph: Math.random() * TAU,        // Funkeln
+      b: 0.35 + Math.random() * 0.6, blue: Math.random() < 0.25,
+      // super subtiles Wandern (Lissajous, je Stern eigene Frequenz/Phase) -> Formation lebt leise
+      ax: 2 + Math.random() * 4, ay: 1 + Math.random() * 2,
+      fx: 0.05 + Math.random() * 0.12, fy: 0.04 + Math.random() * 0.1,
+      phx: Math.random() * TAU, phy: Math.random() * TAU
     });
     shooters = []; rocket = null; ufo = null;
     nextShoot = nowTs + 1600 + Math.random() * 2600;
-    nextRocket = nowTs + 9000 + Math.random() * 14000;     // erste Rakete bald, danach >= 1/min
-    nextSpaceUfo = nowTs + 28000 + Math.random() * 40000;  // UFO selten
+    nextFlyby = nowTs + 90000 + Math.random() * 60000;     // erstes Überfliegen nach ~1,5–2,5 Min
   }
-  // Sternschnuppe in ZUFÄLLIGER Richtung, Start im mittleren Bereich (optional an Klickposition)
+  // Sternschnuppe in ZUFÄLLIGER Richtung über die ganze Breite (optional an Klickposition)
   function spawnShooter(px, py) {
-    const w = cv.clientWidth || 300, h = cv.height, [bl, br] = midBand(w);
-    const ang = Math.random() * Math.PI * 2, sp = 110 + Math.random() * 90;
-    const sx = px != null ? px : bl + Math.random() * (br - bl);
-    const sy = py != null ? py : h * (0.15 + Math.random() * 0.5);
+    const w = cv.clientWidth || 300, h = cv.height;
+    const ang = Math.random() * TAU, sp = 110 + Math.random() * 90;
+    const sx = px != null ? px : Math.random() * w;
+    const sy = py != null ? py : h * (0.12 + Math.random() * 0.6);
     shooters.push({ x: sx, y: sy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 1, len: 7 + (Math.random() * 7 | 0) });
   }
-  function spawnRocket(w, h) { const [bl, br] = midBand(w); rocket = { x: bl, y: h * (0.34 + Math.random() * 0.3), v: (br - bl) / (2.6 + Math.random() * 1.2), trail: [] }; }
-  function spawnSpaceUfo(w, h) { const [bl, br] = midBand(w); ufo = { x: bl, y: h * (0.16 + Math.random() * 0.28), v: (br - bl) / (5 + Math.random() * 3) }; }
-  function drawSpaceRocket(x, y, ts) {
-    x = Math.round(x); y = Math.round(y);
-    const fl = (Math.sin(ts * 0.05) > 0) ? 3 : 2;                    // flackernde Flamme (hinten)
-    ctx.fillStyle = '#ff8c1a'; R(x - 6, y, 2, 2);
-    ctx.fillStyle = '#ffd23f'; R(x - 4, y, fl, 2);
-    ctx.fillStyle = '#ff3b30'; R(x - 2, y - 2, 2, 1); R(x - 2, y + 3, 2, 1);  // Finnen
-    ctx.fillStyle = '#e9ecf5'; R(x - 2, y - 1, 6, 4);                // Körper
-    ctx.fillStyle = '#c3c8d3'; R(x + 4, y, 2, 2);                    // Nase (zeigt nach rechts)
-    ctx.fillStyle = '#4aa3ff'; R(x + 1, y, 2, 2);                    // Fenster
+  // Rakete: über die GANZE Breite auf einer Bogenbahn, Richtung links<->rechts wechselnd, nie senkrecht.
+  function spawnRocket(w, h) {
+    rocket = {
+      dir: Math.random() < 0.5 ? 1 : -1, prog: 0,
+      v: 1 / (4.5 + Math.random() * 3),                    // Bruchteil/Sekunde -> Dauer ~4,5–7,5 s
+      baseY: h * (0.32 + Math.random() * 0.36),
+      arc: h * (0.18 + Math.random() * 0.26) * (Math.random() < 0.5 ? 1 : -1), // Bogen hoch/runter
+      trail: []
+    };
+  }
+  // UFO: immer komplett gerade von links ODER rechts.
+  function spawnSpaceUfo(w, h) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    ufo = { dir, x: dir > 0 ? -14 : w + 14, y: h * (0.18 + Math.random() * 0.34), v: w / (6 + Math.random() * 4) };
+  }
+  // Position der Rakete entlang der Bogenbahn (p = 0..1 über die ganze Breite)
+  function rocketXY(Rk, w, p) {
+    const x = (Rk.dir > 0 ? -14 : w + 14) + Rk.dir * p * (w + 28);
+    const y = Rk.baseY + Rk.arc * Math.sin(p * Math.PI);
+    return [x, y];
+  }
+  function drawSpaceRocket(x, y, ang, ts) {
+    ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(ang);
+    const fl = (Math.sin(ts * 0.05) > 0) ? 3 : 2;
+    ctx.fillStyle = '#ff8c1a'; ctx.fillRect(-6, -1, 2, 2);
+    ctx.fillStyle = '#ffd23f'; ctx.fillRect(-4, -1, fl, 2);                              // Flamme (hinten)
+    ctx.fillStyle = '#ff3b30'; ctx.fillRect(-2, -3, 2, 1); ctx.fillRect(-2, 2, 2, 1);    // Finnen
+    ctx.fillStyle = '#e9ecf5'; ctx.fillRect(-2, -2, 6, 4);                               // Körper
+    ctx.fillStyle = '#c3c8d3'; ctx.fillRect(4, -1, 2, 2);                                // Nase
+    ctx.fillStyle = '#4aa3ff'; ctx.fillRect(1, -1, 2, 2);                                // Fenster
+    ctx.restore();
   }
   function drawSpaceUfo(x, y, ts) {
     x = Math.round(x); y = Math.round(y);
@@ -3398,19 +3426,20 @@ const DINO = (() => {
     R(x - 5, y + 2, 1, 1); R(x, y + 2, 1, 1); R(x + 4, y + 2, 1, 1);
   }
   function spaceFrame(w, h, ts, dt) {
-    // Tiefes Weltall, volle Headerbreite
     let g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#05060f'); g.addColorStop(1, '#0e1026');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    const [bl, br] = midBand(w);
-    // Statisches Sternenfeld (über die ganze Breite), nur funkelnd
+    const tsec = ts * 0.001;
+    // Funkelnde Sterne, super subtil wandernd (volle Breite)
     stars.forEach(st => {
-      const tw = 0.45 + 0.55 * Math.sin(ts * 0.001 * st.tw + st.ph);
+      const tw = 0.45 + 0.55 * Math.sin(tsec * st.tw + st.ph);
       const a = Math.max(0.05, Math.min(1, st.b * tw));
+      const px = st.x * w + Math.sin(tsec * st.fx + st.phx) * st.ax;
+      const py = st.y * h + Math.sin(tsec * st.fy + st.phy) * st.ay;
       ctx.fillStyle = st.blue ? 'rgba(180,205,255,' + a.toFixed(3) + ')' : 'rgba(255,255,255,' + a.toFixed(3) + ')';
-      R(st.x * w, st.y * h, st.s, st.s);
+      R(px, py, st.s, st.s);
     });
-    // Sternschnuppen (zufällige Richtungen, Start im mittleren Bereich)
+    // Sternschnuppen
     if (running && ts > nextShoot) { spawnShooter(); nextShoot = ts + 3200 + Math.random() * 5200; }
     if (running) shooters.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 0.55; });
     shooters = shooters.filter(s => s.life > 0 && s.x > -40 && s.x < w + 40 && s.y > -40 && s.y < h + 40);
@@ -3423,25 +3452,31 @@ const DINO = (() => {
       ctx.fillStyle = 'rgba(255,255,255,' + Math.max(0, s.life).toFixed(3) + ')';
       R(s.x, s.y, 2, 2);
     });
-    // Rakete (max. 1×/Minute): von links nach rechts durch die Mitte, mit Kondensstreifen
-    if (running && !rocket && ts > nextRocket) { spawnRocket(w, h); nextRocket = ts + 60000 + Math.random() * 40000; }
+    // Selten: alle ~5 Min EINES von beiden (Rakete ODER UFO), nur wenn gerade keins unterwegs ist
+    if (running && !rocket && !ufo && ts > nextFlyby) {
+      if (Math.random() < 0.6) spawnRocket(w, h); else spawnSpaceUfo(w, h);
+      nextFlyby = ts + 270000 + Math.random() * 90000;     // danach 4,5–6 Min
+    }
+    // Rakete auf Bogenbahn (volle Breite), Nase entlang der Flugrichtung
     if (rocket) {
       if (running) {
-        rocket.x += rocket.v * dt;
-        rocket.trail.push({ x: rocket.x - 5, y: rocket.y + 1, life: 1 });
+        rocket.prog += rocket.v * dt;
+        const [hx, hy] = rocketXY(rocket, w, rocket.prog);
+        rocket.trail.push({ x: hx, y: hy, life: 1 });
         rocket.trail.forEach(p => p.life -= dt * 0.7);
         rocket.trail = rocket.trail.filter(p => p.life > 0);
       }
+      const [x, y] = rocketXY(rocket, w, rocket.prog);
+      const [x2, y2] = rocketXY(rocket, w, rocket.prog + 0.01);
       rocket.trail.forEach(p => { ctx.fillStyle = 'rgba(220,230,255,' + (p.life * 0.5).toFixed(3) + ')'; R(p.x, p.y, 2, 2); });
-      drawSpaceRocket(rocket.x, rocket.y, ts);
-      if (rocket.x > br + 8) rocket = null;
+      drawSpaceRocket(x, y, Math.atan2(y2 - y, x2 - x), ts);
+      if (rocket.prog > 1) rocket = null;
     }
-    // UFO (selten, max. 1×/Minute): gleitet durch die Mitte, blinkende Lichter
-    if (running && !ufo && ts > nextSpaceUfo) { spawnSpaceUfo(w, h); nextSpaceUfo = ts + 90000 + Math.random() * 120000; }
+    // UFO kerzengerade von links/rechts
     if (ufo) {
-      if (running) ufo.x += ufo.v * dt;
+      if (running) ufo.x += ufo.dir * ufo.v * dt;
       drawSpaceUfo(ufo.x, ufo.y, ts);
-      if (ufo.x > br + 8) ufo = null;
+      if (ufo.x < -20 || ufo.x > w + 20) ufo = null;
     }
   }
   function frame(ts) {
