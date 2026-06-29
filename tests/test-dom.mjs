@@ -134,6 +134,20 @@ try {
   ok(bound.l === 'run', 'Light Mode -> Urzeit-Szene (automatisch gebunden)');
   for (let i = 0; i < 10; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
 
+  // Schlafende Schiffskatze (ersetzt den Astronauten, übernimmt die Office-Tipps)
+  const cat = vm.runInContext(`(function(){
+    drawCat();                                              // Katze + Glas-Regal ohne Fehler
+    catBlink = true; drawCat(); catBlink = false; drawCat(); // Blinzeln
+    speakTip('miau');                                       // Tipp-Sprechblase über die Katze
+    return { rows: CAT_MAP.length, cols: CAT_MAP[0].length,
+             eyes: CAT_MAP.join('').split('E').length - 1,
+             bubble: document.getElementById('astroBubble').hidden === false,
+             text: document.getElementById('astroText').textContent };
+  })()`, context);
+  ok(cat.rows === 16 && cat.cols === 24, 'Katze: 24×16-Pixelraster zeichnet fehlerfrei');
+  ok(cat.eyes === 4, 'Katze: zwei (je 2px breite) Augen im Sprite');
+  ok(cat.bubble && cat.text === 'miau', 'Katze übernimmt die Office-Tipps (Sprechblase)');
+
   // Sticky Note + Ticket-render INNERHALB des vm (Zugriff auf let-Variablen)
   const probe = vm.runInContext(`(function(){
     addNote(100,200);

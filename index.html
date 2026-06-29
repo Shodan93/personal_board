@@ -208,17 +208,17 @@ body.viewer .col-name:hover{text-decoration:none}
 #dinoWrap button:hover{color:var(--blue)}
 #dinoCv{flex:1 1 auto; min-width:0; height:34px}
 
-/* Astronaut */
-#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:88px; cursor:pointer; display:none}
-#astroBody{position:relative; width:100%; z-index:1; animation:astroFloat 4.5s ease-in-out infinite}
-@keyframes astroFloat{
-  0%{transform:translateY(0) rotate(-2.5deg)}
-  25%{transform:translateY(-6px) rotate(1.5deg)}
-  50%{transform:translateY(-9px) rotate(2.5deg)}
-  75%{transform:translateY(-4px) rotate(-1deg)}
-  100%{transform:translateY(0) rotate(-2.5deg)}}
-#astroCv{display:block; filter:drop-shadow(0 3px 5px rgba(0,0,0,.25))}
-#astroImg{display:block; width:100%; height:auto; image-rendering:auto; filter:drop-shadow(0 4px 7px rgba(0,0,0,.28))}
+/* Schlafende Katze (Office-Tipps) — liegt auf einem transparenten „Glas-Regal".
+   Orbit-Vibe: als säße man im Raumschiff und die Schiffskatze döst auf der Fensterbank. */
+#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:104px; cursor:pointer; display:none;
+  transition:transform 2.4s cubic-bezier(.4,0,.2,1)}
+#astroBody{position:relative; width:100%; z-index:1; transform-origin:bottom center; animation:catBreathe 5.2s ease-in-out infinite}
+/* ganz ruhiges Atmen im Schlaf (kein Schweben) */
+@keyframes catBreathe{
+  0%,100%{transform:translateY(0) scaleY(1)}
+  50%{transform:translateY(-1px) scaleY(1.035)}}
+#astroCv{display:block; image-rendering:pixelated; transition:transform .5s ease}
+#astroCv.flip{transform:scaleX(-1)}            /* Katze dreht sich gelegentlich auf die andere Seite */
 #astroBubble{position:absolute; bottom:calc(100% + 8px); right:0; width:230px; max-width:62vw; z-index:5;
   background:var(--card); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
@@ -896,17 +896,16 @@ tr.row.done-final td{opacity:.4}
   </div>
 </div>
 
-<!-- Astronaut mit Office-Tipps -->
-<div id="astro" title="Klick mich für einen Tipp!">
+<!-- Schlafende Schiffskatze mit Office-Tipps -->
+<div id="astro" title="Streichel mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
   <div id="astroBody">
-    <img id="astroImg" alt="Astronaut" hidden>
-    <canvas id="astroCv" width="60" height="72"></canvas>
-    <button id="astroGear" title="Astronaut-Einstellungen">⚙</button>
+    <canvas id="astroCv" width="104" height="64"></canvas>
+    <button id="astroGear" title="Katzen-Einstellungen">⚙</button>
   </div>
   <div id="astroMenu" hidden>
     <label><input type="checkbox" id="astroAuto"> Tipps von selbst zeigen</label>
-    <button class="btn" id="astroHide">Astronaut ausblenden</button>
+    <button class="btn" id="astroHide">Katze ausblenden</button>
   </div>
 </div>
 
@@ -3939,46 +3938,66 @@ const TIPS = [
 ];
 let tipPool = [], tipTimer = null, bubbleTimer = null;
 
-/* Astronaut zeichnen (Pixel-Art, süß, mit Visier-Glanz; Schwebe per CSS) */
-(function drawAstronaut() {
-  const ctx = document.getElementById('astroCv').getContext('2d');
-  const P = 4;
-  const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(x * P, y * P, P, P); };
-  const K = '#1b1b1b', W = '#f3f5fa', G = '#cdd2dc', D = '#8a93a8',
-        V = '#54cdee', H = '#c4f0ff', O = '#c0623a';
-  // 15×18-Raster: freundlicher, frontaler Astronaut (schwebend) —
-  // runder Helm mit Visier-Glanz, weißer Anzug, orange Brust + Stiefel
-  const map = [
-    '.....KKKKK.....',
-    '...KKWWWWWKK...',
-    '..KWWWWWWWWWK..',
-    '..KWVVVVVVVWK..',
-    '..KWVHHVVVVWK..',
-    '..KWVVVVVVVWK..',
-    '..KWWVVVVVWWK..',
-    '...KWWWWWWWK...',
-    '.....KWWWK.....',
-    '...KWWWWWWWK...',
-    '..KWWWWWWWWWK..',
-    '..KWWWOOOWWWK..',
-    '..KWWWWWWWWWK..',
-    '...KWWWWWWWK...',
-    '...KWWWWWWWK...',
-    '...KWWK.KWWK...',
-    '...KWWK.KWWK...',
-    '...KOOK.KOOK...',
-  ];
-  const col = { K, W, G, D, V, H, O };
-  map.forEach((row, y) => [...row].forEach((ch, x) => { if (col[ch]) px(x, y, col[ch]); }));
-})();
-// Eigenes Astronauten-Bild (astronaut.png im Repo-Root) verwenden, sonst Pixel-Art als Fallback.
-(function loadAstronautImage() {
-  const img = document.getElementById('astroImg'), cv = document.getElementById('astroCv');
-  if (!img) return;
-  img.onload = () => { img.hidden = false; if (cv) cv.hidden = true; };
-  img.onerror = () => { img.hidden = true; if (cv) cv.hidden = false; }; // PNG fehlt -> Pixel-Art behalten
-  img.src = 'astronaut.png';
-})();
+/* Schlafende Schiffskatze (Pixel-Art) auf einem transparenten Glas-Regal.
+   Atmen läuft per CSS; Blinzeln + gelegentliches Umlegen/Drehen per JS. */
+const catCv = document.getElementById('astroCv');
+const cctx = catCv.getContext('2d');
+const CP = 4, XOFF = 1;                                   // 4px-Pixel; Katze 1 Spalte eingerückt
+const catCol = { K: '#15161d', S: '#23252f', E: '#f5c63f', n: '#b3848d', p: '#2c2438', R: '#4a5a9e' };
+// 24×16-Raster: schwarze Katze als „Loaf", döst mit halb geschlossenen Augen,
+// Pfoten vorne über die Regalkante, Ohren mit zartem Mondlicht-Rand (R).
+const CAT_MAP = [
+  '........................',
+  '......R..........R......',
+  '.....KpK........KpK.....',
+  '.....KKKKKKKKKKKKKK.....',
+  '....KKKKEEKKKKEEKKKK....',
+  '....KKKKKKKnnKKKKKKK....',
+  '.....KKKKKKKKKKKKKK.....',
+  '...KKKKKKKKKKKKKKKKKK...',
+  '..KKKKKKKKKKKKKKKKKKKK..',
+  '..KKKKKKKSSSSSSKKKKKKK..',
+  '..KKKKKKKKKKKKKKKKKKKK..',
+  '...KKKKKKKKKKKKKKKKKK...',
+  '.....KKKKK...KKKKK......',
+  '.....KKKK....KKKK.......',
+  '........................',
+  '........................',
+];
+let catBlink = false, catBlinkT = null, catMoveT = null;
+function drawCat() {
+  const W = catCv.width, H = catCv.height, sy = 13 * CP;
+  cctx.clearRect(0, 0, W, H);
+  // transparentes Glas-Regal: lässt das Board durchscheinen, wirkt aber als Ablagefläche
+  cctx.fillStyle = 'rgba(150,180,235,0.10)'; cctx.fillRect(0, sy + 2, W, H - (sy + 2));   // Glasfläche
+  cctx.fillStyle = 'rgba(210,230,255,0.55)'; cctx.fillRect(0, sy, W, 2);                  // obere Glanzkante
+  cctx.fillStyle = 'rgba(120,150,210,0.22)'; cctx.fillRect(0, H - 2, W, 2);               // untere Kante
+  cctx.fillStyle = 'rgba(255,255,255,0.06)';
+  for (let gx = 8; gx < W; gx += 24) cctx.fillRect(gx, sy + 3, 3, H - (sy + 5));           // dezente Glas-Reflexe
+  // weicher Kontaktschatten unter der Katze
+  cctx.fillStyle = 'rgba(0,0,0,0.18)'; cctx.fillRect((XOFF + 3) * CP, sy - 2, 18 * CP, 3);
+  // Katze
+  CAT_MAP.forEach((row, y) => [...row].forEach((ch, x) => {
+    let c = ch;
+    if (catBlink && c === 'E') c = 'K';                  // im Schlaf blinzeln -> Augen kurz zu
+    const col = catCol[c];
+    if (col) { cctx.fillStyle = col; cctx.fillRect((x + XOFF) * CP, y * CP, CP, CP); }
+  }));
+}
+function catBlinkOnce() {
+  catBlink = true; drawCat();
+  setTimeout(() => { catBlink = false; drawCat(); }, 170);
+  catBlinkT = setTimeout(catBlinkOnce, 3500 + Math.random() * 5500);
+}
+function catReposition() {  // ab und zu gemütlich umlegen (bleibt in der Ecke) und mal die Seite wechseln
+  const dx = -((Math.random() * 26) | 0), dy = -((Math.random() * 8) | 0);
+  document.getElementById('astro').style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  if (Math.random() < 0.5) catCv.classList.toggle('flip');
+  catMoveT = setTimeout(catReposition, 18000 + Math.random() * 24000);
+}
+drawCat();
+catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
+catMoveT = setTimeout(catReposition, 16000 + Math.random() * 16000);
 // Bei Fensterfokus immer einen frischen Tipp zeigen
 window.addEventListener('focus', () => { if (state.settings.tips !== false) speakTip(); });
 
@@ -4010,7 +4029,6 @@ function applyTips() {
   scheduleAutoTip();
 }
 document.getElementById('astroCv').onclick = () => speakTip();
-document.getElementById('astroImg').onclick = () => speakTip();
 document.getElementById('astroGear').onclick = e => {
   e.stopPropagation();
   document.getElementById('astroBubble').hidden = true;
@@ -4025,7 +4043,7 @@ document.getElementById('astroHide').onclick = () => {
   document.getElementById('astroMenu').hidden = true;
   document.getElementById('astro').style.display = 'none';
   document.getElementById('setTips').checked = false;
-  toast('Astronaut ausgeblendet — in den Einstellungen wieder aktivierbar');
+  toast('Katze ausgeblendet — in den Einstellungen wieder aktivierbar');
 };
 document.getElementById('btnTipClose').onclick = () => document.getElementById('tipBar').hidden = true;
 
