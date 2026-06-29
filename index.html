@@ -4120,6 +4120,7 @@ const CAT_POSES = {
 };
 const POSE_ORDER = ['sitFront', 'loaf', 'sit34', 'standSide'];
 let catPoseIdx = 1, catBlink = false, catBlinkT = null, catMoveT = null;
+let catSheet = null, catFrames = 4;                      // optionales eigenes Sprite-Sheet (Originalbild)
 function fadeGrad(W, a, mid) {                            // horizontaler Verlauf: an den Enden transparent
   const g = cctx.createLinearGradient && cctx.createLinearGradient(0, 0, W, 0);
   if (!g || !g.addColorStop) return a + mid + ')';       // Fallback (Test-Stubs ohne Gradient)
@@ -4135,6 +4136,17 @@ function drawCat() {
   cctx.fillStyle = fadeGrad(W, 'rgba(215,233,255,.', '6');  cctx.fillRect(0, sy, W, 1);        // obere Glanzkante
   cctx.fillStyle = fadeGrad(W, 'rgba(120,150,210,.', '28'); cctx.fillRect(0, H - 1, W, 1);     // untere Kante
   cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);          // Kontaktschatten
+  // Liegt die EIGENE Sprite-Sheet-Datei vor? -> pixelgenau das Originalbild rendern (4 Posen nebeneinander)
+  if (catSheet && catSheet.width) {
+    const fw = catSheet.width / catFrames, fh = catSheet.height;
+    const scale = Math.max(1, Math.floor(Math.min(W / fw, sy / fh)));   // ganzzahlig skalieren = knackscharf
+    const dw = Math.round(fw * scale), dh = Math.round(fh * scale);
+    const dx = Math.round((W - dw) / 2), dy = Math.max(0, Math.round(sy - dh));
+    cctx.imageSmoothingEnabled = false;
+    cctx.drawImage(catSheet, Math.round((catPoseIdx % catFrames) * fw), 0, fw, fh, dx, dy, dw, dh);
+    return;
+  }
+  // Fallback: handgebaute Sprites, bis die Datei vorhanden ist
   CAT_POSES[POSE_ORDER[catPoseIdx]].forEach((row, y) => [...row].forEach((ch, x) => {
     let c = ch;
     if (catBlink && (c === 'E' || c === 'W')) c = 'B';   // Blinzeln: Augen kurz zu
@@ -4157,6 +4169,16 @@ function catCyclePose() {  // automatischer Posenwechsel (alle ~9–18 s), geleg
 drawCat();
 catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
 catMoveT = setTimeout(catCyclePose, 9000 + Math.random() * 7000);
+// Eigenes Sprite-Sheet laden, falls im Repo vorhanden (4 Posen nebeneinander, transparenter Hintergrund).
+// Dann wird das Originalbild pixelgenau gerendert; sonst bleiben die handgebauten Sprites.
+(function loadCatSheet() {
+  if (typeof Image === 'undefined') return;
+  const names = ['cat-sprites.png', 'cats.png', 'cat.png', 'katze.png']; let i = 0;
+  const img = new Image();
+  img.onload = () => { catSheet = img; drawCat(); };
+  img.onerror = () => { if (++i < names.length) img.src = names[i]; };  // sonst Fallback behalten
+  img.src = names[0];
+})();
 // Bei Fensterfokus immer einen frischen Tipp zeigen
 window.addEventListener('focus', () => { if (state.settings.tips !== false) speakTip(); });
 
