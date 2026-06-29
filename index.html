@@ -4164,25 +4164,26 @@ const CAT_BOX = 150;                                     // Breite der Katzen-Zo
 function catCount() { return (catSheet && catFrameRects.length) ? catFrameRects.length : POSE_ORDER.length; }
 function drawCat() {
   const W = catCv.width, H = catCv.height, BAR = 26, sy = H - BAR;
+  const dark = document.documentElement.dataset.theme === 'dark';
   cctx.clearRect(0, 0, W, H);
-  // Langer Glas-Balken, Enden weich auslaufend
-  cctx.fillStyle = fadeGrad(W, 'rgba(150,180,235,.', '13'); cctx.fillRect(0, sy, W, BAR);   // Glasfläche
-  cctx.fillStyle = fadeGrad(W, 'rgba(215,233,255,.', '6');  cctx.fillRect(0, sy, W, 1);     // obere Glanzkante
-  cctx.fillStyle = fadeGrad(W, 'rgba(120,150,210,.', '28'); cctx.fillRect(0, H - 1, W, 1);  // untere Kante
-  cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);        // Kontaktschatten
-  // Katze (links, größer, sitzt auf dem Balken; eigenes Bild bevorzugt)
+  // Solider Glas-Balken (keine Transparenz), je nach Theme
+  cctx.fillStyle = dark ? '#1d2230' : '#dfe5ef'; cctx.fillRect(0, sy, W, BAR);
+  cctx.fillStyle = dark ? '#2b3346' : '#c8d0e0'; cctx.fillRect(0, sy, W, 1);          // obere Kante (heller)
+  cctx.fillStyle = dark ? '#11141d' : '#aeb8cc'; cctx.fillRect(0, H - 1, W, 1);       // untere Kante (dunkler)
+  // Katze: ~30 % kleiner, etwas weiter rechts, sitzt direkt auf dem Balken
+  const CX = Math.round(W * 0.32);                        // horizontaler Mittelpunkt der Katze
   if (catSheet && catFrameRects.length) {
     const r = catFrameRects[catPoseIdx % catFrameRects.length];
-    const sc = Math.min((CAT_BOX - 10) / r.w, (sy - 10) / r.h);
+    const sc = 0.7 * Math.min((CAT_BOX - 10) / r.w, (sy - 12) / r.h);
     const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
-    const dx = Math.round(6 + (CAT_BOX - dw) / 2), dy = Math.round(sy - 4 - dh);
+    const dx = Math.round(CX - dw / 2), dy = Math.round(sy - dh + 1);   // Füße auf dem Balken
     cctx.imageSmoothingEnabled = false;                  // knackscharf
     cctx.drawImage(catSheet, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
   } else {
     const pose = CAT_POSES[POSE_ORDER[catPoseIdx % POSE_ORDER.length]];
     const pw = pose[0].length, ph = pose.length;
-    const sc = Math.max(1, Math.floor(Math.min((CAT_BOX - 10) / pw, (sy - 10) / ph)));
-    const dx = Math.round(6 + (CAT_BOX - pw * sc) / 2), dy = Math.round(sy - 4 - ph * sc);
+    const sc = Math.max(1, Math.floor(Math.min((CAT_BOX - 10) / pw, (sy - 12) / ph)));
+    const dx = Math.round(CX - pw * sc / 2), dy = Math.round(sy - ph * sc + 1);
     pose.forEach((row, y) => [...row].forEach((ch, x) => {
       let c = ch;
       if (catBlink && (c === 'E' || c === 'W')) c = 'B';
@@ -4193,7 +4194,6 @@ function drawCat() {
   }
   // Datum/Uhrzeit auf dem Balken (Schriftgröße auto-angepasst, Farbe je nach Theme)
   try {
-    const dark = document.documentElement.dataset.theme === 'dark';
     const txt = catClockStr(); let fz = 13;
     const setF = () => cctx.font = '600 ' + fz + 'px ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif';
     cctx.textBaseline = 'middle'; cctx.textAlign = 'center'; setF();
@@ -4231,8 +4231,8 @@ function processCatSheet(img) {
   for (let p = 0; p < d.length; p += 4) {
     const r = d[p], g = d[p + 1], b = d[p + 2];
     if (Math.abs(r - br) < tol && Math.abs(g - bg) < tol && Math.abs(b - bb) < tol) { d[p + 3] = 0; continue; }  // Hintergrund -> transparent
-    // Vorlage ist ein braunes Tabby -> auf eine SCHWARZE Katze umfärben (Augen grün, keine rosa Flecken):
-    if (r >= 232 && g >= 176 && b <= 122) { d[p] = 138; d[p + 1] = 205; d[p + 2] = 96; }   // Augen: grün
+    // Vorlage ist ein braunes Tabby -> auf eine SCHWARZE Katze umfärben (helle Augenpixel -> reinweiß):
+    if (r >= 232 && g >= 176 && b <= 122) { d[p] = 255; d[p + 1] = 255; d[p + 2] = 255; }   // Augen: weiß
     else { let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.5 - 8; nl = nl < 7 ? 7 : nl > 108 ? 108 : nl; // Fell -> dunkles Grau (kühler Stich)
       d[p] = Math.round(nl * 0.92); d[p + 1] = Math.round(nl * 0.97); d[p + 2] = Math.round(nl * 1.12); }
   }
