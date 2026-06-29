@@ -41,12 +41,14 @@ const TOOLS = [
       prio: { type: "string", enum: ["Hoch", "Mittel", "Niedrig"] },
       deadline: { type: "string", description: "YYYY-MM-DD" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
+      tasks: TASKS_SCHEMA,
       board_id: { type: "string" } }, required: ["title"], additionalProperties: false } },
   { name: "update_ticket", description: "Felder eines Tickets ändern (nur gesetzte werden überschrieben).",
     inputSchema: { type: "object", properties: {
       id: { type: "string" }, title: { type: "string" }, status: { type: "string" },
       prio: { type: "string", enum: ["Hoch", "Mittel", "Niedrig"] }, deadline: { type: "string" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
+      tasks: TASKS_SCHEMA,
       board_id: { type: "string" } }, required: ["id"], additionalProperties: false } },
   { name: "move_ticket", description: "Ticket in eine andere Spalte (Status) verschieben.",
     inputSchema: { type: "object", properties: { id: { type: "string" }, status: { type: "string" }, board_id: { type: "string" } }, required: ["id", "status"], additionalProperties: false } },
@@ -57,6 +59,12 @@ const TOOLS = [
 const PRIOS = ["Hoch", "Mittel", "Niedrig"];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => new Date().toISOString().slice(0, 10);
+// Checklisten-Aufgaben normalisieren: akzeptiert {text,done} oder einfache Strings
+const normTasks = (arr) => Array.isArray(arr)
+  ? arr.map((x) => typeof x === "string" ? { text: x, done: false } : { text: String(x?.text ?? ""), done: !!x?.done }).filter((x) => x.text)
+  : undefined;
+const TASKS_SCHEMA = { type: "array", description: "Checklisten-Aufgaben im Ticket",
+  items: { type: "object", properties: { text: { type: "string" }, done: { type: "boolean" } }, required: ["text"], additionalProperties: false } };
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
 
 function json(obj, status = 200) {
@@ -136,7 +144,7 @@ async function callTool(name, a, env) {
     const useStatus = a.status && st.includes(a.status) ? a.status : st[0];
     if (a.prio && !PRIOS.includes(a.prio)) throw new Error("prio muss Hoch/Mittel/Niedrig sein.");
     const ticket = { id: uid(), title: a.title, status: useStatus, prio: a.prio || "Mittel",
-      deadline: a.deadline || today(), desc: a.desc || "", note: "", cats: a.cats || [], imgs: [], tasks: [], createdAt: today() };
+      deadline: a.deadline || today(), desc: a.desc || "", note: "", cats: a.cats || [], imgs: [], tasks: normTasks(a.tasks) || [], createdAt: today() };
     b.data.tickets = [...b.data.tickets, ticket];
     await saveData(env, b.id, b.data);
     return JSON.stringify({ created: ticket.id, status: useStatus, board: b.title }, null, 2);
@@ -148,6 +156,7 @@ async function callTool(name, a, env) {
     if (a.status && !statusesOf(b).includes(a.status)) throw new Error("Unbekannter Status: " + a.status);
     if (a.prio && !PRIOS.includes(a.prio)) throw new Error("prio muss Hoch/Mittel/Niedrig sein.");
     for (const k of ["title", "status", "prio", "deadline", "desc", "cats"]) if (a[k] !== undefined) t[k] = a[k];
+    if (a.tasks !== undefined) t.tasks = normTasks(a.tasks) || [];   // Checklisten-Aufgaben ersetzen
     const done = doneOf(b);
     if (done.includes(t.status) && !t.completedAt) t.completedAt = today();
     if (!done.includes(t.status)) delete t.completedAt;
