@@ -208,11 +208,17 @@ body.viewer .col-name:hover{text-decoration:none}
 #dinoWrap button:hover{color:var(--blue)}
 #dinoCv{flex:1 1 auto; min-width:0; height:34px}
 
-/* Schwarze Schiffskatze (Office-Tipps) auf einem Glas-Balken mit Datum/Uhrzeit.
+/* Schwarze Schiffskatze (Office-Tipps) auf einem Balken mit Datum/Uhrzeit.
    Orbit-Vibe: als säße man im Raumschiff und die Schiffskatze döst auf der Konsole. */
-#astro{position:fixed; right:22px; bottom:18px; z-index:90; width:300px; cursor:pointer; display:none}
+#astro{position:fixed; right:18px; bottom:16px; z-index:90; width:240px; cursor:pointer; display:none;
+  transform-origin:bottom right; pointer-events:none}              /* Container blockt keine Klicks */
 #astroBody{position:relative; width:100%; z-index:1}
-#astroCv{display:block; image-rendering:pixelated}      /* keine Animation -> kein Flimmern */
+#astroCv,#astroBubble,#astroGear,#astroMenu{pointer-events:auto}  /* nur die sichtbaren Teile sind klickbar */
+#astroCv{display:block; image-rendering:pixelated}                /* keine Animation -> kein Flimmern */
+/* Kleinere Laptops: Widget verkleinern; Handy: komplett ausblenden */
+@media (max-width:1280px){ #astro{transform:scale(.82)} }
+@media (max-width:1000px){ #astro{transform:scale(.66)} }
+@media (max-width:640px){ #astro{display:none !important} }
 #astroBubble{position:absolute; bottom:calc(100% + 8px); right:0; width:230px; max-width:62vw; z-index:5;
   background:var(--card); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
@@ -481,7 +487,7 @@ tr.row.done-final td{opacity:.4}
   .toolbar{padding:8px 12px 0}
   #kanbanLeft{width:100%}   /* Handy: Spalten scrollen horizontal -> Suche volle Breite */
   /* Unnötiges auf dem Handy ausblenden: Fälligkeits-Badges, Fokus/Report, Pixel-Lauf */
-  #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #btnFocus, #btnReportAll, #todayDate{display:none !important}
+  #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #btnFocus, #btnReportAll, #todayDate, #astro{display:none !important}
   .kanban{
     display:flex; overflow-x:auto; gap:10px; padding:10px 12px 20px;
     scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
@@ -893,7 +899,7 @@ tr.row.done-final td{opacity:.4}
 <div id="astro" title="Streichel mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
   <div id="astroBody">
-    <canvas id="astroCv" width="300" height="150"></canvas>
+    <canvas id="astroCv" width="240" height="112"></canvas>
     <button id="astroGear" title="Katzen-Einstellungen">⚙</button>
   </div>
   <div id="astroMenu" hidden>
@@ -4170,11 +4176,11 @@ function drawCat() {
   cctx.fillStyle = dark ? '#1d2230' : '#dfe5ef'; cctx.fillRect(0, sy, W, BAR);
   cctx.fillStyle = dark ? '#2b3346' : '#c8d0e0'; cctx.fillRect(0, sy, W, 1);          // obere Kante (heller)
   cctx.fillStyle = dark ? '#11141d' : '#aeb8cc'; cctx.fillRect(0, H - 1, W, 1);       // untere Kante (dunkler)
-  // Katze: ~30 % kleiner, etwas weiter rechts, sitzt direkt auf dem Balken
-  const CX = Math.round(W * 0.32);                        // horizontaler Mittelpunkt der Katze
+  // Katze sitzt direkt auf dem Balken; Maße relativ zur (kompakten) Canvas-Größe
+  const CX = Math.round(W * 0.33), availW = W * 0.52, availH = sy - 14;
   if (catSheet && catFrameRects.length) {
     const r = catFrameRects[catPoseIdx % catFrameRects.length];
-    const sc = 0.7 * Math.min((CAT_BOX - 10) / r.w, (sy - 12) / r.h);
+    const sc = Math.min(availW / r.w, availH / r.h);
     const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
     const dx = Math.round(CX - dw / 2), dy = Math.round(sy - dh + 1);   // Füße auf dem Balken
     cctx.imageSmoothingEnabled = false;                  // knackscharf
@@ -4182,7 +4188,7 @@ function drawCat() {
   } else {
     const pose = CAT_POSES[POSE_ORDER[catPoseIdx % POSE_ORDER.length]];
     const pw = pose[0].length, ph = pose.length;
-    const sc = Math.max(1, Math.floor(Math.min((CAT_BOX - 10) / pw, (sy - 12) / ph)));
+    const sc = Math.max(1, Math.floor(Math.min(availW / pw, availH / ph)));
     const dx = Math.round(CX - pw * sc / 2), dy = Math.round(sy - ph * sc + 1);
     pose.forEach((row, y) => [...row].forEach((ch, x) => {
       let c = ch;
