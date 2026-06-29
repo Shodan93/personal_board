@@ -210,7 +210,7 @@ body.viewer .col-name:hover{text-decoration:none}
 
 /* Schlafende Katze (Office-Tipps) — liegt auf einem transparenten „Glas-Regal".
    Orbit-Vibe: als säße man im Raumschiff und die Schiffskatze döst auf der Fensterbank. */
-#astro{position:fixed; right:18px; bottom:18px; z-index:90; width:104px; cursor:pointer; display:none;
+#astro{position:fixed; right:16px; bottom:16px; z-index:90; width:120px; cursor:pointer; display:none;
   transition:transform 2.4s cubic-bezier(.4,0,.2,1)}
 #astroBody{position:relative; width:100%; z-index:1; transform-origin:bottom center; animation:catBreathe 5.2s ease-in-out infinite}
 /* ganz ruhiges Atmen im Schlaf (kein Schweben) */
@@ -900,7 +900,7 @@ tr.row.done-final td{opacity:.4}
 <div id="astro" title="Streichel mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
   <div id="astroBody">
-    <canvas id="astroCv" width="104" height="64"></canvas>
+    <canvas id="astroCv" width="120" height="64"></canvas>
     <button id="astroGear" title="Katzen-Einstellungen">⚙</button>
   </div>
   <div id="astroMenu" hidden>
@@ -3942,46 +3942,71 @@ let tipPool = [], tipTimer = null, bubbleTimer = null;
    Atmen läuft per CSS; Blinzeln + gelegentliches Umlegen/Drehen per JS. */
 const catCv = document.getElementById('astroCv');
 const cctx = catCv.getContext('2d');
-const CP = 4, XOFF = 1;                                   // 4px-Pixel; Katze 1 Spalte eingerückt
-const catCol = { K: '#15161d', S: '#23252f', E: '#f5c63f', n: '#b3848d', p: '#2c2438', R: '#4a5a9e' };
-// 24×16-Raster: schwarze Katze als „Loaf", döst mit halb geschlossenen Augen,
-// Pfoten vorne über die Regalkante, Ohren mit zartem Mondlicht-Rand (R).
+const CP = 2, SHELF_ROW = 24;                            // feinere 2px-Pixel (höheres Niveau als der Pixel-Lauf)
+// Tabby-Palette: o=Kontur B=Fell D=dunkle Streifen L=helle Unterseite m=Schnauze
+// n=Nase E=Auge(Bernstein) P=Pupille W=Glanz i=Ohr-innen
+const catCol = { o: '#3a2417', B: '#9c5a30', D: '#6d3c1e', L: '#caa06a', m: '#ecd3ad',
+                 n: '#d07a6e', E: '#f4c64a', P: '#241a12', W: '#fff4d6', i: '#c98a78' };
+// 60×32-Sprite: seitlich liegende, entspannte Tabby-Katze — Kopf angehoben (schaut dich an),
+// Vorderpfoten ausgestreckt, Schwanz hängt über die Regalkante herunter.
 const CAT_MAP = [
-  '........................',
-  '......R..........R......',
-  '.....KpK........KpK.....',
-  '.....KKKKKKKKKKKKKK.....',
-  '....KKKKEEKKKKEEKKKK....',
-  '....KKKKKKKnnKKKKKKK....',
-  '.....KKKKKKKKKKKKKK.....',
-  '...KKKKKKKKKKKKKKKKKK...',
-  '..KKKKKKKKKKKKKKKKKKKK..',
-  '..KKKKKKKSSSSSSKKKKKKK..',
-  '..KKKKKKKKKKKKKKKKKKKK..',
-  '...KKKKKKKKKKKKKKKKKK...',
-  '.....KKKKK...KKKKK......',
-  '.....KKKK....KKKK.......',
-  '........................',
-  '........................',
+  '............................................................',
+  '............................................................',
+  '....ooo.....................................................',
+  '....oBoo..........ooo.......................................',
+  '....ooBoo.......oooBo.......................................',
+  '.....oiBoooooooooBiBo.......................................',
+  '.....oBiBBBBBBBBBiBBo.......................................',
+  '.....oBiiBBDBDBBiiBBo.......................................',
+  '.....oBiiiiBBBiiiiBBo.......................................',
+  '.....oBBBBBBBBBBBBBBo.......................................',
+  '.....oBBBBBBBBBBBBBBo.......................................',
+  '....ooBBBEBBBBBEBBBoo.................ooooooo...............',
+  '....oBBBWEEBLBWEEBBBo...............oooBBBBBooo.............',
+  '....oBBBEPELLLEPEBBBo..............ooBBBBBBBBBoooo..........',
+  '....oBBBLELmmmLELBBBooo...........ooBBBBBBBBBBBBBoo.........',
+  '....ooBBLmmnnmmmLBBBBBoooooooooooooBDBBBBBBBDBBBBBoo........',
+  '.....oooLmmmmmmmLooBBBBoDBBBDBBBDBBBDBBBBBBBBBBBBBBooo......',
+  '....oo.oBmmmmmmmBBBooBBBDBBBDBBBDBBBDBBBBBBBDBBBBBBBBo......',
+  '.......ooBBmmmBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBoo.....',
+  '........oooooBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBDBBBBBBBBBoo....',
+  '............oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBoBBBBBBo....',
+  '............oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBDBBBooBBBBBo....',
+  '........ooooooBBBBBBBBLLLLLLLLLLLLLLLLLLLBBBBBBooooBBBBo....',
+  '.......ooBBBBBBBBBBLLLLLLLLLLLLLLLLLLLLLLLLLBBoo..oBDBBo....',
+  '.......oBLLLLLLLLLLBooooLLLLLLLLLLLLLLLLLBBBooo...oBDBBo....',
+  '.......ooLLLLLLLLLLoo..oooooooooooooooooooooo.....oBDDBo....',
+  '........oooooooooooo..............................oBBDBo....',
+  '.................................................ooDBDBo....',
+  '................................................ooBDBBoo....',
+  '................................................oBBDBoo.....',
+  '................................................oBBBBo......',
+  '................................................ooBBoo......',
 ];
 let catBlink = false, catBlinkT = null, catMoveT = null;
+function fadeGrad(W, a, mid) {                            // horizontaler Verlauf: an den Enden transparent
+  const g = cctx.createLinearGradient && cctx.createLinearGradient(0, 0, W, 0);
+  if (!g || !g.addColorStop) return a + mid + ')';       // Fallback (Test-Stubs ohne Gradient)
+  g.addColorStop(0, a + '0)'); g.addColorStop(0.18, a + mid + ')');
+  g.addColorStop(0.82, a + mid + ')'); g.addColorStop(1, a + '0)');
+  return g;
+}
 function drawCat() {
-  const W = catCv.width, H = catCv.height, sy = 13 * CP;
+  const W = catCv.width, H = catCv.height, sy = SHELF_ROW * CP;
   cctx.clearRect(0, 0, W, H);
-  // transparentes Glas-Regal: lässt das Board durchscheinen, wirkt aber als Ablagefläche
-  cctx.fillStyle = 'rgba(150,180,235,0.10)'; cctx.fillRect(0, sy + 2, W, H - (sy + 2));   // Glasfläche
-  cctx.fillStyle = 'rgba(210,230,255,0.55)'; cctx.fillRect(0, sy, W, 2);                  // obere Glanzkante
-  cctx.fillStyle = 'rgba(120,150,210,0.22)'; cctx.fillRect(0, H - 2, W, 2);               // untere Kante
-  cctx.fillStyle = 'rgba(255,255,255,0.06)';
-  for (let gx = 8; gx < W; gx += 24) cctx.fillRect(gx, sy + 3, 3, H - (sy + 5));           // dezente Glas-Reflexe
-  // weicher Kontaktschatten unter der Katze
-  cctx.fillStyle = 'rgba(0,0,0,0.18)'; cctx.fillRect((XOFF + 3) * CP, sy - 2, 18 * CP, 3);
+  // Transparentes Glas-Regal — läuft an beiden Enden weich aus (kein abrupter Balken)
+  cctx.fillStyle = fadeGrad(W, 'rgba(150,180,235,.', '13'); cctx.fillRect(0, sy, W, H - sy);   // Glasfläche
+  cctx.fillStyle = fadeGrad(W, 'rgba(215,233,255,.', '6');  cctx.fillRect(0, sy, W, 1);        // obere Glanzkante
+  cctx.fillStyle = fadeGrad(W, 'rgba(120,150,210,.', '28'); cctx.fillRect(0, H - 1, W, 1);     // untere Kante
+  // weicher Kontaktschatten unter der Katze (ebenfalls ausgeblendet an den Enden)
+  cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);
   // Katze
   CAT_MAP.forEach((row, y) => [...row].forEach((ch, x) => {
     let c = ch;
-    if (catBlink && c === 'E') c = 'K';                  // im Schlaf blinzeln -> Augen kurz zu
+    if (catBlink && (c === 'E' || c === 'W')) c = 'B';   // Blinzeln: Augen kurz zu
+    else if (catBlink && c === 'P') c = 'o';             // schmaler geschlossener Lidstrich
     const col = catCol[c];
-    if (col) { cctx.fillStyle = col; cctx.fillRect((x + XOFF) * CP, y * CP, CP, CP); }
+    if (col) { cctx.fillStyle = col; cctx.fillRect(x * CP, y * CP, CP, CP); }
   }));
 }
 function catBlinkOnce() {

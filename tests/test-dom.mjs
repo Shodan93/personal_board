@@ -144,8 +144,8 @@ try {
              bubble: document.getElementById('astroBubble').hidden === false,
              text: document.getElementById('astroText').textContent };
   })()`, context);
-  ok(cat.rows === 16 && cat.cols === 24, 'Katze: 24×16-Pixelraster zeichnet fehlerfrei');
-  ok(cat.eyes === 4, 'Katze: zwei (je 2px breite) Augen im Sprite');
+  ok(cat.rows === 32 && cat.cols === 60, 'Katze: 60×32-Sprite (feinere 2px-Pixel) zeichnet fehlerfrei');
+  ok(cat.eyes >= 8, 'Katze: zwei Bernstein-Augen im Sprite');
   ok(cat.bubble && cat.text === 'miau', 'Katze übernimmt die Office-Tipps (Sprechblase)');
 
   // Sticky Note + Ticket-render INNERHALB des vm (Zugriff auf let-Variablen)
