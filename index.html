@@ -72,7 +72,7 @@ body.viewer .card{cursor:default}
   background:var(--red); color:#fff; border-radius:10px; padding:1px 10px;
   font-size:11px; font-weight:700; border:2px solid transparent; cursor:pointer;
 }
-.badge-today.zero{background:var(--green)}
+.badge-today.zero{background:var(--blue)}   /* nichts fällig -> blau (statt grün) */
 .badge-today.filter-on{border-color:var(--blue-dark); box-shadow:0 0 0 2px var(--blue-bg)}
 .badge-week{background:var(--yellow); color:#5a3b00}
 .badge-month{background:var(--green)}
@@ -213,28 +213,21 @@ body.viewer .col-name:hover{text-decoration:none}
 #astro{position:fixed; right:18px; bottom:16px; z-index:90; width:240px; cursor:pointer; display:none;
   transform-origin:bottom right; pointer-events:none}              /* Container blockt keine Klicks */
 #astroBody{position:relative; width:100%; z-index:1}
-#astroCv,#astroBubble,#astroGear,#astroMenu{pointer-events:auto}  /* nur die sichtbaren Teile sind klickbar */
+#astroCv,#astroBubble{pointer-events:auto}                        /* nur Katze + Sprechblase sind klickbar */
 #astroCv{display:block; image-rendering:pixelated}                /* keine Animation -> kein Flimmern */
 /* Kleinere Laptops: Widget verkleinern; Handy: komplett ausblenden */
 @media (max-width:1280px){ #astro{transform:scale(.82)} }
 @media (max-width:1000px){ #astro{transform:scale(.66)} }
 @media (max-width:640px){ #astro{display:none !important} }
-#astroBubble{position:absolute; bottom:calc(100% + 8px); right:0; width:230px; max-width:62vw; z-index:5;
+/* Sprechblase mittig ÜBER der Katze */
+#astroBubble{position:absolute; left:50%; transform:translateX(-50%); bottom:calc(100% - 6px); width:220px; max-width:60vw; z-index:5;
   background:var(--card); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
-  animation:astroPop .2s ease}
-#astroBubble::after{content:''; position:absolute; bottom:-7px; right:18px; width:12px; height:12px;
+  text-align:center; animation:astroPop .18s ease}
+#astroBubble::after{content:''; position:absolute; bottom:-7px; left:50%; margin-left:-6px; width:12px; height:12px;
   background:var(--card); border-right:1px solid var(--border); border-bottom:1px solid var(--border);
   transform:rotate(45deg)}
-@keyframes astroPop{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
-#astroGear{position:absolute; top:-4px; right:-6px; width:20px; height:20px; border-radius:50%;
-  border:1px solid var(--border); background:var(--card); font-size:11px; line-height:1; padding:0;
-  opacity:0; transition:opacity .15s}
-#astro:hover #astroGear{opacity:1}
-#astroMenu{position:absolute; bottom:70px; right:0; background:var(--card); border:1px solid var(--border);
-  border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px; display:grid; gap:8px; width:210px; font-size:12px}
-#astroMenu label{display:flex; align-items:center; gap:6px}
-#astroMenu .btn{padding:5px 8px; font-size:12px}
+@keyframes astroPop{from{opacity:0} to{opacity:1}}
 
 /* Sticky Notes */
 #noteSel{position:fixed; border:2px dashed var(--yellow); background:rgba(255,183,93,.15);
@@ -567,8 +560,8 @@ tr.row.done-final td{opacity:.4}
 <!-- Kanban-Toolbar -->
 <div class="toolbar" id="kanbanBar">
   <div id="kanbanLeft">
-    <button class="chip undo-btn" title="Rückgängig" disabled>↶ Strg+Z</button>
-    <button class="chip redo-btn" title="Wiederholen" disabled>↷ Strg+⇧+Z</button>
+    <button class="chip undo-btn" title="Rückgängig — Strg+Z" disabled>↶</button>
+    <button class="chip redo-btn" title="Wiederholen — Strg+Shift+Z" disabled>↷</button>
     <select id="kanbanSort" title="Sortierung">
       <option value="deadline">Fälligkeit</option>
       <option value="prio">Priorität</option>
@@ -596,8 +589,8 @@ tr.row.done-final td{opacity:.4}
     <button class="chip" data-q="active">Aktiv</button>
   </div>
   <span class="spacer"></span>
-  <button class="chip undo-btn" title="Rückgängig" disabled>↶ Strg+Z</button>
-  <button class="chip redo-btn" title="Wiederholen" disabled>↷ Strg+⇧+Z</button>
+  <button class="chip undo-btn" title="Rückgängig — Strg+Z" disabled>↶</button>
+  <button class="chip redo-btn" title="Wiederholen — Strg+Shift+Z" disabled>↷</button>
 </div>
 
 <main>
@@ -895,16 +888,11 @@ tr.row.done-final td{opacity:.4}
   </div>
 </div>
 
-<!-- Schlafende Schiffskatze mit Office-Tipps -->
+<!-- Schiffskatze mit Office-Tipps (Ein-/Ausblenden über die Einstellungen) -->
 <div id="astro" title="Streichel mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
   <div id="astroBody">
     <canvas id="astroCv" width="240" height="112"></canvas>
-    <button id="astroGear" title="Katzen-Einstellungen">⚙</button>
-  </div>
-  <div id="astroMenu" hidden>
-    <label><input type="checkbox" id="astroAuto"> Tipps von selbst zeigen</label>
-    <button class="btn" id="astroHide">Katze ausblenden</button>
   </div>
 </div>
 
@@ -1226,7 +1214,7 @@ function renderHeader() {
     const n = state.tickets.filter(fn).length;
     const b = document.getElementById(id);
     b.textContent = n + label;
-    if (q === 'today') b.classList.toggle('zero', n === 0);
+    b.classList.toggle('zero', n === 0);   // nichts fällig -> blau (alle drei Badges)
     b.classList.toggle('filter-on', cur === q);
   });
 }
@@ -4172,24 +4160,25 @@ function drawCat() {
   const W = catCv.width, H = catCv.height, BAR = 26, sy = H - BAR;
   const dark = document.documentElement.dataset.theme === 'dark';
   cctx.clearRect(0, 0, W, H);
-  // Leicht transparenter Balken, an die UI angeglichen (Karten-/Rahmenfarben)
-  cctx.fillStyle = dark ? 'rgba(30,33,40,.82)' : 'rgba(250,251,253,.82)'; cctx.fillRect(0, sy, W, BAR);
-  cctx.fillStyle = dark ? 'rgba(255,255,255,.10)' : 'rgba(20,30,50,.10)'; cctx.fillRect(0, sy, W, 1);   // obere Kante
-  cctx.fillStyle = dark ? 'rgba(0,0,0,.28)' : 'rgba(20,30,50,.07)';      cctx.fillRect(0, H - 1, W, 1);  // untere Kante
-  // Katze: nochmal ~20 % kleiner, rechtsbündig an den Rand, sitzt direkt auf dem Balken
+  // Schwebende Plattform: weiche Enden (links/rechts Fade), leichte Transparenz, CI-Farben
+  const card = dark ? '40,44,55' : '255,255,255';
+  cctx.fillStyle = fadeGrad(W, 'rgba(8,14,30,.', dark ? '34' : '12'); cctx.fillRect(0, H - 3, W, 3);          // weicher Schlagschatten -> schwebt
+  cctx.fillStyle = fadeGrad(W, 'rgba(' + card + ',.', dark ? '70' : '82'); cctx.fillRect(0, sy, W, BAR - 2);  // Plattform
+  cctx.fillStyle = fadeGrad(W, 'rgba(' + (dark ? '255,255,255' : '1,118,211') + ',.', dark ? '12' : '15'); cctx.fillRect(0, sy, W, 1); // CI-Glanzkante (blau)
+  // Katze mittig auf dem Balken, sitzt direkt darauf
   const availW = W * 0.52, availH = sy - 14;
   if (catSheet && catFrameRects.length) {
     const r = catFrameRects[catPoseIdx % catFrameRects.length];
     const sc = 0.8 * Math.min(availW / r.w, availH / r.h);
     const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
-    const dx = W - dw - 6, dy = Math.round(sy - dh + 1);   // rechts, Füße auf dem Balken
+    const dx = Math.round((W - dw) / 2), dy = Math.round(sy - dh + 1);   // mittig, Füße auf dem Balken
     cctx.imageSmoothingEnabled = false;                  // knackscharf
     cctx.drawImage(catSheet, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
   } else {
     const pose = CAT_POSES[POSE_ORDER[catPoseIdx % POSE_ORDER.length]];
     const pw = pose[0].length, ph = pose.length;
     const sc = Math.max(1, Math.floor(0.8 * Math.min(availW / pw, availH / ph)));
-    const dx = W - pw * sc - 6, dy = Math.round(sy - ph * sc + 1);
+    const dx = Math.round((W - pw * sc) / 2), dy = Math.round(sy - ph * sc + 1);
     pose.forEach((row, y) => [...row].forEach((ch, x) => {
       let c = ch;
       if (catBlink && (c === 'E' || c === 'W')) c = 'B';
@@ -4237,8 +4226,9 @@ function processCatSheet(img) {
   for (let p = 0; p < d.length; p += 4) {
     const r = d[p], g = d[p + 1], b = d[p + 2];
     if (Math.abs(r - br) < tol && Math.abs(g - bg) < tol && Math.abs(b - bb) < tol) { d[p + 3] = 0; continue; }  // Hintergrund -> transparent
-    // Braunes Tabby -> komplett SCHWARZE Katze: ALLES aufs dunkle Graustufen-Band abbilden (kein Weiß).
-    let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.5 - 8; nl = nl < 7 ? 7 : nl > 108 ? 108 : nl;          // kühler Stich
+    // Braunes Tabby -> komplett SCHWARZE Katze: ALLES aufs dunkle Graustufen-Band (Deckel 85 = nie weiß).
+    // Läuft einmalig beim Laden, unabhängig vom Theme -> Dark/Light ändern die Katze NICHT.
+    let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.45 - 6; nl = nl < 7 ? 7 : nl > 85 ? 85 : nl;
     d[p] = Math.round(nl * 0.92); d[p + 1] = Math.round(nl * 0.97); d[p + 2] = Math.round(nl * 1.12);
   }
   o.putImageData(data, 0, 0);
@@ -4275,7 +4265,6 @@ function nextTip() {
 }
 function speakTip(text) {
   const b = document.getElementById('astroBubble');
-  document.getElementById('astroMenu').hidden = true;
   document.getElementById('astroText').textContent = text || nextTip();
   b.hidden = false;
   clearTimeout(bubbleTimer);
@@ -4292,27 +4281,10 @@ function scheduleAutoTip() {
 function applyTips() {
   const on = state.settings.tips !== false;
   document.getElementById('astro').style.display = on ? 'block' : 'none';
-  document.getElementById('astroAuto').checked = state.settings.tipsAuto !== false;
   document.getElementById('tipBar').hidden = true; // alte Leiste deaktiviert
   scheduleAutoTip();
 }
 document.getElementById('astroCv').onclick = () => { speakTip(); clearTimeout(catMoveT); catCyclePose(); };
-document.getElementById('astroGear').onclick = e => {
-  e.stopPropagation();
-  document.getElementById('astroBubble').hidden = true;
-  const m = document.getElementById('astroMenu');
-  m.hidden = !m.hidden;
-};
-document.getElementById('astroAuto').onchange = e => {
-  state.settings.tipsAuto = e.target.checked; save(); scheduleAutoTip();
-};
-document.getElementById('astroHide').onclick = () => {
-  state.settings.tips = false; save();
-  document.getElementById('astroMenu').hidden = true;
-  document.getElementById('astro').style.display = 'none';
-  document.getElementById('setTips').checked = false;
-  toast('Katze ausgeblendet — in den Einstellungen wieder aktivierbar');
-};
 document.getElementById('btnTipClose').onclick = () => document.getElementById('tipBar').hidden = true;
 
 /* ============================================================
