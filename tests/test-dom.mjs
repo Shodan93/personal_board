@@ -134,18 +134,21 @@ try {
   ok(bound.l === 'run', 'Light Mode -> Urzeit-Szene (automatisch gebunden)');
   for (let i = 0; i < 10; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
 
-  // Schlafende Schiffskatze (ersetzt den Astronauten, übernimmt die Office-Tipps)
+  // Schwarze Schiffskatze in 4 Posen mit automatischem Wechsel (übernimmt die Office-Tipps)
   const cat = vm.runInContext(`(function(){
-    drawCat();                                              // Katze + Glas-Regal ohne Fehler
-    catBlink = true; drawCat(); catBlink = false; drawCat(); // Blinzeln
-    speakTip('miau');                                       // Tipp-Sprechblase über die Katze
-    return { rows: CAT_MAP.length, cols: CAT_MAP[0].length,
-             eyes: CAT_MAP.join('').split('E').length - 1,
+    var names = POSE_ORDER.slice();
+    var sizes = names.map(n => CAT_POSES[n].length + 'x' + CAT_POSES[n][0].length);
+    var drawn = [];
+    for (var i = 0; i < names.length; i++) { catCyclePose(); drawn.push(POSE_ORDER[catPoseIdx]); }  // alle Posen durchzeichnen
+    catBlink = true; drawCat(); catBlink = false; drawCat();                                          // Blinzeln
+    speakTip('miau');
+    return { count: names.length, sizes: sizes.join(','), cycled: drawn.length,
              bubble: document.getElementById('astroBubble').hidden === false,
              text: document.getElementById('astroText').textContent };
   })()`, context);
-  ok(cat.rows === 32 && cat.cols === 60, 'Katze: 60×32-Sprite (feinere 2px-Pixel) zeichnet fehlerfrei');
-  ok(cat.eyes >= 8, 'Katze: zwei Bernstein-Augen im Sprite');
+  ok(cat.count === 4, 'Katze: vier Posen vorhanden');
+  ok(cat.sizes === '40x48,40x48,40x48,40x48', 'Katze: alle Posen 48×40 (gemeinsames Raster)');
+  ok(cat.cycled === 4, 'Katze: automatischer Posenwechsel zeichnet jede Pose fehlerfrei');
   ok(cat.bubble && cat.text === 'miau', 'Katze übernimmt die Office-Tipps (Sprechblase)');
 
   // Sticky Note + Ticket-render INNERHALB des vm (Zugriff auf let-Variablen)

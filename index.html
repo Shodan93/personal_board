@@ -210,7 +210,7 @@ body.viewer .col-name:hover{text-decoration:none}
 
 /* Schlafende Katze (Office-Tipps) — liegt auf einem transparenten „Glas-Regal".
    Orbit-Vibe: als säße man im Raumschiff und die Schiffskatze döst auf der Fensterbank. */
-#astro{position:fixed; right:16px; bottom:16px; z-index:90; width:120px; cursor:pointer; display:none;
+#astro{position:fixed; right:16px; bottom:16px; z-index:90; width:96px; cursor:pointer; display:none;
   transition:transform 2.4s cubic-bezier(.4,0,.2,1)}
 #astroBody{position:relative; width:100%; z-index:1; transform-origin:bottom center; animation:catBreathe 5.2s ease-in-out infinite}
 /* ganz ruhiges Atmen im Schlaf (kein Schweben) */
@@ -900,7 +900,7 @@ tr.row.done-final td{opacity:.4}
 <div id="astro" title="Streichel mich für einen Tipp!">
   <div id="astroBubble" hidden><span id="astroText"></span></div>
   <div id="astroBody">
-    <canvas id="astroCv" width="120" height="64"></canvas>
+    <canvas id="astroCv" width="96" height="80"></canvas>
     <button id="astroGear" title="Katzen-Einstellungen">⚙</button>
   </div>
   <div id="astroMenu" hidden>
@@ -3942,48 +3942,184 @@ let tipPool = [], tipTimer = null, bubbleTimer = null;
    Atmen läuft per CSS; Blinzeln + gelegentliches Umlegen/Drehen per JS. */
 const catCv = document.getElementById('astroCv');
 const cctx = catCv.getContext('2d');
-const CP = 2, SHELF_ROW = 24;                            // feinere 2px-Pixel (höheres Niveau als der Pixel-Lauf)
-// Tabby-Palette: o=Kontur B=Fell D=dunkle Streifen L=helle Unterseite m=Schnauze
-// n=Nase E=Auge(Bernstein) P=Pupille W=Glanz i=Ohr-innen
-const catCol = { o: '#3a2417', B: '#9c5a30', D: '#6d3c1e', L: '#caa06a', m: '#ecd3ad',
-                 n: '#d07a6e', E: '#f4c64a', P: '#241a12', W: '#fff4d6', i: '#c98a78' };
-// 60×32-Sprite: seitlich liegende, entspannte Tabby-Katze — Kopf angehoben (schaut dich an),
-// Vorderpfoten ausgestreckt, Schwanz hängt über die Regalkante herunter.
-const CAT_MAP = [
-  '............................................................',
-  '............................................................',
-  '....ooo.....................................................',
-  '....oBoo..........ooo.......................................',
-  '....ooBoo.......oooBo.......................................',
-  '.....oiBoooooooooBiBo.......................................',
-  '.....oBiBBBBBBBBBiBBo.......................................',
-  '.....oBiiBBDBDBBiiBBo.......................................',
-  '.....oBiiiiBBBiiiiBBo.......................................',
-  '.....oBBBBBBBBBBBBBBo.......................................',
-  '.....oBBBBBBBBBBBBBBo.......................................',
-  '....ooBBBEBBBBBEBBBoo.................ooooooo...............',
-  '....oBBBWEEBLBWEEBBBo...............oooBBBBBooo.............',
-  '....oBBBEPELLLEPEBBBo..............ooBBBBBBBBBoooo..........',
-  '....oBBBLELmmmLELBBBooo...........ooBBBBBBBBBBBBBoo.........',
-  '....ooBBLmmnnmmmLBBBBBoooooooooooooBDBBBBBBBDBBBBBoo........',
-  '.....oooLmmmmmmmLooBBBBoDBBBDBBBDBBBDBBBBBBBBBBBBBBooo......',
-  '....oo.oBmmmmmmmBBBooBBBDBBBDBBBDBBBDBBBBBBBDBBBBBBBBo......',
-  '.......ooBBmmmBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBoo.....',
-  '........oooooBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBDBBBBBBBBBoo....',
-  '............oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBoBBBBBBo....',
-  '............oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBDBBBooBBBBBo....',
-  '........ooooooBBBBBBBBLLLLLLLLLLLLLLLLLLLBBBBBBooooBBBBo....',
-  '.......ooBBBBBBBBBBLLLLLLLLLLLLLLLLLLLLLLLLLBBoo..oBDBBo....',
-  '.......oBLLLLLLLLLLBooooLLLLLLLLLLLLLLLLLBBBooo...oBDBBo....',
-  '.......ooLLLLLLLLLLoo..oooooooooooooooooooooo.....oBDDBo....',
-  '........oooooooooooo..............................oBBDBo....',
-  '.................................................ooDBDBo....',
-  '................................................ooBDBBoo....',
-  '................................................oBBDBoo.....',
-  '................................................oBBBBo......',
-  '................................................ooBBoo......',
-];
-let catBlink = false, catBlinkT = null, catMoveT = null;
+const CP = 2, SHELF_ROW = 33;                            // feine 2px-Pixel (höheres Niveau als der Pixel-Lauf)
+// Schwarze-Katze-Palette: o=Kontur B=Fell D=Schatten/dunkel L=heller Akzent m=Schnauze
+// n=Nase(rosa) E=Auge(gelbgrün) P=Pupille W=Glanz i=Ohr-innen
+const catCol = { o: '#0b0b11', B: '#272a33', D: '#16171d', L: '#3c3f4b', m: '#454853',
+                 n: '#d98a9c', E: '#b7d24a', P: '#0b0b11', W: '#ffffff', i: '#6e4350' };
+// Vier 48×40-Posen (schwarze Katze), Boden/Regal bei Reihe 33 -> automatischer Wechsel.
+const CAT_POSES = {
+  sitFront: [
+    '..............ooo...............ooo.............',
+    '..............oBoo.............ooBo.............',
+    '..............ooBooo.........oooBoo.............',
+    '...............oiBBoo..ooo..ooBBio..............',
+    '...............oBiBBooooBooooBBiBo..............',
+    '...............oBiiiBBBBBBBBBiiiBo..............',
+    '...............oBiiiiBBBBBBBiiiiBo..............',
+    '...............oBiiiiiiBBBiiiiiiBo..............',
+    '...............oBiiiiBBBBBBBiiiiBo..............',
+    '...............oBBBBBBBBBBBBBBBBBo..............',
+    '...............oBBBBBBBBBBBBBBBBBo..............',
+    '..............ooBBBBWEBBBBBWEBBBBoo.............',
+    '..............oBBBBEEPEBBBEEPEBBBBo.............',
+    '..............oBBBBBEELLmLLEEBBBBBo.............',
+    '..............oBBBBBLLmmmmmLLBBBBBo.............',
+    '..............ooBBBLLmmnnmmmLLBBBoo.............',
+    '...............ooBBBLLmmmmmLLBBBoo..............',
+    '................oBBBBLLLmLLLBBBBo...............',
+    '................ooBBBBBBBBBBBBBoo...............',
+    '...............ooBBBBBBBBBBBBBBBoo..............',
+    '..............ooBBDBBBBBDBBBBBDBBoo.............',
+    '..............oBBBDBBBBBDBBBBBDBBBo.............',
+    '.............ooBBBDBBBBBLBBBBBDBBBoo............',
+    '.............oBBBBDBBLLLLLLLBBDBBBBo............',
+    '.............oBBBBDBLLLLLLLLLBDBBBBo............',
+    '.............oBBBBDLLLLLLLLLLLDBBBBo............',
+    '.............oBBBBLLLLLLLLLLLLLBBBBo............',
+    '.............oBBBBLLLLLLLLLLLLLBBBBo............',
+    '.............oBBBBLLLLLLLLLLLLLBBBBo............',
+    '.............oBBBBLLLLLLLLLLLLLBBBBooo..........',
+    '.............ooBBBLLLLLLLLLLLLLBBBBBBo..........',
+    '.............ooBBBBLLLLLLLLLLLBBBBBBBo..........',
+    '.............oBBBBBBLLLLLLLLLBBBBBBBBo..........',
+    '.............ooBBBBBBLLLLLLLBBBBBBBBoo..........',
+    '..............oooBBBBBBBLBBBBBBBoBBoo...........',
+    '................ooooBBBBBBBBBooooooo............',
+    '...................oooooBooooo..................',
+    '.......................ooo......................',
+    '................................................',
+    '................................................',
+  ],
+  loaf: [
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '.....ooo...........ooo..........................',
+    '.....oBoo.........ooBo..........................',
+    '.....ooioo..ooo..ooioo..........................',
+    '......oBiooooBooooiBo..............ooooooo......',
+    '......oBiiBBBBBBBiiBo.....ooo.....ooBBBBBoo.....',
+    '......oBiiiiBBBiiiiBoooooooBoooooooBBBBBBBoo....',
+    '.....ooBiiiBBBBBiiiBBBDBBBBDBBBBDBBBBDBBBBBoo...',
+    '.....oBBBBBBBBBBBBBBBBDBBBBDBBBBDBBBBDBBBBBBo...',
+    '.....oBBBBBBBBBBBBBBBBDBBBBDBBBBDBBBBDBBBBBBoo..',
+    '....ooBBBWEEBBBWEEBBBBDBBBBDBBBBDBBBBDBBBBBBBo..',
+    '....oBBBBEPEBBBEPEBBBBBBBBBBBBBBBBBBBBBBBBBBBoo.',
+    '....oBBBBEEELmLEEEBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.',
+    '....oBBBLLLmmmmmLBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.',
+    '....ooBLLLmmnnmmmLBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.',
+    '.....ooBLLLmmmmmLLLLLLLLLLLLLLLLLLLLLLLLBBBBBoo.',
+    '......ooBBLLLmLLLLLLLLLLLLLLLLLLLLLLLLLLBBBBBo..',
+    '.....oooBBBBBBBBBLooLLLLLLLLLLLLLLLoLLLBBBBooo..',
+    '.....oBBBBBBBBBBBBBooooooooBooooooooooooBBoo....',
+    '.....oooBBBBBBBBBooo......ooo..........oooo.....',
+    '.......ooooooooooo..............................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+  ],
+  sit34: [
+    '................................................',
+    '............ooo.............ooo.................',
+    '............oBoo...........ooBo.................',
+    '............ooBoo.........ooBoo.................',
+    '.............oiBoooooooooooBio..................',
+    '.............oBiBBoBBBBBoBBiBo..................',
+    '.............oBiiiBBBBBBBiiiBo..................',
+    '.............oBiiiiBBBBBiiiiBo..................',
+    '.............oBiiiiiiBiiiiiiBo..................',
+    '.............oBBBBBBBBBBBBBBBo..................',
+    '.............oBBBBBBBBBBBBBBBo..................',
+    '............ooBBBWEEBBBWEEBBBoo.................',
+    '............oBBBBEPEBBBEPEBBBBo.................',
+    '............oBBBBEEELmLEEEBBBBo.................',
+    '............oBBBBLLmmmmmLLBBBBo.................',
+    '............ooBBBLmmnnmmmLBBBoo.................',
+    '.............ooBBLLmmmmmLLBBoo..................',
+    '..............ooBBBLLmLLBBBBBoo.................',
+    '.............ooBBBBBBBBBBBBBBBoo................',
+    '.............oBBBBBBBBBBBBBBBBBo................',
+    '............ooDBBBBDBBBBDBBBBDBoo...............',
+    '............oBDBBBBDBBLBDBBBBDBBo...............',
+    '............oBDBBBBLLLLLLLBBBDBBo...............',
+    '............oBDBBBLLLLLLLLLBBDBBo...............',
+    '...........ooBDBBLLLLLLLLLLLBDBBoo..............',
+    '...........oBBBBBLLLLLLLLLLLBBBBBo..............',
+    '...........ooBBBBLLLLLLLLLLLBBBBooooo...........',
+    '............oBBBLLLLLLLLLLLLLBBBoooBooo.........',
+    '............oBBBBLLLLLLLLLLLBBBBBBBBBBo.........',
+    '............oBBBBLLLLLLLLLLLBBBBBBBBBBo.........',
+    '............ooBBBLLLLLLLLLLLBBBBBBBBBBo.........',
+    '............ooBBBBLLLLLLLLLBBBBBBBBBBBo.........',
+    '............oBBBBBBLLLLLLLBBBBBBBBBBBoo.........',
+    '............ooBBBBBBBBLBBBBBBBBoBBBBoo..........',
+    '.............oooBBBBBBBBBBBBBooooBBoo...........',
+    '...............oooBoooBoooBooo..oooo............',
+    '.................ooo.ooo.ooo....................',
+    '................................................',
+    '................................................',
+    '................................................',
+  ],
+  standSide: [
+    '................................................',
+    '................................................',
+    '................................................',
+    '.......................................ooooo....',
+    '......ooo.........ooo..................oBBBoo...',
+    '......oBoo.......ooBo..................oBBBBoo..',
+    '......oBioo.....ooBBo..................oBBBBBoo.',
+    '......oBiioo...ooBiBo..................ooBBBBBo.',
+    '......oBiiioooooBiiBo...................ooBBBBo.',
+    '......oBiiiiBBBBiiiBo....................oBBBBo.',
+    '......oBiiiiiBiiiiiBo....................oBBBBo.',
+    '......oBiBBBBBBBBBBBo.............ooo...ooBBBBo.',
+    '......oBBBBBBBBBBBBBo...ooo....ooooBoooooBBBBBo.',
+    '......oBBWEEBBBWEEBBoooooBooooooBBBBBBBoBBBBBoo.',
+    '.....ooBBEPEBBBEPEBBBBDBBBBDBBBBDBBBBBBBBBBBBo..',
+    '.....oBBBEEELmLEEEBBBBDBBBBDBBBBDBBBBBBBBBBBBo..',
+    '.....oBBBLLmmmmmLLBBBBDBBBBDBBBBDBBBBBBBBBBBoo..',
+    '.....oBBBLmmnnmmmLBBBBDBBBBDBBBBDBBBBBBBBBBoo...',
+    '.....ooBBLLmmmmmLLBBBBDBBBBDBBBBDBBBBBBBBBBo....',
+    '......ooBBLLLmLLLBBBBBBBBBBBBBBBBBBBBBBBBBBo....',
+    '.......ooBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBoo....',
+    '........oooBBBBBLLLLLLLLLLLLLLLLLLLBBBBBBBo.....',
+    '..........ooooLLLLLLLLLLLLLLLLLLLLLLLBBBBBo.....',
+    '.............ooBLLLLLLLLLLLLLLLLLLLBBBBBBoo.....',
+    '..............oBBBBBBBBBBBBBBBBBBBBBBBBBoo......',
+    '..............oBBBooBBBooBoooooBBBBBBBBBoo......',
+    '..............oBBBooBBBoooo..oBBBBBBBBBBBo......',
+    '.............ooBBBooBBBoo....oBBBBBoBBBBBo......',
+    '.............oBBBBBBBBBBo....oBBBBBoBBBBBo......',
+    '.............ooBBBooBBBoo....oBBBBBoBBBBBo......',
+    '..............oBBBooBBBo.....oBBBBBoBBBBBo......',
+    '..............oBBBooBBBo.....ooBBBoooBBBoo......',
+    '.............ooBBBooBBBoo....ooBBBoooBBBoo......',
+    '.............oBBBBBBBBBBo....oBBBBBoBBBBBo......',
+    '.............ooBBBooBBBoo....ooBBBoooBBBoo......',
+    '..............oooooooooo......ooooo.ooooo.......',
+    '................................................',
+    '................................................',
+    '................................................',
+    '................................................',
+  ],
+};
+const POSE_ORDER = ['sitFront', 'loaf', 'sit34', 'standSide'];
+let catPoseIdx = 1, catBlink = false, catBlinkT = null, catMoveT = null;
 function fadeGrad(W, a, mid) {                            // horizontaler Verlauf: an den Enden transparent
   const g = cctx.createLinearGradient && cctx.createLinearGradient(0, 0, W, 0);
   if (!g || !g.addColorStop) return a + mid + ')';       // Fallback (Test-Stubs ohne Gradient)
@@ -3998,10 +4134,8 @@ function drawCat() {
   cctx.fillStyle = fadeGrad(W, 'rgba(150,180,235,.', '13'); cctx.fillRect(0, sy, W, H - sy);   // Glasfläche
   cctx.fillStyle = fadeGrad(W, 'rgba(215,233,255,.', '6');  cctx.fillRect(0, sy, W, 1);        // obere Glanzkante
   cctx.fillStyle = fadeGrad(W, 'rgba(120,150,210,.', '28'); cctx.fillRect(0, H - 1, W, 1);     // untere Kante
-  // weicher Kontaktschatten unter der Katze (ebenfalls ausgeblendet an den Enden)
-  cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);
-  // Katze
-  CAT_MAP.forEach((row, y) => [...row].forEach((ch, x) => {
+  cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);          // Kontaktschatten
+  CAT_POSES[POSE_ORDER[catPoseIdx]].forEach((row, y) => [...row].forEach((ch, x) => {
     let c = ch;
     if (catBlink && (c === 'E' || c === 'W')) c = 'B';   // Blinzeln: Augen kurz zu
     else if (catBlink && c === 'P') c = 'o';             // schmaler geschlossener Lidstrich
@@ -4014,15 +4148,15 @@ function catBlinkOnce() {
   setTimeout(() => { catBlink = false; drawCat(); }, 170);
   catBlinkT = setTimeout(catBlinkOnce, 3500 + Math.random() * 5500);
 }
-function catReposition() {  // ab und zu gemütlich umlegen (bleibt in der Ecke) und mal die Seite wechseln
-  const dx = -((Math.random() * 26) | 0), dy = -((Math.random() * 8) | 0);
-  document.getElementById('astro').style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-  if (Math.random() < 0.5) catCv.classList.toggle('flip');
-  catMoveT = setTimeout(catReposition, 18000 + Math.random() * 24000);
+function catCyclePose() {  // automatischer Posenwechsel (alle ~9–18 s), gelegentlich gespiegelt
+  catPoseIdx = (catPoseIdx + 1) % POSE_ORDER.length;
+  catCv.classList.toggle('flip', Math.random() < 0.5);
+  drawCat();
+  catMoveT = setTimeout(catCyclePose, 9000 + Math.random() * 9000);
 }
 drawCat();
 catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
-catMoveT = setTimeout(catReposition, 16000 + Math.random() * 16000);
+catMoveT = setTimeout(catCyclePose, 9000 + Math.random() * 7000);
 // Bei Fensterfokus immer einen frischen Tipp zeigen
 window.addEventListener('focus', () => { if (state.settings.tips !== false) speakTip(); });
 
