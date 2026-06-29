@@ -4181,7 +4181,7 @@ function drawCat() {
     const sc = Math.min((W - 4) / r.w, avail / r.h);       // einpassen (verkleinert das große Original sauber)
     const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
     const dx = Math.round((W - dw) / 2), dy = Math.round(sy - dh);
-    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingEnabled = false;                    // knackscharf statt verwaschen
     cctx.drawImage(catSheet, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
     return;
   }
@@ -4220,9 +4220,16 @@ function processCatSheet(img) {
     catSheet = img; catFrameRects = Array.from({ length: catFrames }, (_, f) => ({ x: f * fw, y: 0, w: fw, h: img.height }));
     return;
   }
-  const d = data.data, br = d[0], bg = d[1], bb = d[2], tol = 44;
-  for (let p = 0; p < d.length; p += 4)
-    if (Math.abs(d[p] - br) < tol && Math.abs(d[p + 1] - bg) < tol && Math.abs(d[p + 2] - bb) < tol) d[p + 3] = 0;
+  const d = data.data, br = d[0], bg = d[1], bb = d[2], tol = 40;
+  for (let p = 0; p < d.length; p += 4) {
+    const r = d[p], g = d[p + 1], b = d[p + 2];
+    if (Math.abs(r - br) < tol && Math.abs(g - bg) < tol && Math.abs(b - bb) < tol) { d[p + 3] = 0; continue; }  // Hintergrund -> transparent
+    // Vorlage ist ein braunes Tabby -> auf eine SCHWARZE Katze umfärben:
+    if (r >= 232 && g >= 176 && b <= 122) { d[p] = 240; d[p + 1] = 206; d[p + 2] = 80; }                          // Augen: Gold-Glanz
+    else if (r > 150 && (r - g) > 40 && (r - b) < 58 && b > 95 && g < 150) { d[p] = 201; d[p + 1] = 128; d[p + 2] = 133; } // Nase: rosa
+    else { let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.5 - 8; nl = nl < 7 ? 7 : nl > 108 ? 108 : nl;     // Fell -> dunkles Grau (kühler Stich)
+      d[p] = Math.round(nl * 0.92); d[p + 1] = Math.round(nl * 0.97); d[p + 2] = Math.round(nl * 1.12); }
+  }
   o.putImageData(data, 0, 0);
   catSheet = oc;
   const fw = Math.floor(img.width / catFrames), fh = img.height, pad = 2;
