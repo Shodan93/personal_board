@@ -3935,6 +3935,44 @@ const TIPS = [
   'Augen trocken? Bewusst 10-mal langsam blinzeln. Besser als jeder Tropfen.',
   'Heute schon bewusst gelächelt, gestreckt UND Wasser getrunken? Triple-Win!',
   'Und zum Schluss: Du machst das besser, als du denkst. Weiter so. 🚀',
+  // ----- Weitere Office- & Wohlfühl-Tipps -----
+  'Trink-Erinnerung: Das Glas neben dir ist nicht nur Deko. Ein Schluck jetzt.',
+  'Mach die obersten Knöpfe deiner To-do-Liste zu — den Rest erledigt das Morgen-Ich.',
+  'Ein tiefer Atemzug ist die kürzeste Pause, die es gibt. Nimm sie dir.',
+  'Steh auf, wenn du das liest. Ja, jetzt. Drei Schritte zählen schon.',
+  'Notier eine Sache, für die du heute dankbar bist. Klein zählt auch.',
+  'Bildschirmrand kurz fixieren, dann in die Ferne schauen. Augen-Reset in 5 Sekunden.',
+  'Eine Aufgabe halb fertig? Häkchen verdient sich auch der mutige Anfang.',
+  'Räum eine einzige Sache von deinem Schreibtisch. Sofort fühlt sich der Kopf leichter an.',
+  'Du darfst auch mal nichts tun. Leerlauf ist kein Stillstand.',
+  'Lehn dich zurück, Schultern kreisen, ausatmen. Der Stuhl hält dich, lass ihn.',
+  'Frag dich: Was ist heute WIRKLICH wichtig? Der Rest darf warten.',
+  'Ein freundliches Wort an dich selbst wirkt wie ein warmer Tee. Probier es.',
+  'Hände kurz schütteln, als würdest du Wasser abschütteln. Spannung — weg.',
+  'Pausen sind die Kommas im Satz deines Tages. Ohne sie wird alles ein Wortbrei.',
+  'Heute schon aus dem Fenster geschaut? Der Himmel macht gerade was Schönes.',
+  'Kleiner Stretch: Arme hoch, auf die Zehenspitzen, lang machen wie eine Katze.',
+  'Mut zur Lücke im Kalender. Ein leerer Block ist auch ein Termin — mit dir.',
+  'Eine Sache nach der anderen. Dein Board weiß: Spalten füllt man von links.',
+  // ----- Atmosphäre: gemütlich hier im Orbit (Raumschiff-Vibe) -----
+  'Gemütlich hier im Orbit, oder? Lehn dich zurück, die Sterne ziehen für dich vorbei. ✨',
+  'Die Schiffskatze schnurrt. Alle Systeme im grünen Bereich. Du darfst durchatmen.',
+  'Wir treiben ruhig durchs All — kein Grund zur Eile. Ein Ticket nach dem anderen. 🪐',
+  'Draußen ist es still und weit. Hier drinnen ist es warm. Schön, dass du da bist.',
+  'Kurswechsel gefällig? Streck dich, trink was, schau kurz aus dem Bullauge. 🛰️',
+  'Der Autopilot hat alles im Griff. Gönn dir einen Moment Schwerelosigkeit.',
+  'Sternenstaub auf dem Schreibtisch? Macht nichts. Im Orbit darf es gemütlich sein.',
+  'Heißgetränk andocken, Decke über die Knie, Board im Blick. Perfekter Orbit-Moment.',
+  'Die Katze hat sich umgedreht — alles in bester Ordnung an Bord. 😺',
+  'Leise surren die Triebwerke. Du musst heute nichts beweisen, nur sanft weiterfliegen.',
+  'Ein Tee, ein Ticket, ein tiefer Atemzug. Mehr braucht eine gute Orbit-Runde nicht.',
+  'Wenn dir nach Pause ist: Die Sterne warten geduldig. Sie sind seit Milliarden Jahren entspannt.',
+  'Willkommen zurück an Bord. Schön, dass du wieder reinschaust. ☕',
+  'Selbst im Weltall gilt: Erst die Katze streicheln, dann die Welt retten.',
+  'Mach es dir bequem im Cockpit. Der schönste Teil der Reise ist das ruhige Dahingleiten.',
+  'Kleine Erinnerung aus dem Maschinenraum deines Körpers: Wasser nachfüllen, bitte. 💧',
+  'Die Nacht draußen ist tiefblau und ruhig. Lass deinen Schultern dieselbe Ruhe.',
+  'Ein erledigtes Ticket ist ein kleiner Stern mehr an deinem Himmel. Sammle in Ruhe.',
 ];
 let tipPool = [], tipTimer = null, bubbleTimer = null;
 
@@ -4120,7 +4158,7 @@ const CAT_POSES = {
 };
 const POSE_ORDER = ['sitFront', 'loaf', 'sit34', 'standSide'];
 let catPoseIdx = 1, catBlink = false, catBlinkT = null, catMoveT = null;
-let catSheet = null, catFrames = 4;                      // optionales eigenes Sprite-Sheet (Originalbild)
+let catSheet = null, catFrames = 4, catFrameRects = [];  // optionales eigenes Sprite-Sheet (Originalbild)
 function fadeGrad(W, a, mid) {                            // horizontaler Verlauf: an den Enden transparent
   const g = cctx.createLinearGradient && cctx.createLinearGradient(0, 0, W, 0);
   if (!g || !g.addColorStop) return a + mid + ')';       // Fallback (Test-Stubs ohne Gradient)
@@ -4136,14 +4174,15 @@ function drawCat() {
   cctx.fillStyle = fadeGrad(W, 'rgba(215,233,255,.', '6');  cctx.fillRect(0, sy, W, 1);        // obere Glanzkante
   cctx.fillStyle = fadeGrad(W, 'rgba(120,150,210,.', '28'); cctx.fillRect(0, H - 1, W, 1);     // untere Kante
   cctx.fillStyle = fadeGrad(W, 'rgba(0,0,0,.', '16'); cctx.fillRect(0, sy - 1, W, 2);          // Kontaktschatten
-  // Liegt die EIGENE Sprite-Sheet-Datei vor? -> pixelgenau das Originalbild rendern (4 Posen nebeneinander)
-  if (catSheet && catSheet.width) {
-    const fw = catSheet.width / catFrames, fh = catSheet.height;
-    const scale = Math.max(1, Math.floor(Math.min(W / fw, sy / fh)));   // ganzzahlig skalieren = knackscharf
-    const dw = Math.round(fw * scale), dh = Math.round(fh * scale);
-    const dx = Math.round((W - dw) / 2), dy = Math.max(0, Math.round(sy - dh));
-    cctx.imageSmoothingEnabled = false;
-    cctx.drawImage(catSheet, Math.round((catPoseIdx % catFrames) * fw), 0, fw, fh, dx, dy, dw, dh);
+  // Liegt das EIGENE Sprite-Sheet vor? -> Originalbild rendern (Hintergrund freigestellt, je Pose zugeschnitten)
+  if (catSheet && catFrameRects.length) {
+    const r = catFrameRects[catPoseIdx % catFrameRects.length];
+    const avail = sy - 2;                                  // Platz über dem Regal
+    const sc = Math.min((W - 4) / r.w, avail / r.h);       // einpassen (verkleinert das große Original sauber)
+    const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
+    const dx = Math.round((W - dw) / 2), dy = Math.round(sy - dh);
+    cctx.imageSmoothingEnabled = true;
+    cctx.drawImage(catSheet, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
     return;
   }
   // Fallback: handgebaute Sprites, bis die Datei vorhanden ist
@@ -4169,14 +4208,40 @@ function catCyclePose() {  // automatischer Posenwechsel (alle ~9–18 s), geleg
 drawCat();
 catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
 catMoveT = setTimeout(catCyclePose, 9000 + Math.random() * 7000);
-// Eigenes Sprite-Sheet laden, falls im Repo vorhanden (4 Posen nebeneinander, transparenter Hintergrund).
-// Dann wird das Originalbild pixelgenau gerendert; sonst bleiben die handgebauten Sprites.
+// Eigenes Sprite-Sheet laden (4 Posen nebeneinander). Hintergrund wird freigestellt
+// (Eckfarbe wird transparent), jede Pose auf ihre Bounding-Box zugeschnitten.
+function processCatSheet(img) {
+  const oc = document.createElement('canvas'); oc.width = img.width; oc.height = img.height;
+  const o = oc.getContext('2d'); o.drawImage(img, 0, 0);
+  let data;
+  try { data = o.getImageData(0, 0, oc.width, oc.height); }
+  catch (e) {                                              // z. B. getImageData nicht verfügbar -> ganzes Frame nutzen
+    const fw = Math.floor(img.width / catFrames);
+    catSheet = img; catFrameRects = Array.from({ length: catFrames }, (_, f) => ({ x: f * fw, y: 0, w: fw, h: img.height }));
+    return;
+  }
+  const d = data.data, br = d[0], bg = d[1], bb = d[2], tol = 44;
+  for (let p = 0; p < d.length; p += 4)
+    if (Math.abs(d[p] - br) < tol && Math.abs(d[p + 1] - bg) < tol && Math.abs(d[p + 2] - bb) < tol) d[p + 3] = 0;
+  o.putImageData(data, 0, 0);
+  catSheet = oc;
+  const fw = Math.floor(img.width / catFrames), fh = img.height, pad = 2;
+  catFrameRects = [];
+  for (let f = 0; f < catFrames; f++) {
+    let minx = fw, miny = fh, maxx = 0, maxy = 0, found = false;
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++)
+      if (d[(y * img.width + f * fw + x) * 4 + 3] > 16) { found = true; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+    if (!found) { minx = 0; miny = 0; maxx = fw - 1; maxy = fh - 1; }
+    catFrameRects.push({ x: f * fw + Math.max(0, minx - pad), y: Math.max(0, miny - pad),
+      w: Math.min(fw, maxx - minx + 1 + pad * 2), h: Math.min(fh, maxy - miny + 1 + pad * 2) });
+  }
+}
 (function loadCatSheet() {
   if (typeof Image === 'undefined') return;
   const names = ['cat-sprites.png', 'cats.png', 'cat.png', 'katze.png']; let i = 0;
   const img = new Image();
-  img.onload = () => { catSheet = img; drawCat(); };
-  img.onerror = () => { if (++i < names.length) img.src = names[i]; };  // sonst Fallback behalten
+  img.onload = () => { try { processCatSheet(img); } catch (e) {} drawCat(); };
+  img.onerror = () => { if (++i < names.length) img.src = names[i]; };  // sonst handgebaute Sprites behalten
   img.src = names[0];
 })();
 // Bei Fensterfokus immer einen frischen Tipp zeigen
@@ -4209,7 +4274,7 @@ function applyTips() {
   document.getElementById('tipBar').hidden = true; // alte Leiste deaktiviert
   scheduleAutoTip();
 }
-document.getElementById('astroCv').onclick = () => speakTip();
+document.getElementById('astroCv').onclick = () => { speakTip(); clearTimeout(catMoveT); catCyclePose(); };
 document.getElementById('astroGear').onclick = e => {
   e.stopPropagation();
   document.getElementById('astroBubble').hidden = true;
