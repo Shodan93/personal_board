@@ -758,7 +758,7 @@ tr.row.done-final td{opacity:.4}
         <input type="checkbox" id="setDino">
       </div>
       <div class="set-row">
-        <label>Office-Tipps anzeigen</label>
+        <label>🐈 Katze (Office-Tipps) anzeigen</label>
         <input type="checkbox" id="setTips">
       </div>
       <div class="set-row">
@@ -4172,24 +4172,24 @@ function drawCat() {
   const W = catCv.width, H = catCv.height, BAR = 26, sy = H - BAR;
   const dark = document.documentElement.dataset.theme === 'dark';
   cctx.clearRect(0, 0, W, H);
-  // Solider Glas-Balken (keine Transparenz), je nach Theme
-  cctx.fillStyle = dark ? '#1d2230' : '#dfe5ef'; cctx.fillRect(0, sy, W, BAR);
-  cctx.fillStyle = dark ? '#2b3346' : '#c8d0e0'; cctx.fillRect(0, sy, W, 1);          // obere Kante (heller)
-  cctx.fillStyle = dark ? '#11141d' : '#aeb8cc'; cctx.fillRect(0, H - 1, W, 1);       // untere Kante (dunkler)
-  // Katze sitzt direkt auf dem Balken; Maße relativ zur (kompakten) Canvas-Größe
-  const CX = Math.round(W * 0.33), availW = W * 0.52, availH = sy - 14;
+  // Leicht transparenter Balken, an die UI angeglichen (Karten-/Rahmenfarben)
+  cctx.fillStyle = dark ? 'rgba(30,33,40,.82)' : 'rgba(250,251,253,.82)'; cctx.fillRect(0, sy, W, BAR);
+  cctx.fillStyle = dark ? 'rgba(255,255,255,.10)' : 'rgba(20,30,50,.10)'; cctx.fillRect(0, sy, W, 1);   // obere Kante
+  cctx.fillStyle = dark ? 'rgba(0,0,0,.28)' : 'rgba(20,30,50,.07)';      cctx.fillRect(0, H - 1, W, 1);  // untere Kante
+  // Katze: nochmal ~20 % kleiner, rechtsbündig an den Rand, sitzt direkt auf dem Balken
+  const availW = W * 0.52, availH = sy - 14;
   if (catSheet && catFrameRects.length) {
     const r = catFrameRects[catPoseIdx % catFrameRects.length];
-    const sc = Math.min(availW / r.w, availH / r.h);
+    const sc = 0.8 * Math.min(availW / r.w, availH / r.h);
     const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
-    const dx = Math.round(CX - dw / 2), dy = Math.round(sy - dh + 1);   // Füße auf dem Balken
+    const dx = W - dw - 6, dy = Math.round(sy - dh + 1);   // rechts, Füße auf dem Balken
     cctx.imageSmoothingEnabled = false;                  // knackscharf
     cctx.drawImage(catSheet, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
   } else {
     const pose = CAT_POSES[POSE_ORDER[catPoseIdx % POSE_ORDER.length]];
     const pw = pose[0].length, ph = pose.length;
-    const sc = Math.max(1, Math.floor(Math.min(availW / pw, availH / ph)));
-    const dx = Math.round(CX - pw * sc / 2), dy = Math.round(sy - ph * sc + 1);
+    const sc = Math.max(1, Math.floor(0.8 * Math.min(availW / pw, availH / ph)));
+    const dx = W - pw * sc - 6, dy = Math.round(sy - ph * sc + 1);
     pose.forEach((row, y) => [...row].forEach((ch, x) => {
       let c = ch;
       if (catBlink && (c === 'E' || c === 'W')) c = 'B';
@@ -4237,10 +4237,9 @@ function processCatSheet(img) {
   for (let p = 0; p < d.length; p += 4) {
     const r = d[p], g = d[p + 1], b = d[p + 2];
     if (Math.abs(r - br) < tol && Math.abs(g - bg) < tol && Math.abs(b - bb) < tol) { d[p + 3] = 0; continue; }  // Hintergrund -> transparent
-    // Vorlage ist ein braunes Tabby -> auf eine SCHWARZE Katze umfärben (helle Augenpixel -> reinweiß):
-    if (r >= 232 && g >= 176 && b <= 122) { d[p] = 255; d[p + 1] = 255; d[p + 2] = 255; }   // Augen: weiß
-    else { let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.5 - 8; nl = nl < 7 ? 7 : nl > 108 ? 108 : nl; // Fell -> dunkles Grau (kühler Stich)
-      d[p] = Math.round(nl * 0.92); d[p + 1] = Math.round(nl * 0.97); d[p + 2] = Math.round(nl * 1.12); }
+    // Braunes Tabby -> komplett SCHWARZE Katze: ALLES aufs dunkle Graustufen-Band abbilden (kein Weiß).
+    let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.5 - 8; nl = nl < 7 ? 7 : nl > 108 ? 108 : nl;          // kühler Stich
+    d[p] = Math.round(nl * 0.92); d[p + 1] = Math.round(nl * 0.97); d[p + 2] = Math.round(nl * 1.12);
   }
   o.putImageData(data, 0, 0);
   catSheet = oc;
