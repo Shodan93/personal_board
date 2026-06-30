@@ -518,6 +518,7 @@ tr.row.done-final td{opacity:.4}
   <h1 id="boardTitle">🪐 Orbit</h1>
   <select id="boardSwitch" title="Board wechseln" hidden
     style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
+  <span class="header-meta" id="todayDate"></span>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: fällig in den nächsten 7 Tagen">0 diese Woche</button>
@@ -1203,7 +1204,13 @@ function catClockStr() {
     n.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) +
     ' · ' + n.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
 }
-function tickClock() { if (typeof drawCat === 'function') drawCat(); }   // aktualisiert die Uhr auf dem Balken
+function tickClock() {
+  const el = document.getElementById('todayDate'); if (!el) return;
+  const n = new Date();
+  el.textContent = 'KW ' + isoWeek(n) + ' · ' +
+    n.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) +
+    ' · ' + n.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+}
 function renderHeader() {
   tickClock();
   const cur = view === 'kanban' ? kanbanQuick : quick;
@@ -4207,9 +4214,12 @@ function catCyclePose() {  // automatischer Posenwechsel — selten und ohne Ani
   drawCat();
   catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);   // alle ~24–46 s
 }
-drawCat();
-catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
-catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);
+const CAT_LIVE = false;   // Katze vorerst aus der Live-Version entfernt (auf true setzen, um sie zurückzuholen)
+if (CAT_LIVE) {
+  drawCat();
+  catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
+  catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);
+}
 // Eigenes Sprite-Sheet laden (4 Posen nebeneinander). Hintergrund wird freigestellt
 // (Eckfarbe wird transparent), jede Pose auf ihre Bounding-Box zugeschnitten.
 function processCatSheet(img) {
@@ -4249,7 +4259,7 @@ function processCatSheet(img) {
   catFrames = catFrameRects.length;
 }
 (function loadCatSheet() {
-  if (typeof Image === 'undefined') return;
+  if (!CAT_LIVE || typeof Image === 'undefined') return;
   const names = ['cat-sprites.png', 'cats.png', 'cat.png', 'katze.png']; let i = 0;
   const img = new Image();
   img.onload = () => { try { processCatSheet(img); } catch (e) {} drawCat(); };
@@ -4279,10 +4289,9 @@ function scheduleAutoTip() {
   }, 18000); // erster Tipp nach 18 Sekunden
 }
 function applyTips() {
-  const on = state.settings.tips !== false;
-  document.getElementById('astro').style.display = on ? 'block' : 'none';
-  document.getElementById('tipBar').hidden = true; // alte Leiste deaktiviert
-  scheduleAutoTip();
+  // Katze vorerst aus der Live-Version entfernt (Datum/Uhrzeit stehen wieder im Header).
+  document.getElementById('astro').style.display = 'none';
+  document.getElementById('tipBar').hidden = true;
 }
 document.getElementById('astroCv').onclick = () => { speakTip(); clearTimeout(catMoveT); catCyclePose(); };
 document.getElementById('btnTipClose').onclick = () => document.getElementById('tipBar').hidden = true;
