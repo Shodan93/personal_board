@@ -203,26 +203,40 @@ async function handleRpc(msg, env) {
   return rpcErr(id ?? null, -32601, "Methode nicht gefunden: " + method);
 }
 
+// Antwort als Server-Sent-Events (so erwartet es der MCP-„Streamable HTTP"-Client)
+function sse(messages) {
+  const body = messages.map((m) => "event: message\ndata: " + JSON.stringify(m) + "\n\n").join("");
+  return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", ...CORS } });
+}
+
 async function handleMcp(request, env, url) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-  // Token prüfen (URL-Param ?key= oder Authorization: Bearer …)
-  const auth = request.headers.get("Authorization") || "";
-  const token = url.searchParams.get("key") || (auth.startsWith("Bearer ") ? auth.slice(7) : "");
-  if (!env.MCP_TOKEN || token !== env.MCP_TOKEN) return json({ error: "Forbidden" }, 403);   // 403 (kein 401 -> kein OAuth-Flow)
+
+  // Token: Pfad (/mcp/<token>), Query (?key=) ODER Authorization: Bearer …
+  let token = url.searchParams.get("key") || "";
+  const authHdr = request.headers.get("Authorization") || "";
+  if (!token && authHdr.startsWith("Bearer ")) token = authHdr.slice(7);
+  if (!token && url.pathname.length > 5) token = decodeURIComponent(url.pathname.slice(5)); // nach "/mcp/"
+  if (!env.MCP_TOKEN || token !== env.MCP_TOKEN) return json({ error: "Forbidden" }, 403);   // 403 -> kein OAuth-Flow
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY || !env.ORBIT_OWNER_ID)
     return json(rpcErr(null, -32002, "Server nicht konfiguriert (SUPABASE_URL/SUPABASE_SERVICE_KEY/ORBIT_OWNER_ID fehlen)."), 200);
-  if (request.method === "GET") return json({ ok: true, server: SERVER_INFO });          // einfacher Healthcheck
+
+  const wantsSse = (request.headers.get("Accept") || "").includes("text/event-stream");
+
+  if (request.method === "GET") {
+    // MCP-Client (will SSE-Stream) -> 405 (spec-konform, er nutzt dann POST). Browser -> Healthcheck-JSON.
+    if (wantsSse) return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST", ...CORS } });
+    return json({ ok: true, server: SERVER_INFO });
+  }
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST", ...CORS } });
 
   let body;
   try { body = await request.json(); } catch { return json(rpcErr(null, -32700, "Parse error")); }
-  if (Array.isArray(body)) {
-    const out = [];
-    for (const m of body) { const r = await handleRpc(m, env); if (r) out.push(r); }
-    return out.length ? json(out) : new Response(null, { status: 202, headers: CORS });
-  }
-  const r = await handleRpc(body, env);
-  return r ? json(r) : new Response(null, { status: 202, headers: CORS });
+  const batch = Array.isArray(body), msgs = batch ? body : [body];
+  const out = [];
+  for (const m of msgs) { const r = await handleRpc(m, env); if (r) out.push(r); }
+  if (!out.length) return new Response(null, { status: 202, headers: CORS });   // nur Notifications -> kein Body
+  return wantsSse ? sse(out) : json(batch ? out : out[0]);
 }
 
 export default {
