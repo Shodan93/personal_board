@@ -65,10 +65,18 @@ const TOOLS = [
 const PRIOS = ["Hoch", "Mittel", "Niedrig"];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => new Date().toISOString().slice(0, 10);
-// Checklisten-Aufgaben normalisieren: akzeptiert {text,done} oder einfache Strings
-const normTasks = (arr) => Array.isArray(arr)
-  ? arr.map((x) => typeof x === "string" ? { text: x, done: false } : { text: String(x?.text ?? ""), done: !!x?.done }).filter((x) => x.text)
-  : undefined;
+// Checklisten-Aufgaben normalisieren — robust gegen verschiedene Eingaben:
+// echtes Array, JSON-String, Objekte mit text/title/name, done als bool/"true".
+const normTasks = (arr) => {
+  if (typeof arr === "string") { try { arr = JSON.parse(arr); } catch (e) { return undefined; } }
+  if (!Array.isArray(arr)) return undefined;
+  return arr.map((x) => {
+    if (typeof x === "string") return { text: x.trim(), done: false };
+    const text = String((x && (x.text ?? x.title ?? x.name ?? x.label)) ?? "").trim();
+    const done = !!(x && (x.done === true || x.done === "true" || x.checked === true || x.completed === true));
+    return { text, done };
+  }).filter((x) => x.text);
+};
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
 
 function json(obj, status = 200) {
@@ -164,7 +172,7 @@ async function callTool(name, a, env) {
       deadline: a.deadline || today(), desc: a.desc || "", note: "", cats: a.cats || [], imgs: [], tasks: normTasks(a.tasks) || [], createdAt: today() };
     b.data.tickets = [...b.data.tickets, ticket];
     await saveData(env, b.id, b.data);
-    return JSON.stringify({ created: ticket.id, status: useStatus, board: b.title }, null, 2);
+    return JSON.stringify({ created: ticket.id, status: useStatus, board: b.title, tasks: ticket.tasks }, null, 2);
   }
 
   if (name === "update_ticket") {
