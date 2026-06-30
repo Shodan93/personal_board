@@ -24,36 +24,42 @@
 const SERVER_INFO = { name: "orbit", version: "1.0.0" };
 const PROTO_FALLBACK = "2025-06-18";
 
+// Wiederverwendbare Schema-Bausteine (VOR TOOLS definieren!)
+const TASKS_SCHEMA = { type: "array", description: "Checklisten-Aufgaben im Ticket",
+  items: { type: "object", properties: { text: { type: "string" }, done: { type: "boolean" } }, required: ["text"], additionalProperties: false } };
+const BOARD_ID = { type: "string", description: "Board-id aus list_boards. Ohne board_id/board wird das zuletzt geänderte Board genutzt." };
+const BOARD_NAME = { type: "string", description: "Board-Name statt id (z. B. \"Life\"), alternativ zu board_id." };
+
 const TOOLS = [
-  { name: "list_boards", description: "Listet deine Boards (id + Titel).",
+  { name: "list_boards", description: "Listet ALLE deine Boards (id + Titel). ZUERST aufrufen, um board_id oder Namen für die anderen Tools zu bekommen.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false } },
-  { name: "list_statuses", description: "Spalten/Status deines Boards in Reihenfolge.",
-    inputSchema: { type: "object", properties: { board_id: { type: "string" } }, additionalProperties: false } },
-  { name: "list_tickets", description: "Listet Tickets. Optional nach Status filtern, im Titel/Text suchen, Erledigte einschließen.",
+  { name: "list_statuses", description: "Spalten/Status eines Boards in Reihenfolge.",
+    inputSchema: { type: "object", properties: { board_id: BOARD_ID, board: BOARD_NAME }, additionalProperties: false } },
+  { name: "list_tickets", description: "Listet Tickets eines bestimmten Boards. Mit board_id ODER board (Name) ein konkretes Board wählen (z. B. \"Life\"); sonst zuletzt geändertes.",
     inputSchema: { type: "object", properties: {
-      board_id: { type: "string" }, status: { type: "string" }, query: { type: "string" },
+      board_id: BOARD_ID, board: BOARD_NAME, status: { type: "string" }, query: { type: "string" },
       include_done: { type: "boolean" } }, additionalProperties: false } },
   { name: "get_ticket", description: "Einzelnes Ticket per id.",
-    inputSchema: { type: "object", properties: { id: { type: "string" }, board_id: { type: "string" } }, required: ["id"], additionalProperties: false } },
-  { name: "create_ticket", description: "Neues Ticket anlegen. status muss eine Spalte des Boards sein (siehe list_statuses).",
+    inputSchema: { type: "object", properties: { id: { type: "string" }, board_id: BOARD_ID, board: BOARD_NAME }, required: ["id"], additionalProperties: false } },
+  { name: "create_ticket", description: "Neues Ticket in einem Board anlegen. Mit board_id/board das Zielboard wählen. status muss eine Spalte sein (siehe list_statuses).",
     inputSchema: { type: "object", properties: {
       title: { type: "string" }, status: { type: "string" },
       prio: { type: "string", enum: ["Hoch", "Mittel", "Niedrig"] },
       deadline: { type: "string", description: "YYYY-MM-DD" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
       tasks: TASKS_SCHEMA,
-      board_id: { type: "string" } }, required: ["title"], additionalProperties: false } },
+      board_id: BOARD_ID, board: BOARD_NAME }, required: ["title"], additionalProperties: false } },
   { name: "update_ticket", description: "Felder eines Tickets ändern (nur gesetzte werden überschrieben).",
     inputSchema: { type: "object", properties: {
       id: { type: "string" }, title: { type: "string" }, status: { type: "string" },
       prio: { type: "string", enum: ["Hoch", "Mittel", "Niedrig"] }, deadline: { type: "string" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
       tasks: TASKS_SCHEMA,
-      board_id: { type: "string" } }, required: ["id"], additionalProperties: false } },
+      board_id: BOARD_ID, board: BOARD_NAME }, required: ["id"], additionalProperties: false } },
   { name: "move_ticket", description: "Ticket in eine andere Spalte (Status) verschieben.",
-    inputSchema: { type: "object", properties: { id: { type: "string" }, status: { type: "string" }, board_id: { type: "string" } }, required: ["id", "status"], additionalProperties: false } },
+    inputSchema: { type: "object", properties: { id: { type: "string" }, status: { type: "string" }, board_id: BOARD_ID, board: BOARD_NAME }, required: ["id", "status"], additionalProperties: false } },
   { name: "delete_ticket", description: "Ticket löschen.",
-    inputSchema: { type: "object", properties: { id: { type: "string" }, board_id: { type: "string" } }, required: ["id"], additionalProperties: false } },
+    inputSchema: { type: "object", properties: { id: { type: "string" }, board_id: BOARD_ID, board: BOARD_NAME }, required: ["id"], additionalProperties: false } },
 ];
 
 const PRIOS = ["Hoch", "Mittel", "Niedrig"];
@@ -63,8 +69,6 @@ const today = () => new Date().toISOString().slice(0, 10);
 const normTasks = (arr) => Array.isArray(arr)
   ? arr.map((x) => typeof x === "string" ? { text: x, done: false } : { text: String(x?.text ?? ""), done: !!x?.done }).filter((x) => x.text)
   : undefined;
-const TASKS_SCHEMA = { type: "array", description: "Checklisten-Aufgaben im Ticket",
-  items: { type: "object", properties: { text: { type: "string" }, done: { type: "boolean" } }, required: ["text"], additionalProperties: false } };
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
 
 function json(obj, status = 200) {
@@ -85,11 +89,24 @@ async function sbGet(env, qs) {
 async function listBoards(env) {
   return sbGet(env, "select=id,title,updated_at&owner=eq." + encodeURIComponent(env.ORBIT_OWNER_ID) + "&order=updated_at.desc");
 }
-async function loadBoard(env, boardId) {
-  let qs = "select=id,title,data&owner=eq." + encodeURIComponent(env.ORBIT_OWNER_ID);
-  qs += boardId ? "&id=eq." + encodeURIComponent(boardId) : "&order=updated_at.desc&limit=1";
-  const rows = await sbGet(env, qs);
-  if (!rows.length) throw new Error("Kein Board gefunden, das dir gehört.");
+// Board laden — gezielt per board_id ODER per Name (board), sonst zuletzt geändertes Board.
+// Immer auf owner=ORBIT_OWNER_ID eingeschränkt (nur deine Boards).
+async function loadBoard(env, boardId, boardName) {
+  const owner = encodeURIComponent(env.ORBIT_OWNER_ID);
+  let rows;
+  if (boardId) {
+    rows = await sbGet(env, "select=id,title,data&owner=eq." + owner + "&id=eq." + encodeURIComponent(boardId));
+    if (!rows.length) throw new Error('Kein Board mit id "' + boardId + '" gefunden, das dir gehört.');
+  } else if (boardName) {
+    const all = await sbGet(env, "select=id,title,data&owner=eq." + owner);
+    const t = String(boardName).trim().toLowerCase();
+    const m = all.find((b) => (b.title || "").toLowerCase() === t) || all.find((b) => (b.title || "").toLowerCase().includes(t));
+    if (!m) throw new Error('Kein Board namens "' + boardName + '" gefunden. Verfügbar: ' + all.map((b) => b.title).join(", "));
+    rows = [m];
+  } else {
+    rows = await sbGet(env, "select=id,title,data&owner=eq." + owner + "&order=updated_at.desc&limit=1");
+    if (!rows.length) throw new Error("Kein Board gefunden, das dir gehört.");
+  }
   const b = rows[0];
   b.data = b.data || {};
   b.data.tickets = Array.isArray(b.data.tickets) ? b.data.tickets : [];
@@ -121,10 +138,10 @@ function pub(t) {
 async function callTool(name, a, env) {
   if (name === "list_boards") return JSON.stringify(await listBoards(env), null, 2);
 
-  if (name === "list_statuses") return JSON.stringify(statusesOf(await loadBoard(env, a.board_id)), null, 2);
+  if (name === "list_statuses") return JSON.stringify(statusesOf(await loadBoard(env, a.board_id, a.board)), null, 2);
 
   if (name === "list_tickets") {
-    const b = await loadBoard(env, a.board_id), done = doneOf(b);
+    const b = await loadBoard(env, a.board_id, a.board), done = doneOf(b);
     let t = b.data.tickets.slice();
     if (a.status) t = t.filter((x) => x.status === a.status);
     else if (!a.include_done) t = t.filter((x) => !done.includes(x.status));
@@ -133,14 +150,14 @@ async function callTool(name, a, env) {
   }
 
   if (name === "get_ticket") {
-    const b = await loadBoard(env, a.board_id), t = b.data.tickets.find((x) => x.id === a.id);
+    const b = await loadBoard(env, a.board_id, a.board), t = b.data.tickets.find((x) => x.id === a.id);
     if (!t) throw new Error("Ticket nicht gefunden: " + a.id);
     return JSON.stringify(pub(t), null, 2);
   }
 
   if (name === "create_ticket") {
     if (!a.title) throw new Error("title fehlt.");
-    const b = await loadBoard(env, a.board_id), st = statusesOf(b);
+    const b = await loadBoard(env, a.board_id, a.board), st = statusesOf(b);
     const useStatus = a.status && st.includes(a.status) ? a.status : st[0];
     if (a.prio && !PRIOS.includes(a.prio)) throw new Error("prio muss Hoch/Mittel/Niedrig sein.");
     const ticket = { id: uid(), title: a.title, status: useStatus, prio: a.prio || "Mittel",
@@ -151,7 +168,7 @@ async function callTool(name, a, env) {
   }
 
   if (name === "update_ticket") {
-    const b = await loadBoard(env, a.board_id), t = b.data.tickets.find((x) => x.id === a.id);
+    const b = await loadBoard(env, a.board_id, a.board), t = b.data.tickets.find((x) => x.id === a.id);
     if (!t) throw new Error("Ticket nicht gefunden: " + a.id);
     if (a.status && !statusesOf(b).includes(a.status)) throw new Error("Unbekannter Status: " + a.status);
     if (a.prio && !PRIOS.includes(a.prio)) throw new Error("prio muss Hoch/Mittel/Niedrig sein.");
@@ -165,7 +182,7 @@ async function callTool(name, a, env) {
   }
 
   if (name === "move_ticket") {
-    const b = await loadBoard(env, a.board_id);
+    const b = await loadBoard(env, a.board_id, a.board);
     if (!statusesOf(b).includes(a.status)) throw new Error("Unbekannter Status: " + a.status);
     const t = b.data.tickets.find((x) => x.id === a.id);
     if (!t) throw new Error("Ticket nicht gefunden: " + a.id);
@@ -177,7 +194,7 @@ async function callTool(name, a, env) {
   }
 
   if (name === "delete_ticket") {
-    const b = await loadBoard(env, a.board_id), before = b.data.tickets.length;
+    const b = await loadBoard(env, a.board_id, a.board), before = b.data.tickets.length;
     b.data.tickets = b.data.tickets.filter((x) => x.id !== a.id);
     if (b.data.tickets.length === before) throw new Error("Ticket nicht gefunden: " + a.id);
     await saveData(env, b.id, b.data);
