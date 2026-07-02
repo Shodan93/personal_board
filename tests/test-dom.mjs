@@ -365,7 +365,7 @@ try {
   ok(vm.runInContext('document.getElementById("fPrio").value', context) === '1', 'Prio-Kreise setzen verstecktes #fPrio (P1)');
   vm.runInContext('setPrioPicker("Hoch")', context);
   ok(vm.runInContext('document.getElementById("fPrio").value', context) === '1', 'Alt-Wert „Hoch" wird zu P1 gemappt');
-  ok(vm.runInContext('normPrio("Niedrig")', context) === 5 && vm.runInContext('normPrio(7)', context) === 3, 'normPrio: Niedrig->5, ungültig->3');
+  ok(vm.runInContext('normPrio("Niedrig")', context) === 4 && vm.runInContext('normPrio(5)', context) === 4 && vm.runInContext('normPrio(7)', context) === 3, 'normPrio: Niedrig->4, P5->P4, ungültig->3');
 
   // deadlineLabel: relative Bezeichnungen statt Kalender-Emoji
   const dl = vm.runInContext('({ heute: deadlineLabel({deadline: todayStr(), status:"A"}), keins: deadlineLabel({deadline:"", status:"A"}) })', context);

@@ -44,7 +44,7 @@ const TOOLS = [
   { name: "create_ticket", description: "Neues Ticket in einem Board anlegen. Mit board_id/board das Zielboard wählen. status muss eine Spalte sein (siehe list_statuses).",
     inputSchema: { type: "object", properties: {
       title: { type: "string" }, status: { type: "string" },
-      prio: { type: "string", enum: ["Hoch", "Mittel", "Niedrig"] },
+      prio: { type: "integer", minimum: 1, maximum: 4, description: "1 = kritisch … 4 = niedrig (Alt: Hoch/Mittel/Niedrig wird gemappt)" },
       deadline: { type: "string", description: "YYYY-MM-DD" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
       tasks: TASKS_SCHEMA,
@@ -52,7 +52,7 @@ const TOOLS = [
   { name: "update_ticket", description: "Felder eines Tickets ändern (nur gesetzte werden überschrieben).",
     inputSchema: { type: "object", properties: {
       id: { type: "string" }, title: { type: "string" }, status: { type: "string" },
-      prio: { type: "string", enum: ["Hoch", "Mittel", "Niedrig"] }, deadline: { type: "string" },
+      prio: { type: "integer", minimum: 1, maximum: 4, description: "1 = kritisch … 4 = niedrig (Alt: Hoch/Mittel/Niedrig wird gemappt)" }, deadline: { type: "string" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
       tasks: TASKS_SCHEMA,
       board_id: BOARD_ID, board: BOARD_NAME }, required: ["id"], additionalProperties: false } },
@@ -62,7 +62,14 @@ const TOOLS = [
     inputSchema: { type: "object", properties: { id: { type: "string" }, board_id: BOARD_ID, board: BOARD_NAME }, required: ["id"], additionalProperties: false } },
 ];
 
-const PRIOS = ["Hoch", "Mittel", "Niedrig"];
+const SITE_URL = "https://orbit.mumelter.org/";
+// Priorität: 1 (kritisch) … 4 (niedrig); Alt-Werte werden gemappt
+function normPrio(p) {
+  if (p === "Hoch") return 1; if (p === "Mittel") return 3; if (p === "Niedrig") return 4;
+  const n = parseInt(p, 10);
+  if (n === 5) return 4;
+  return (n >= 1 && n <= 4) ? n : null;
+}
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => new Date().toISOString().slice(0, 10);
 // Checklisten-Aufgaben normalisieren — robust gegen verschiedene Eingaben:
@@ -136,7 +143,8 @@ function doneOf(b) {
   return Array.isArray(d) && d.length ? d : [statusesOf(b).slice(-1)[0]];
 }
 function pub(t) {
-  return { id: t.id, title: t.title, status: t.status, prio: t.prio, deadline: t.deadline,
+  return { id: t.id, url: SITE_URL + "#t=" + encodeURIComponent(t.id),
+    title: t.title, status: t.status, prio: t.prio, deadline: t.deadline,
     desc: t.desc || "", note: t.note || "", cats: t.cats || [],
     tasks: (t.tasks || []).map((x) => ({ text: x.text, done: !!x.done })),
     createdAt: t.createdAt, completedAt: t.completedAt || null };
@@ -167,19 +175,20 @@ async function callTool(name, a, env) {
     if (!a.title) throw new Error("title fehlt.");
     const b = await loadBoard(env, a.board_id, a.board), st = statusesOf(b);
     const useStatus = a.status && st.includes(a.status) ? a.status : st[0];
-    if (a.prio && !PRIOS.includes(a.prio)) throw new Error("prio muss Hoch/Mittel/Niedrig sein.");
-    const ticket = { id: uid(), title: a.title, status: useStatus, prio: a.prio || "Mittel",
+    const prio = a.prio === undefined ? 3 : normPrio(a.prio);
+    if (prio === null) throw new Error("prio muss 1-4 sein (1 = kritisch).");
+    const ticket = { id: uid(), title: a.title, status: useStatus, prio,
       deadline: a.deadline || today(), desc: a.desc || "", note: "", cats: a.cats || [], imgs: [], tasks: normTasks(a.tasks) || [], createdAt: today() };
     b.data.tickets = [...b.data.tickets, ticket];
     await saveData(env, b.id, b.data);
-    return JSON.stringify({ created: ticket.id, status: useStatus, board: b.title, tasks: ticket.tasks }, null, 2);
+    return JSON.stringify({ created: ticket.id, url: SITE_URL + "#t=" + ticket.id, status: useStatus, board: b.title, tasks: ticket.tasks }, null, 2);
   }
 
   if (name === "update_ticket") {
     const b = await loadBoard(env, a.board_id, a.board), t = b.data.tickets.find((x) => x.id === a.id);
     if (!t) throw new Error("Ticket nicht gefunden: " + a.id);
     if (a.status && !statusesOf(b).includes(a.status)) throw new Error("Unbekannter Status: " + a.status);
-    if (a.prio && !PRIOS.includes(a.prio)) throw new Error("prio muss Hoch/Mittel/Niedrig sein.");
+    if (a.prio !== undefined) { const np = normPrio(a.prio); if (np === null) throw new Error("prio muss 1-4 sein (1 = kritisch)."); a.prio = np; }
     for (const k of ["title", "status", "prio", "deadline", "desc", "cats"]) if (a[k] !== undefined) t[k] = a[k];
     if (a.tasks !== undefined) t.tasks = normTasks(a.tasks) || [];   // Checklisten-Aufgaben ersetzen
     const done = doneOf(b);

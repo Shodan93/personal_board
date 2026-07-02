@@ -6,15 +6,21 @@
 <title>Orbit</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='8.5' fill='%230176D3'/%3E%3Ccircle cx='13' cy='13' r='2.6' fill='%234FA8F0'/%3E%3Cellipse cx='16' cy='16' rx='14' ry='4.6' fill='none' stroke='%23014486' stroke-width='2.2' transform='rotate(-22 16 16)'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   CONTROL PANEL v2 — Salesforce Lightning Stil, Single-User
+   ORBIT v2 — ruhiges Raumschiff-Cockpit: Inter für Lesbarkeit,
+   JetBrains Mono als dezenter Konsolen-Akzent (Labels, Zahlen).
    ============================================================ */
 :root{
+  --font-ui:'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
   --blue:#0B69C7; --blue-dark:#0A4E92; --blue-bg:#EDF4FE;
   --red:#C23934; --yellow:#F5AE4A; --green:#2E844A;
-  /* Prioritäten P1 (am wichtigsten) … P5 — WCAG-taugliche, ruhige Skala */
-  --p1:#C62F2A; --p2:#D9711C; --p3:#E3A008; --p4:#3B7DD8; --p5:#7C8798;
+  /* Prioritäten P1 (kritisch) … P4 (niedrig) — ruhige, klar unterscheidbare Skala */
+  --p1:#D6403A; --p2:#E08A2E; --p3:#3B7DD8; --p4:#8A93A6;
   --gray-bg:#F4F6FA; --gray-bg2:#E6EAF2; --card:#FFFFFF; --border:#E2E6EE;
   --text:#1A1D24; --text-weak:#6A7180;
   --shadow:0 1px 3px rgba(20,28,45,.08);
@@ -26,7 +32,7 @@
 :root[data-theme="dark"]{
   --blue:#5AA7F2; --blue-dark:#A6CBF7; --blue-bg:#16273B;
   --red:#E2706B; --yellow:#D9A24F; --green:#46B673;
-  --p1:#E0605A; --p2:#E08A3C; --p3:#D9B13B; --p4:#5C96E8; --p5:#8791A3;
+  --p1:#E0605A; --p2:#E39A4A; --p3:#5C96E8; --p4:#7E8798;
   --gray-bg:#14161C; --gray-bg2:#0D0F15; --card:#1D2029; --border:#303644;
   --text:#E7E9EE; --text-weak:#9AA1B0;
   --shadow:0 2px 8px rgba(0,0,0,.45);
@@ -45,7 +51,7 @@
    (Ursache des Listenansicht-Bugs in v1) */
 [hidden]{display:none!important}
 body{
-  font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-family:var(--font-ui);
   /* Sanfter Verlauf, unten leicht dunkler — gibt dem Board Tiefe (Orbit-Feel) */
   background:linear-gradient(180deg, var(--gray-bg) 0%, var(--gray-bg) 40%, var(--gray-bg2) 100%);
   background-attachment:fixed; min-height:100vh;
@@ -61,10 +67,16 @@ header{
   padding:8px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   position:sticky; top:0; z-index:50; box-shadow:var(--shadow);
 }
-header h1{font-size:17px; font-weight:700; color:var(--blue-dark); white-space:nowrap}
+header h1{font-size:16px; font-weight:700; color:var(--blue-dark); white-space:nowrap;
+  font-family:var(--font-mono); letter-spacing:.04em; display:flex; align-items:center; gap:7px}
+/* Logo: kleiner Planet mit Ring (CSS statt Emoji) */
+.orbit-mark{position:relative; width:14px; height:14px; border-radius:50%; flex:0 0 auto;
+  background:radial-gradient(circle at 34% 30%, #6db4f5, var(--blue) 65%)}
+.orbit-mark::after{content:''; position:absolute; left:-4px; top:4px; width:22px; height:7px;
+  border:1.5px solid var(--blue-dark); border-radius:50%; transform:rotate(-22deg); opacity:.75}
 /* Weltall-Hintergrund: füllt den ganzen Header, liegt hinter den Bedienelementen, fängt keine Klicks ab */
 #spaceCv{position:absolute; inset:0; width:100%; height:100%; z-index:-1; display:none; pointer-events:none}
-.header-meta{color:var(--text-weak); font-size:12px; white-space:nowrap}
+.header-meta{color:var(--text-weak); font-size:11.5px; white-space:nowrap; font-family:var(--font-mono)}
 #viewerBadge{background:var(--yellow); color:#5a3b00; border-radius:10px; padding:1px 10px; font-size:11px; font-weight:700; white-space:nowrap}
 /* Nur-Lesen-Modus: Bearbeiten-Elemente ausblenden */
 body.viewer .col-add, body.viewer .ghost-card, body.viewer .card-menu, body.viewer .sticky .sticky-head button{display:none}
@@ -74,14 +86,20 @@ body.viewer .card{cursor:default}
 .modal.viewer #btnSave,.modal.viewer #btnDelete,.modal.viewer #btnHousekeeper,
 .modal.viewer .task-grip,.modal.viewer .task-del,.modal.viewer .task-ghost,
 .modal.viewer .cat-add,.modal.viewer .att-zone,.modal.viewer #catChips [data-rm]{display:none}
+/* Fälligkeits-Badges: leicht transparent, ruhiger Konsolen-Look */
 .badge-today{
-  background:var(--red); color:#fff; border-radius:10px; padding:1px 10px;
-  font-size:11px; font-weight:700; border:2px solid transparent; cursor:pointer;
+  background:color-mix(in srgb, var(--red) 82%, transparent); color:#fff; border-radius:10px; padding:1px 10px;
+  font-size:10.5px; font-weight:600; border:2px solid transparent; cursor:pointer;
+  font-family:var(--font-mono); letter-spacing:.01em;
 }
-.badge-today.zero{background:var(--blue)}   /* nichts fällig -> blau (statt grün) */
+.badge-today:hover{background:var(--red)}
+.badge-today.zero{background:color-mix(in srgb, var(--blue) 72%, transparent)}   /* nichts fällig -> blau */
+.badge-today.zero:hover{background:var(--blue)}
 .badge-today.filter-on{border-color:var(--blue-dark); box-shadow:0 0 0 2px var(--blue-bg)}
-.badge-week{background:var(--yellow); color:#5a3b00}
-.badge-month{background:var(--green)}
+.badge-week{background:color-mix(in srgb, var(--yellow) 82%, transparent); color:#4a3000}
+.badge-week:hover{background:var(--yellow)}
+.badge-month{background:color-mix(in srgb, var(--green) 82%, transparent)}
+.badge-month:hover{background:var(--green)}
 .spacer{flex:1}
 .btn{
   border:1px solid var(--border); background:var(--card); color:var(--blue);
@@ -134,10 +152,12 @@ body.viewer .card{cursor:default}
 .chip:hover{border-color:var(--blue); color:var(--blue)}
 .chip.active{background:var(--blue); border-color:var(--blue); color:#fff}
 
-/* ---------- Kanban ---------- */
+/* ---------- Kanban ----------
+   align-items:stretch: alle Spalten einer Reihe enden auf derselben Grundlinie
+   (festes Raster unten) — Spalten wirken als zusammengehörige Konsole. */
 .kanban{
   display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
-  padding:10px 16px 24px; align-items:start;
+  padding:10px 16px 24px; align-items:stretch;
 }
 .col{background:var(--col-bg); border-radius:var(--radius); padding:10px; min-height:140px}
 /* Sobald ein Ticket angehoben wird, leuchten ALLE Ablage-Spalten blau (nicht erst beim Hovern) */
@@ -291,19 +311,28 @@ body.viewer .col-name:hover{text-decoration:none}
   transition:opacity .3s, transform .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* ---------- Ticket-Card (ruhig, snappy: nur minimale Bewegung) ---------- */
+/* ---------- Ticket-Card: wertig & ruhig (klare Kante, feiner Verlauf, Grab-Cursor) ---------- */
 .card{
-  background:var(--card); border:1px solid var(--border); border-radius:10px;
-  border-left:4px solid var(--border);
-  box-shadow:var(--shadow); padding:10px 11px; margin-bottom:9px; cursor:pointer;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--card) 100%, transparent), var(--card) 55%);
+  border:1px solid var(--border); border-radius:12px;
+  border-left:3px solid var(--border);
+  box-shadow:0 1px 2px rgba(15,22,40,.06), 0 2px 8px rgba(15,22,40,.05);
+  padding:11px 12px; margin-bottom:10px; cursor:grab;
   position:relative;
-  transition:box-shadow .1s ease, border-color .1s ease;
+  transition:box-shadow .1s ease, border-color .1s ease, transform .1s ease;
+}
+:root[data-theme="dark"] .card{
+  background:linear-gradient(180deg, #232733, var(--card) 60%);
+  box-shadow:0 1px 2px rgba(0,0,0,.4), 0 3px 10px rgba(0,0,0,.25);
 }
 .card:hover{
-  box-shadow:0 3px 10px rgba(20,28,45,.14);
-  border-color:var(--blue);
+  transform:translateY(-1px);
+  box-shadow:0 3px 6px rgba(15,22,40,.10), 0 8px 20px rgba(15,22,40,.10);
+  border-color:color-mix(in srgb, var(--blue) 45%, var(--border));
 }
-.card.dragging{opacity:.4}
+.card:active{cursor:grabbing}
+/* Beim Ziehen bleibt die Quellkarte klar sichtbar (nur markiert, NICHT transparent) */
+.card.dragging{opacity:1; outline:2px dashed var(--blue); outline-offset:2px; transform:none; box-shadow:none}
 .card .title{font-weight:700; font-size:14px; line-height:1.35; margin-bottom:4px; word-break:break-word; padding-right:18px}
 .card .desc{color:var(--text-weak); font-size:12.5px; line-height:1.45; max-height:38px; overflow:hidden; margin-bottom:6px}
 body.compact .card .desc{display:none}
@@ -321,12 +350,12 @@ body.compact .card .desc{display:none}
   background:var(--red); color:#fff; font-weight:800; font-size:11px;
   display:flex; align-items:center; justify-content:center;
 }
-/* Prioritäts-Farben P1 (am wichtigsten) … P5 — ruhige, klar lesbare Skala */
-.prio-1{border-left-color:var(--p1)} .prio-2{border-left-color:var(--p2)} .prio-3{border-left-color:var(--p3)}
-.prio-4{border-left-color:var(--p4)} .prio-5{border-left-color:var(--p5)}
+/* Prioritäts-Farben P1 (kritisch) … P4 — auf Karten NUR über Farbe (linke Kante) */
+.prio-1{border-left-color:var(--p1)} .prio-2{border-left-color:var(--p2)}
+.prio-3{border-left-color:var(--p3)} .prio-4{border-left-color:var(--p4)}
 .pill{border-radius:10px; padding:0 7px; font-weight:700; color:#fff; font-size:11px; white-space:nowrap}
-.pill.p1{background:var(--p1)} .pill.p2{background:var(--p2)} .pill.p3{background:var(--p3); color:#3a2c00}
-.pill.p4{background:var(--p4)} .pill.p5{background:var(--p5)}
+.pill.p1{background:var(--p1)} .pill.p2{background:var(--p2)}
+.pill.p3{background:var(--p3)} .pill.p4{background:var(--p4)}
 .tag{border-radius:10px; padding:0 7px; font-size:11px; font-weight:600; white-space:nowrap}
 .deadline{color:var(--text-weak); white-space:nowrap}
 .jira{color:var(--blue); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap; display:inline-flex; align-items:center; gap:3px}
@@ -362,26 +391,42 @@ tr.row.overdue td{background:var(--overdue-bg)}
 tr.row.done td{opacity:.65}
 tr.row.done-final td{opacity:.4}
 .empty{padding:24px; text-align:center; color:var(--text-weak)}
-/* Inline-Editing in der Liste: Felder wirken wie Text, werden beim Fokus zum Eingabefeld */
-.list-wrap input,.list-wrap select{border:1px solid transparent; border-radius:6px; background:transparent;
-  padding:4px 6px; font-size:12.5px; color:var(--text); max-width:100%}
-.list-wrap input:hover,.list-wrap select:hover{border-color:var(--border)}
-.list-wrap input:focus,.list-wrap select:focus{border-color:var(--blue); background:var(--card); outline:none}
-.lt-title{display:flex; align-items:center; gap:4px; min-width:220px}
-.li-title{flex:1; font-weight:600}
-.li-open{border:none; background:none; color:var(--text-weak); font-size:13px; padding:2px 5px; border-radius:5px; opacity:0}
-tr.row:hover .li-open{opacity:1}
-.li-open:hover{color:var(--blue); background:var(--blue-bg)}
-.li-note{width:100%; min-width:160px; color:var(--text-weak)}
-.li-deadline{white-space:nowrap}
-/* Prio-Select in der Zeile trägt die Prio-Farbe als linker Balken */
-tr.lp-1 td:first-child{box-shadow:inset 3px 0 0 var(--p1)} tr.lp-2 td:first-child{box-shadow:inset 3px 0 0 var(--p2)}
-tr.lp-3 td:first-child{box-shadow:inset 3px 0 0 var(--p3)} tr.lp-4 td:first-child{box-shadow:inset 3px 0 0 var(--p4)}
-tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
-.pill-select{font-weight:700}
-.pill-select.p1{color:var(--p1)} .pill-select.p2{color:var(--p2)} .pill-select.p3{color:var(--p3)}
-.pill-select.p4{color:var(--p4)} .pill-select.p5{color:var(--p5)}
-.list-hint{font-size:11px; color:var(--text-weak); padding:8px 2px}
+/* ---------- Prio-Liste (gruppiert nach P1–P4, Zeilen mit klickbaren Prio-Punkten) ---------- */
+.prio-list{display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:6px; box-shadow:var(--shadow)}
+.plist-head{display:flex; align-items:center; gap:8px; padding:10px 10px 6px; font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; color:var(--text-weak); font-family:var(--font-mono)}
+.plist-head .plist-dot{width:8px; height:8px; border-radius:50%}
+.plist-head.lp-1 .plist-dot{background:var(--p1)} .plist-head.lp-2 .plist-dot{background:var(--p2)}
+.plist-head.lp-3 .plist-dot{background:var(--p3)} .plist-head.lp-4 .plist-dot{background:var(--p4)}
+.plist-count{margin-left:auto; font-weight:600; color:var(--text-weak); opacity:.7}
+.plist-row{display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px}
+.plist-row:hover{background:var(--blue-bg)}
+.plist-row.due-today{background:var(--today-bg)} .plist-row.overdue{background:var(--overdue-bg)}
+.plist-row.done{opacity:.55}
+/* Die 4 Prio-Punkte: aktueller gefüllt, andere hohl — ein Klick steckt um */
+.plist-prios{display:flex; gap:4px; flex:0 0 auto}
+.pd{width:12px; height:12px; border-radius:50%; padding:0; cursor:pointer; background:transparent;
+  border:2px solid var(--border); transition:transform .08s ease, border-color .08s ease}
+.pd:hover{transform:scale(1.25)}
+.pd.p1:hover,.pd.p1.on{border-color:var(--p1); background:var(--p1)}
+.pd.p2:hover,.pd.p2.on{border-color:var(--p2); background:var(--p2)}
+.pd.p3:hover,.pd.p3.on{border-color:var(--p3); background:var(--p3)}
+.pd.p4:hover,.pd.p4.on{border-color:var(--p4); background:var(--p4)}
+.pd:hover:not(.on){background:transparent}
+.li-title{flex:1; min-width:120px; font-weight:600; border:1px solid transparent; border-radius:6px;
+  background:transparent; padding:4px 6px; font-size:13px; color:var(--text)}
+.li-title:hover{border-color:var(--border)}
+.li-title:focus{border-color:var(--blue); background:var(--card); outline:none}
+.li-open{border:none; background:none; color:var(--text-weak); font-size:13px; padding:2px 6px; border-radius:5px; opacity:0; flex:0 0 auto}
+.plist-row:hover .li-open{opacity:1}
+.li-open:hover{color:var(--blue); background:var(--card)}
+.plist-meta{display:flex; align-items:center; gap:6px; flex:0 0 auto}
+.plist-meta input,.plist-meta select{border:1px solid transparent; border-radius:6px; background:transparent;
+  padding:3px 5px; font-size:12px; color:var(--text-weak)}
+.plist-meta input:hover,.plist-meta select:hover{border-color:var(--border)}
+.plist-meta input:focus,.plist-meta select:focus{border-color:var(--blue); background:var(--card); outline:none}
+.list-hint{font-size:11px; color:var(--text-weak); padding:8px 4px}
 /* Teilen: Codes für Lesen & Bearbeiten */
 .share-code-row{display:flex; align-items:center; gap:8px; margin-top:8px}
 .share-code-row > div{flex:1; min-width:0}
@@ -434,8 +479,11 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
 /* Undo/Redo-Tasten in der Taskleiste (mit sichtbarem Tastenkürzel) */
 .undo-btn,.redo-btn{font-variant-numeric:tabular-nums}
 .undo-btn:disabled,.redo-btn:disabled{opacity:.4; cursor:default}
-.settings-section{border-top:1px solid var(--border); padding-top:10px}
-.settings-section h3{font-size:12px; color:var(--blue-dark); margin-bottom:8px; text-transform:uppercase; letter-spacing:.03em}
+.settings-section{border-top:1px solid var(--border); padding-top:12px; margin-top:4px}
+.settings-section h3{font-size:11px; color:var(--text-weak); margin-bottom:10px; text-transform:uppercase;
+  letter-spacing:.09em; font-family:var(--font-mono); font-weight:600;
+  display:flex; align-items:center; gap:8px}
+.settings-section h3::before{content:''; width:3px; height:12px; border-radius:2px; background:var(--blue); opacity:.8}
 .set-row{display:flex; align-items:center; gap:8px; justify-content:space-between}
 .set-row label{font-size:12px}
 /* einheitliche, runde Eingabefelder in den Einstellungen (CI-konform) */
@@ -475,7 +523,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
 .task-row .task-del{border:none;background:none;color:var(--text-weak);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1}
 .task-row .task-del:hover{color:var(--red)}
 .task-count{font-size:11px;color:var(--text-weak);font-weight:600}
-/* ---------- Prioritäts-Auswahl (fünf Kreise P1–P5) ---------- */
+/* ---------- Prioritäts-Auswahl (vier Kreise P1–P4) ---------- */
 .prio-picker{display:flex;gap:8px;align-items:center;min-height:24px}
 .prio-dot{width:24px;height:24px;border-radius:50%;border:none;padding:0;cursor:pointer;opacity:.38;
   color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
@@ -483,7 +531,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
 .prio-dot:hover{opacity:.8;transform:scale(1.08)}
 .prio-dot.active{opacity:1;transform:scale(1.1);box-shadow:0 0 0 3px var(--card),0 0 0 5px rgba(0,0,0,.18)}
 .prio-dot.p1{background:var(--p1)} .prio-dot.p2{background:var(--p2)}
-.prio-dot.p3{background:var(--p3);color:#3a2c00} .prio-dot.p4{background:var(--p4)} .prio-dot.p5{background:var(--p5)}
+.prio-dot.p3{background:var(--p3)} .prio-dot.p4{background:var(--p4)}
 .prio-label{font-size:12px;color:var(--text-weak);margin-left:2px;font-weight:600}
 .card-tasks{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-weak)}
 
@@ -531,7 +579,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
   .toolbar input,.toolbar select{font-size:14px}
   /* Listenansicht bleibt am Handy nutzbar: horizontal scrollbar */
   .list-wrap{padding:8px 10px 20px}
-  .lt-title{min-width:170px}
+  .li-title{min-width:120px}
   /* Sticky Notes stören auf kleinen Screens */
   .sticky{display:none}
 }
@@ -559,7 +607,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
 <header>
   <!-- Weltall-Hintergrund (nur Dark Mode): über die gesamte Headerbreite, hinter den Bedienelementen -->
   <canvas id="spaceCv"></canvas>
-  <h1 id="boardTitle">🪐 Orbit</h1>
+  <h1 id="boardTitle"><span class="orbit-mark" aria-hidden="true"></span>Orbit</h1>
   <select id="boardSwitch" title="Board wechseln" hidden
     style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
   <span class="header-meta" id="todayDate"></span>
@@ -613,9 +661,8 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
   <select id="filterStatus"></select>
   <select id="filterPrio">
     <option value="">Priorität: Alle</option>
-    <option value="1">P1 — Sehr hoch</option><option value="2">P2 — Hoch</option>
-    <option value="3">P3 — Mittel</option><option value="4">P4 — Niedrig</option>
-    <option value="5">P5 — Sehr niedrig</option>
+    <option value="1">P1 — Kritisch</option><option value="2">P2 — Hoch</option>
+    <option value="3">P3 — Normal</option><option value="4">P4 — Niedrig</option>
   </select>
   <div class="chips" id="quickChips">
     <button class="chip" data-q="today">Heute fällig</button>
@@ -632,19 +679,8 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
 <main>
   <div class="kanban" id="kanban"></div>
   <div class="list-wrap" id="listWrap" hidden>
-    <table>
-      <thead>
-        <tr>
-          <th class="sortable" data-sort="title">Titel <span class="arrow"></span></th>
-          <th class="sortable" data-sort="prio">Prio <span class="arrow"></span></th>
-          <th class="sortable" data-sort="deadline">Deadline <span class="arrow"></span></th>
-          <th>Kategorie</th>
-          <th>Kommentar</th>
-        </tr>
-      </thead>
-      <tbody id="listBody"></tbody>
-    </table>
-    <div class="list-hint">Alle Felder direkt in der Zeile editierbar · Klick auf den Titel öffnet das Ticket</div>
+    <div id="listBody" class="prio-list"></div>
+    <div class="list-hint">Prio per Klick auf die Punkte umstecken · Titel-Klick öffnet das Ticket · Felder direkt editierbar</div>
   </div>
 </main>
 
@@ -654,6 +690,9 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
     <div class="modal-head">
       <h2 id="modalTitle">Neues Ticket</h2>
       <span>
+        <button class="modal-close" id="btnShareTicket" title="Ticket-Link kopieren" aria-label="Ticket-Link kopieren" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+        </button>
         <button class="modal-close" id="btnWide" title="Breite Ansicht umschalten" aria-label="Breite umschalten">⤢</button>
         <button class="modal-close" data-close aria-label="Schließen">✕</button>
       </span>
@@ -669,14 +708,13 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
           <select id="fStatus" required></select>
         </div>
         <div class="field">
-          <label>Priorität (P1 = am wichtigsten)</label>
+          <label>Priorität (P1 = kritisch)</label>
           <input type="hidden" id="fPrio" value="3">
           <div id="fPrioPicker" class="prio-picker">
-            <button type="button" class="prio-dot p1" data-prio="1" title="P1 — Sehr hoch" aria-label="P1">1</button>
+            <button type="button" class="prio-dot p1" data-prio="1" title="P1 — Kritisch" aria-label="P1">1</button>
             <button type="button" class="prio-dot p2" data-prio="2" title="P2 — Hoch" aria-label="P2">2</button>
-            <button type="button" class="prio-dot p3" data-prio="3" title="P3 — Mittel" aria-label="P3">3</button>
+            <button type="button" class="prio-dot p3" data-prio="3" title="P3 — Normal" aria-label="P3">3</button>
             <button type="button" class="prio-dot p4" data-prio="4" title="P4 — Niedrig" aria-label="P4">4</button>
-            <button type="button" class="prio-dot p5" data-prio="5" title="P5 — Sehr niedrig" aria-label="P5">5</button>
             <span id="fPrioLabel" class="prio-label"></span>
           </div>
         </div>
@@ -757,7 +795,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
     <div class="modal-body">
 
       <div class="settings-section" style="border-top:none;padding-top:0">
-        <h3>🪐 Board</h3>
+        <h3>Board</h3>
         <div class="set-row">
           <label>Name des Boards</label>
           <input type="text" id="setBoardTitle" maxlength="40" style="width:180px">
@@ -767,7 +805,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
       </div>
 
       <div class="settings-section">
-        <h3>👁 Ansicht</h3>
+        <h3>Ansicht</h3>
         <div class="set-row">
           <label>Ansicht beim Öffnen</label>
           <select id="setView"><option value="kanban">Kanban-Board</option><option value="list">Liste</option></select>
@@ -783,7 +821,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
       </div>
 
       <div class="settings-section">
-        <h3>🧹 Aufräumen &amp; Erinnerungen</h3>
+        <h3>Aufräumen &amp; Erinnerungen</h3>
         <div class="set-row">
           <label>Erledigte Tickets ausblenden nach (Tagen, 0 = nie)</label>
           <input type="number" id="setHideDone" min="0" max="365">
@@ -795,7 +833,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
       </div>
 
       <div class="settings-section">
-        <h3>✨ Pixel-Lauf &amp; Extras</h3>
+        <h3>Pixel-Lauf &amp; Extras</h3>
         <div class="set-row">
           <label>Pixel-Lauf in der Kopfzeile anzeigen</label>
           <input type="checkbox" id="setDino">
@@ -806,13 +844,13 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
         </div>
         <div style="font-size:11px;color:var(--text-weak)">Die Szene folgt dem Modus: ☀️ Tag = Urzeit-Landschaft, 🌙 Nacht = Sternenhimmel.</div>
         <div class="set-row" style="margin-top:6px">
-          <label>🐈 Schiffskatze mit Wohlfühl-Tipps</label>
+          <label>Schiffskatze mit Wohlfühl-Tipps</label>
           <input type="checkbox" id="setTips">
         </div>
       </div>
 
       <div class="settings-section" id="accountSection">
-        <h3>👤 Konto</h3>
+        <h3>Konto</h3>
         <div class="set-row">
           <label>Angemeldet als</label>
           <span id="setAccountEmail" style="font-size:12px;font-weight:600">–</span>
@@ -844,7 +882,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
       </div>
 
       <div class="settings-section" id="teamSection" hidden>
-        <h3>👥 Teilen &amp; Mitglieder</h3>
+        <h3>Teilen &amp; Mitglieder</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnNewBoard">+ Neues Board</button>
           <button type="button" class="btn btn-danger" id="btnDeleteBoard">Board löschen…</button>
@@ -887,7 +925,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
       </div>
 
       <div class="settings-section">
-        <h3>💾 Daten</h3>
+        <h3>Daten</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnSetExport">⤓ Backup exportieren (JSON)</button>
           <button type="button" class="btn" id="btnSetImport">⤒ Backup importieren</button>
@@ -896,7 +934,7 @@ tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
       </div>
 
       <div class="settings-section">
-        <h3>🏷 Kategorien</h3>
+        <h3>Kategorien</h3>
         <div id="catManager" style="display:grid;gap:6px"></div>
         <div class="cat-add" style="margin-top:8px">
           <input id="catManagerNew" placeholder="Neue Kategorie…" maxlength="40">
@@ -1001,12 +1039,13 @@ const DEFAULT_STATUSES = ['Themenspeicher', 'Geplant', 'In Arbeit', 'Review', 'E
 let STATUSES = DEFAULT_STATUSES.slice();
 let DONE = ['Erledigt'];
 let COLLAPSIBLE = ['Themenspeicher', 'Erledigt'];
-/* Priorität: 1 (am wichtigsten) … 5 (am unwichtigsten). Alt-Werte werden migriert. */
-const PRIO_NAMES = { 1: 'P1 — Sehr hoch', 2: 'P2 — Hoch', 3: 'P3 — Mittel', 4: 'P4 — Niedrig', 5: 'P5 — Sehr niedrig' };
+/* Priorität: 1 (kritisch) … 4 (niedrig). Alt-Werte (Hoch/Mittel/Niedrig, P5) werden migriert. */
+const PRIO_NAMES = { 1: 'P1 — Kritisch', 2: 'P2 — Hoch', 3: 'P3 — Normal', 4: 'P4 — Niedrig' };
 function normPrio(p) {
-  if (p === 'Hoch') return 1; if (p === 'Mittel') return 3; if (p === 'Niedrig') return 5;
+  if (p === 'Hoch') return 1; if (p === 'Mittel') return 3; if (p === 'Niedrig') return 4;
   const n = parseInt(p, 10);
-  return (n >= 1 && n <= 5) ? n : 3;
+  if (n === 5) return 4;                 // alte P5 -> P4
+  return (n >= 1 && n <= 4) ? n : 3;
 }
 // Schlanke Outline-Icons (CI-konform, erben die Textfarbe) statt Emoji
 const FILE_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
@@ -1071,7 +1110,7 @@ function applyBoardConfig() {
   setColumnsFromSettings();
   applyTheme();
   // Oben links nur die Marke; der Boardname steht in der Pickliste (kein Doppel)
-  document.getElementById('boardTitle').textContent = '🪐 Orbit';
+  document.getElementById('boardTitle').innerHTML = '<span class="orbit-mark" aria-hidden="true"></span>Orbit';
   document.title = (state.settings.boardTitle || 'Orbit') + ' · Orbit';
   document.getElementById('kanban').style.setProperty('--ncols', STATUSES.length);
   document.documentElement.style.setProperty('--ncols', STATUSES.length);  // auch für die Toolbar-Ausrichtung
@@ -1407,7 +1446,6 @@ function cardEl(t) {
     '<div class="title">' + esc(t.title) + '</div>' +
     '<div class="desc">' + esc(stripHtml(t.desc)) + '</div>' +
     '<div class="meta">' +
-      '<span class="pill p' + t.prio + '" title="' + PRIO_NAMES[t.prio] + '">P' + t.prio + '</span>' +
       '<span class="deadline">' + esc(deadlineLabel(t)) + '</span>' +
       ((t.tasks && t.tasks.length) ? '<span class="card-tasks" title="Aufgaben erledigt">☑ ' + t.tasks.filter(x => x.done).length + '/' + t.tasks.length + '</span>' : '') + tags +
     '</div>' +
@@ -1427,7 +1465,16 @@ function cardEl(t) {
   el.appendChild(menuBtn);
 
   el.addEventListener('dragstart', e => {
-    e.dataTransfer.setData('text/plain', t.id); el.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', t.id);
+    // Opakes Drag-Bild (Klon) statt des halbtransparenten Browser-Standards
+    try {
+      const ghost = el.cloneNode(true);
+      ghost.style.cssText = 'position:fixed;top:-500px;left:-500px;width:' + el.offsetWidth + 'px;opacity:1;transform:none;pointer-events:none;box-shadow:0 10px 26px rgba(0,0,0,.28)';
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, Math.min(40, el.offsetWidth / 2), 22);
+      setTimeout(() => ghost.remove(), 0);
+    } catch (err) {}
+    el.classList.add('dragging');
     document.querySelectorAll('#kanban .col').forEach(c => c.classList.add('drop-active'));
   });
   el.addEventListener('dragend', () => {
@@ -1499,7 +1546,9 @@ function deleteTicketById(id) {
   save(); render();
 }
 
-/* ---------- Liste (alle Felder direkt in der Zeile editierbar) ---------- */
+/* ---------- Liste: nach Priorität gruppiert (Prinzip „Linear") ----------
+   Ziel: Prioritäten in Sekunden abstecken. Jede Zeile hat 4 klickbare
+   Prio-Punkte — ein Klick versetzt das Ticket in die andere Gruppe. */
 function renderList() {
   const body = document.getElementById('listBody');
   const q = document.getElementById('search').value.trim().toLowerCase();
@@ -1518,61 +1567,66 @@ function renderList() {
     (searching || quick !== 'month'   || isNext30Days(t)) &&
     (searching || quick !== 'active'  || !DONE.includes(t.status))
   );
-
-  rows.sort((a, b) => {
-    let v = 0;
-    if (sort.key === 'deadline') v = a.deadline.localeCompare(b.deadline);
-    else if (sort.key === 'prio') v = a.prio - b.prio;
-    else if (sort.key === 'status') v = STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
-    else if (sort.key === 'title') v = a.title.localeCompare(b.title, 'de');
-    return v * sort.dir;
-  });
-
-  document.querySelectorAll('th.sortable').forEach(th =>
-    th.querySelector('.arrow').textContent = th.dataset.sort === sort.key ? (sort.dir === 1 ? '▲' : '▼') : '');
   document.querySelectorAll('#quickChips .chip').forEach(c =>
     c.classList.toggle('active', !searching && c.dataset.q === quick));
 
   body.innerHTML = '';
-  if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="empty">Keine Tickets gefunden.</td></tr>'; return; }
-  rows.forEach(t => body.appendChild(listRowEl(t)));
+  if (!rows.length) { body.innerHTML = '<div class="empty">Keine Tickets gefunden.</div>'; return; }
+  // Gruppen P1..P4, innerhalb nach Fälligkeit
+  [1, 2, 3, 4].forEach(p => {
+    const grp = rows.filter(t => t.prio === p).sort((a, b) => a.deadline.localeCompare(b.deadline));
+    if (!grp.length) return;
+    const head = document.createElement('div');
+    head.className = 'plist-head lp-' + p;
+    head.innerHTML = '<span class="plist-dot"></span>' + PRIO_NAMES[p] + '<span class="plist-count">' + grp.length + '</span>';
+    body.appendChild(head);
+    grp.forEach(t => body.appendChild(listRowEl(t)));
+  });
 }
-/* Eine editierbare Listenzeile: Titel | Prio | Deadline | Kategorie | Kommentar */
+/* Eine Zeile: [P1–P4-Punkte] Titel … Deadline | Status | Kategorie */
 function listRowEl(t) {
-  const tr = document.createElement('tr');
-  tr.className = ['row', 'lp-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
+  const row = document.createElement('div');
+  row.className = ['plist-row', 'lp-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
   const ro = boardReadOnly ? ' disabled' : '';
-  tr.innerHTML =
-    '<td class="lt-title">' +
-      (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;margin-right:5px">!</span>'
-        : isToday(t) ? '<span class="escal today" style="position:static;display:inline-flex;margin-right:5px">!</span>' : '') +
-      '<input class="li-title" maxlength="200" value="' + esc(t.title) + '"' + ro + '>' +
-      '<button type="button" class="li-open" title="Ticket öffnen">↗</button></td>' +
-    '<td><select class="li-prio pill-select p' + t.prio + '"' + ro + '>' +
-      [1, 2, 3, 4, 5].map(p => '<option value="' + p + '"' + (p === t.prio ? ' selected' : '') + '>P' + p + '</option>').join('') +
-    '</select></td>' +
-    '<td><input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '"></td>' +
-    '<td class="li-cat-cell"></td>' +
-    '<td><input class="li-note" maxlength="500" placeholder="Kommentar…" value="' + esc(stripHtml(t.note || '')) + '"' + ro + '></td>';
-  // Titel: Tippen = editieren, Enter/Blur = speichern; ↗ öffnet das Ticket
-  const ti = tr.querySelector('.li-title');
+  row.innerHTML =
+    '<span class="plist-prios">' +
+      [1, 2, 3, 4].map(p => '<button type="button" class="pd p' + p + (p === t.prio ? ' on' : '') + '" title="' + PRIO_NAMES[p] + '"' + ro + '></button>').join('') +
+    '</span>' +
+    (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;flex:0 0 auto">!</span>'
+      : isToday(t) ? '<span class="escal today" style="position:static;display:inline-flex;flex:0 0 auto">!</span>' : '') +
+    '<input class="li-title" maxlength="200" value="' + esc(t.title) + '"' + ro + '>' +
+    '<span class="plist-meta">' +
+      '<input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '">' +
+      '<select class="li-status"' + ro + '>' + STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
+      '<span class="li-cat-cell"></span>' +
+    '</span>';
+  // Prio-Punkte: ein Klick steckt um (Kernfunktion dieser Ansicht)
+  row.querySelectorAll('.pd').forEach((b, i) => b.addEventListener('click', () => {
+    if (!requireEdit()) return;
+    t.prio = i + 1; save(); renderList();
+  }));
+  const ti = row.querySelector('.li-title');
   ti.addEventListener('change', () => { if (!requireEdit()) { ti.value = t.title; return; } t.title = ti.value.trim() || t.title; ti.value = t.title; save(); });
   ti.addEventListener('keydown', e => { if (e.key === 'Enter') ti.blur(); });
-  tr.querySelector('.li-open').addEventListener('click', () => openModal(t.id));
-  const pr = tr.querySelector('.li-prio');
-  pr.addEventListener('change', () => { if (!requireEdit()) { pr.value = t.prio; return; } t.prio = normPrio(pr.value); save(); renderList(); });
-  const dl = tr.querySelector('.li-deadline');
+  ti.addEventListener('click', e => { if (!ti.matches(':focus')) { /* erster Klick fokussiert */ } });
+  ti.addEventListener('dblclick', () => openModal(t.id));
+  // Titel-Klick öffnet, wenn nicht editiert wird: eigener Öffnen-Affordance über Prefix-Klick wäre unklar —
+  // deshalb: einfacher Öffnen-Button erscheint beim Hover
+  const open = document.createElement('button');
+  open.type = 'button'; open.className = 'li-open'; open.title = 'Ticket öffnen'; open.textContent = '↗';
+  open.addEventListener('click', () => openModal(t.id));
+  row.insertBefore(open, row.querySelector('.plist-meta'));
+  const dl = row.querySelector('.li-deadline');
   dl.addEventListener('change', () => { if (!requireEdit()) { dl.value = t.deadline; return; } if (dl.value) { t.deadline = dl.value; save(); renderList(); } });
-  const nt = tr.querySelector('.li-note');
-  nt.addEventListener('change', () => { if (!requireEdit()) return; t.note = esc(nt.value).replace(/\n/g, '<br>'); save(); });
-  // Kategorie: bestehendes Dropdown mit Farbkreisen (erste Kategorie des Tickets)
-  buildCatDropdown(tr.querySelector('.li-cat-cell'), {
+  const st = row.querySelector('.li-status');
+  st.addEventListener('change', () => { if (!requireEdit()) { st.value = t.status; return; } moveToStatus(t, st.value); });
+  buildCatDropdown(row.querySelector('.li-cat-cell'), {
     items: state.categories.map(c => ({ name: c.name, color: c.color })),
     value: t.cats[0] || '',
-    placeholder: '— keine —',
+    placeholder: '—',
     onSelect: name => { if (!requireEdit()) return; t.cats = name ? [name, ...t.cats.filter(c => c !== name && c !== t.cats[0])] : t.cats.slice(1); save(); renderList(); }
   });
-  return tr;
+  return row;
 }
 
 /* Kategorie-Dropdown mit Farbkreis-Vorschau (statt komplett eingefärbter Optionen) */
@@ -1655,6 +1709,7 @@ function openModal(id, presetStatus, presetDesc) {
   }
   document.getElementById('modalTitle').textContent = boardReadOnly ? 'Ticket ansehen' : (t ? 'Ticket bearbeiten' : 'Neues Ticket');
   document.getElementById('btnDelete').hidden = !t;
+  document.getElementById('btnShareTicket').hidden = !t;   // Link teilen nur für bestehende Tickets
   document.getElementById('fTitle').value = t ? t.title : '';
   document.getElementById('fStatus').value = t ? t.status : (presetStatus || 'Themenspeicher');
   setPrioPicker(t ? t.prio : 'Mittel');
@@ -1788,7 +1843,7 @@ function updateTaskCount() {
   const total = modalTasks.length, done = modalTasks.filter(t => t.done).length;
   document.getElementById('taskCount').textContent = total ? '(' + done + '/' + total + ' erledigt)' : '';
 }
-/* Prioritäts-Kreise P1–P5 -> setzt das versteckte #fPrio */
+/* Prioritäts-Kreise P1–P4 -> setzt das versteckte #fPrio */
 function setPrioPicker(value) {
   value = String(normPrio(value));
   document.getElementById('fPrio').value = value;
@@ -2200,6 +2255,7 @@ window.addEventListener('hashchange', openTicketFromHash);
 document.getElementById('btnKanban').onclick = () => setView('kanban');
 document.getElementById('btnList').onclick = () => setView('list');
 document.getElementById('btnSave').onclick = saveTicket;
+document.getElementById('btnShareTicket').onclick = () => { if (editingId) copyTicketLink(editingId); };
 document.getElementById('btnWide').onclick = () => {
   state.settings.modalWide = !state.settings.modalWide; save();
   overlay.querySelector('.modal').classList.toggle('wide', state.settings.modalWide);
@@ -3514,42 +3570,46 @@ const DINO = (() => {
        von beiden — eine Rakete (Bogenbahn über die ganze Breite, Richtung wechselnd) ODER ein
        UFO (immer kerzengerade von links/rechts). Raketen & UFOs nutzen die ganze Breite. ---------- */
   const TAU = Math.PI * 2;
-  /* Echte Sternbild-Formen (normalisiert), werden zufällig am Himmel platziert */
-  const CONSTELLATIONS = [
-    { name: 'Wagen',      pts: [[0, .30], [.18, .22], [.36, .20], [.52, .28], [.56, .52], [.82, .58], [.86, .32]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,3]] },
-    { name: 'Kassiopeia', pts: [[0, .42], [.22, .18], [.46, .38], [.72, .12], [.95, .30]], lines: [[0,1],[1,2],[2,3],[3,4]] },
-    { name: 'Orion',      pts: [[.12, .05], [.72, .10], [.34, .45], [.46, .50], [.58, .55], [.18, .92], [.82, .88]], lines: [[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]] },
-    { name: 'Schwan',     pts: [[.5, 0], [.5, .40], [.10, .55], [.90, .30], [.5, .95]], lines: [[0,1],[1,2],[1,3],[1,4]] },
+  /* Weltall v3 — Look nach Referenz: tiefes Navy, feine Sterne mit dezenter Farb-
+     temperatur, wenige Ring-Sterne und Funkel-Kreuze. Persistente Sterne + ein Teil,
+     der leise ein- und ausblendet (Churn). Unendlich langsamer Zoom (Raumschiff-
+     Gefühl): Positionen sind zentriert gespeichert und wachsen kaum merklich. */
+  let zoomS = 1, planet = null;
+  const STAR_TINTS = [                                       // dezent bunt, nicht knallig
+    ['rgba(232,238,252,', 0.50],                             // neutral-weiß (häufig)
+    ['rgba(168,196,255,', 0.16],                             // blau
+    ['rgba(255,220,160,', 0.14],                             // warm-gelb
+    ['rgba(255,160,170,', 0.10],                             // zart rot
+    ['rgba(150,230,214,', 0.10],                             // zart türkis
   ];
-  let constLines = [];                                     // [{a,b}] Indizes in stars
+  function pickTint() {
+    let r = Math.random();
+    for (const [c, p] of STAR_TINTS) { if ((r -= p) <= 0) return c; }
+    return STAR_TINTS[0][0];
+  }
+  function newSpaceStar(nearCenter) {
+    const ang = Math.random() * TAU;
+    const rad = nearCenter ? 0.04 + Math.random() * 0.1 : Math.sqrt(Math.random()) * 0.72;
+    const kind = Math.random();
+    return {
+      a: ang, r: rad,                                        // Polar, zentriert -> Zoom = r wächst
+      s: kind < 0.8 ? 1 : 2,
+      ring: kind > 0.965,                                    // seltene Ring-Sterne (wie Referenz)
+      glow: kind > 0.92 && kind <= 0.965,                    // seltene Funkel-Kreuze
+      tint: pickTint(),
+      b: 0.28 + Math.random() * 0.6,
+      tw: 0.5 + Math.random() * 2.2, ph: Math.random() * TAU,
+      churn: Math.random() < 0.3,                            // 30 % blenden zyklisch ein/aus
+      cph: Math.random() * TAU, cf: 0.02 + Math.random() * 0.05,
+    };
+  }
   function seedSpace() {
-    stars = []; constLines = [];
-    const mkStar = (x, y, o) => stars.push(Object.assign({
-      x, y,
-      s: 1, glow: false,
-      tw: 1.2 + Math.random() * 2.6, ph: Math.random() * TAU,        // Funkeln
-      b: 0.30 + Math.random() * 0.55,
-      tint: Math.random() < 0.22 ? 'b' : (Math.random() < 0.14 ? 'w' : 'n'),  // blau / warm / neutral
-      ax: 2 + Math.random() * 4, ay: 1 + Math.random() * 2,          // super subtiles Wandern
-      fx: 0.05 + Math.random() * 0.12, fy: 0.04 + Math.random() * 0.1,
-      phx: Math.random() * TAU, phy: Math.random() * TAU
-    }, o));
-    // Hintergrund-Sternfeld: viele feine, wenige helle, sehr wenige mit Glanz-Kreuz
-    for (let i = 0; i < 96; i++) {
-      const r = Math.random();
-      mkStar(Math.random(), Math.random(),
-        r < 0.82 ? {} : r < 0.96 ? { s: 2, b: 0.5 + Math.random() * 0.4 } : { s: 2, glow: true, b: 0.85, tw: 0.5 });
-    }
-    // Zwei zufällige Sternbilder: hellere, ruhig funkelnde Sterne + hauchzarte Linien
-    const picks = [...CONSTELLATIONS].sort(() => Math.random() - 0.5).slice(0, 2);
-    picks.forEach((c, ci) => {
-      const scale = 0.13 + Math.random() * 0.06;
-      const ox = 0.06 + Math.random() * 0.55 + ci * 0.25, oy = 0.08 + Math.random() * 0.45;
-      const base = stars.length;
-      c.pts.forEach(([px, py]) => mkStar(Math.min(0.97, ox + px * scale), Math.min(0.92, oy + py * scale * 1.6),
-        { s: 2, b: 0.75, tw: 0.4 + Math.random() * 0.4, ax: 1, ay: 0.6 }));   // Sternbild wandert kaum
-      c.lines.forEach(([a, b]) => constLines.push({ a: base + a, b: base + b }));
-    });
+    stars = [];
+    for (let i = 0; i < 120; i++) stars.push(newSpaceStar(false));
+    zoomS = 1;
+    // Subtiler kleiner Planet mit Ring — sitzt ruhig in einer Ecke, driftet mit dem Zoom
+    planet = { a: (Math.random() < 0.5 ? 0.12 : 0.88) * TAU * 0.5 + (Math.random() < 0.5 ? 0 : Math.PI),
+               r: 0.52 + Math.random() * 0.1, size: 5 + Math.random() * 2, ring: Math.random() < 0.7 };
     shooters = []; rocket = null; ufo = null; ship = null; shower = null;
     nextShoot = nowTs + 1600 + Math.random() * 2600;
     nextShower = nowTs + 100000 + Math.random() * 140000;  // Meteorschauer: selten, ruhig
@@ -3605,32 +3665,55 @@ const DINO = (() => {
   }
   function spaceFrame(w, h, ts, dt) {
     let g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#05060f'); g.addColorStop(1, '#0e1026');
+    g.addColorStop(0, '#0b0e22'); g.addColorStop(1, '#12163a');   // Navy wie die Referenz
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    const tsec = ts * 0.001;
-    // aktuelle Positionen (für Sterne UND Sternbild-Linien)
-    const pos = stars.map(st => [st.x * w + Math.sin(tsec * st.fx + st.phx) * st.ax,
-                                 st.y * h + Math.sin(tsec * st.fy + st.phy) * st.ay]);
-    // Sternbild-Linien: hauchzart, ruhig — sie verbinden die (leicht wandernden) Sterne
-    if (constLines.length) {
-      ctx.strokeStyle = 'rgba(150,175,230,0.10)'; ctx.lineWidth = 1;
-      ctx.beginPath();
-      constLines.forEach(l => { ctx.moveTo(pos[l.a][0], pos[l.a][1]); ctx.lineTo(pos[l.b][0], pos[l.b][1]); });
-      ctx.stroke();
+    const tsec = ts * 0.001, cx = w / 2, cy = h / 2;
+    // Unendlich langsamer Zoom: kaum merkbar, aber spürbar (Raumschiff-Drift)
+    if (running) zoomS *= 1 + 0.0015 * dt;
+    // Subtiler Planet mit Ring (gedeckte Farben, klein — kein Klotz)
+    if (planet) {
+      const pr = planet.r * zoomS;
+      if (pr > 0.9) { planet.r = 0.5; planet.a = Math.random() * TAU; }        // driftet raus -> leise neu
+      const px = Math.round(cx + Math.cos(planet.a) * pr * w * 0.62);
+      const py = Math.round(cy + Math.sin(planet.a) * pr * h * 0.62);
+      const s = planet.size * Math.min(1.4, zoomS ** 0.25);
+      ctx.globalAlpha = 0.85;
+      if (planet.ring) {                                                        // Ring hinter dem Planeten
+        ctx.strokeStyle = '#8fa0c8'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(px, py, s * 2, s * 0.62, -0.42, Math.PI * 0.08, Math.PI * 1.08); ctx.stroke();
+      }
+      const pg = ctx.createRadialGradient && ctx.createRadialGradient(px - s * 0.35, py - s * 0.35, s * 0.2, px, py, s);
+      if (pg && pg.addColorStop) { pg.addColorStop(0, '#c99a68'); pg.addColorStop(0.6, '#8d6a4f'); pg.addColorStop(1, '#4c3d38'); }
+      ctx.fillStyle = (pg && pg.addColorStop) ? pg : '#8d6a4f';
+      ctx.beginPath(); ctx.arc(px, py, s, 0, TAU); ctx.fill();
+      if (planet.ring) {                                                        // Ring vor dem Planeten
+        ctx.strokeStyle = '#a8b6d8'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(px, py, s * 2, s * 0.62, -0.42, Math.PI * 1.08, Math.PI * 2.08); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
-    // Funkelnde Sterne (Größenklassen, dezente Farbtemperatur, seltene Glanz-Kreuze)
-    stars.forEach((st, i) => {
-      const tw = 0.45 + 0.55 * Math.sin(tsec * st.tw + st.ph);
-      const a = Math.max(0.05, Math.min(1, st.b * tw));
-      const px = pos[i][0], py = pos[i][1];
-      ctx.fillStyle = st.tint === 'b' ? 'rgba(175,200,255,' + a.toFixed(3) + ')'
-                    : st.tint === 'w' ? 'rgba(255,235,200,' + a.toFixed(3) + ')'
-                    : 'rgba(255,255,255,' + a.toFixed(3) + ')';
+    // Sterne: persistent + leiser Churn; Ring-Sterne & Funkel-Kreuze wie in der Referenz
+    stars.forEach(st => {
+      const rr = st.r * zoomS;
+      if (rr > 0.78) { Object.assign(st, newSpaceStar(true)); return; }        // außen raus -> innen neu (Zoom-Kreislauf)
+      const px = Math.round(cx + Math.cos(st.a) * rr * w * 1.05);
+      const py = Math.round(cy + Math.sin(st.a) * rr * h * 1.05);
+      if (px < -3 || px > w + 3 || py < -3 || py > h + 3) return;
+      const tw = 0.55 + 0.45 * Math.sin(tsec * st.tw + st.ph);                 // ruhiges Funkeln
+      const churn = st.churn ? Math.max(0, Math.sin(tsec * st.cf + st.cph)) : 1; // Teil der Sterne wechselt durch
+      const a = Math.max(0, Math.min(1, st.b * tw * churn));
+      if (a < 0.03) return;
+      ctx.fillStyle = st.tint + a.toFixed(3) + ')';
       R(px, py, st.s, st.s);
-      if (st.glow && tw > 0.72) {          // heller Stern: kleines Funkel-Kreuz
-        ctx.fillStyle = 'rgba(255,255,255,' + (a * 0.45).toFixed(3) + ')';
-        R(px - 2, py + 0.5, 2, 1); R(px + st.s, py + 0.5, 2, 1);
-        R(px + 0.5, py - 2, 1, 2); R(px + 0.5, py + st.s, 1, 2);
+      if (st.glow && tw > 0.7) {                                               // Funkel-Kreuz
+        ctx.fillStyle = st.tint + (a * 0.5).toFixed(3) + ')';
+        R(px - 2, py, 2, 1); R(px + st.s, py, 2, 1);
+        R(px, py - 2, 1, 2); R(px, py + st.s, 1, 2);
+      }
+      if (st.ring && a > 0.25) {                                               // Ring-Stern (Pixel-Kreis)
+        ctx.fillStyle = st.tint + (a * 0.4).toFixed(3) + ')';
+        R(px - 2, py - 1, 1, st.s + 2); R(px + st.s + 1, py - 1, 1, st.s + 2);
+        R(px - 1, py - 2, st.s + 2, 1); R(px - 1, py + st.s + 1, st.s + 2, 1);
       }
     });
     // Meteorschauer: seltenes, ruhiges Ereignis — 3–6 Schnuppen in ähnlicher Richtung
