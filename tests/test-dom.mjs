@@ -195,6 +195,39 @@ try {
   })()`, context);
   ok(openedStatus === 'geöffnet', 'openModal markiert Ticket automatisch als „geöffnet"');
 
+  // Deep-Link: #t=<id> öffnet das Ticket in der Kanban-Ansicht
+  const deep = vm.runInContext(`(function(){
+    state.tickets = [{ id:'dl1', title:'Link', prio:2, deadline:'2099-01-01', desc:'', note:'', cats:[], imgs:[], tasks:[], status:'In Arbeit', createdAt:'2026-01-01' }];
+    render();
+    setView('list');                       // absichtlich falsche Ansicht
+    location.hash = '#t=dl1';
+    openTicketFromHash();
+    return { v: view, editing: editingId, url: ticketUrl('dl1') };
+  })()`, context);
+  ok(deep.v === 'kanban' && deep.editing === 'dl1', 'Deep-Link #t=<id> öffnet Ticket in der Kanban-Ansicht');
+  ok(/#t=dl1$/.test(deep.url), 'ticketUrl erzeugt #t=<id>-Link');
+  vm.runInContext('closeModal(); location.hash = ""', context);
+
+  // Aktive Suche übersteuert die Fälligkeits-Schnellfilter (Liste)
+  const searchOverride = vm.runInContext(`(function(){
+    state.tickets = [{ id:'so1', title:'Zukunftsticket', prio:3, deadline:'2099-01-01', desc:'', note:'', cats:[], imgs:[], tasks:[], status:'In Arbeit', createdAt:'2026-01-01' }];
+    quick = 'today';                                   // Filter allein würde alles ausblenden
+    document.getElementById('search').value = 'Zukunft';
+    var before = document.getElementById('listBody').children.length;
+    renderList();
+    var after = document.getElementById('listBody').children.length;
+    document.getElementById('search').value = ''; quick = '';
+    return after - before;
+  })()`, context);
+  ok(searchOverride >= 1, 'Aktive Suche übersteuert den „heute fällig"-Filter');
+
+  // Editierbare Listenzeile: entsteht ohne Fehler, trägt die Prio-Farbklasse
+  const listRow = vm.runInContext(`(function(){
+    var el = listRowEl(state.tickets[0]);
+    return el && /lp-3/.test(el.className);
+  })()`, context);
+  ok(listRow, 'listRowEl: editierbare Zeile mit Prio-Farbklasse (lp-3)');
+
   // Rückgängig / Wiederholen (Strg+Z / Strg+Shift+Z)
   const hist = vm.runInContext(`(function(){
     state.tickets = []; resetHistory();
@@ -327,9 +360,12 @@ try {
   // Kein localStorage mehr in Benutzung
   ok(Object.keys(ctxGlobal.localStorage._d).length === 0, 'Kein localStorage-Schreibzugriff mehr (alles in Supabase)');
 
-  // Prioritäts-Kreise setzen das versteckte #fPrio
+  // Prioritäts-Kreise (P1–P5) setzen das versteckte #fPrio; Alt-Werte werden gemappt
+  vm.runInContext('setPrioPicker("1")', context);
+  ok(vm.runInContext('document.getElementById("fPrio").value', context) === '1', 'Prio-Kreise setzen verstecktes #fPrio (P1)');
   vm.runInContext('setPrioPicker("Hoch")', context);
-  ok(vm.runInContext('document.getElementById("fPrio").value', context) === 'Hoch', 'Prio-Kreise setzen verstecktes #fPrio');
+  ok(vm.runInContext('document.getElementById("fPrio").value', context) === '1', 'Alt-Wert „Hoch" wird zu P1 gemappt');
+  ok(vm.runInContext('normPrio("Niedrig")', context) === 5 && vm.runInContext('normPrio(7)', context) === 3, 'normPrio: Niedrig->5, ungültig->3');
 
   // deadlineLabel: relative Bezeichnungen statt Kalender-Emoji
   const dl = vm.runInContext('({ heute: deadlineLabel({deadline: todayStr(), status:"A"}), keins: deadlineLabel({deadline:"", status:"A"}) })', context);
@@ -418,7 +454,7 @@ try {
     state.settings.statuses = ['A','B','C']; state.settings.doneStatuses = ['C']; applyBoardConfig();
     state.tickets = [{ id:'bad1', title:'Kaputt', status:'A', cats:[], imgs:[], tasks:[] }]; // KEIN prio/deadline
     migrateTickets();
-    var ok1 = state.tickets[0].prio === 'Mittel' && state.tickets[0].deadline === '';
+    var ok1 = state.tickets[0].prio === 3 && state.tickets[0].deadline === '';
     render();                 // darf nicht werfen
     return ok1;
   })()`, context);

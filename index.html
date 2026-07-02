@@ -11,23 +11,26 @@
    CONTROL PANEL v2 — Salesforce Lightning Stil, Single-User
    ============================================================ */
 :root{
-  --blue:#0176D3; --blue-dark:#014486; --blue-bg:#EEF4FF;
-  --red:#C23934; --yellow:#FFB75D; --green:#2E844A;
-  --gray-bg:#F3F3F3; --card:#FFFFFF; --border:#E5E5E5;
-  --text:#181818; --text-weak:#706E6B;
-  --shadow:0 2px 4px rgba(0,0,0,.08);
+  --blue:#0B69C7; --blue-dark:#0A4E92; --blue-bg:#EDF4FE;
+  --red:#C23934; --yellow:#F5AE4A; --green:#2E844A;
+  /* Prioritäten P1 (am wichtigsten) … P5 — WCAG-taugliche, ruhige Skala */
+  --p1:#C62F2A; --p2:#D9711C; --p3:#E3A008; --p4:#3B7DD8; --p5:#7C8798;
+  --gray-bg:#F4F6FA; --gray-bg2:#E6EAF2; --card:#FFFFFF; --border:#E2E6EE;
+  --text:#1A1D24; --text-weak:#6A7180;
+  --shadow:0 1px 3px rgba(20,28,45,.08);
   --radius:8px;
-  --overdue-bg:#FBD8D5; --today-bg:#FFE3BD; --col-bg:#ECEBEA;
+  --overdue-bg:#FBE1DF; --today-bg:#FDEBCF; --col-bg:#ECEFF5;
   color-scheme:light;
 }
-/* ---------- Dark Mode (sauber, dunkles Slate) ---------- */
+/* ---------- Dark Mode (Orbit: ruhiges, tiefes Space-Slate) ---------- */
 :root[data-theme="dark"]{
-  --blue:#4c9ff0; --blue-dark:#9cc7f6; --blue-bg:#172638;
-  --red:#e2706b; --yellow:#d9a24f; --green:#46b673;
-  --gray-bg:#14161b; --card:#1e2128; --border:#323845;
-  --text:#e7e9ee; --text-weak:#969cab;
+  --blue:#5AA7F2; --blue-dark:#A6CBF7; --blue-bg:#16273B;
+  --red:#E2706B; --yellow:#D9A24F; --green:#46B673;
+  --p1:#E0605A; --p2:#E08A3C; --p3:#D9B13B; --p4:#5C96E8; --p5:#8791A3;
+  --gray-bg:#14161C; --gray-bg2:#0D0F15; --card:#1D2029; --border:#303644;
+  --text:#E7E9EE; --text-weak:#9AA1B0;
   --shadow:0 2px 8px rgba(0,0,0,.45);
-  --overdue-bg:#3b2422; --today-bg:#3a3120; --col-bg:#23262e;
+  --overdue-bg:#3B2422; --today-bg:#3A3120; --col-bg:#22252F;
   color-scheme:dark;
 }
 :root[data-theme="dark"] th{background:var(--col-bg)}
@@ -42,8 +45,11 @@
    (Ursache des Listenansicht-Bugs in v1) */
 [hidden]{display:none!important}
 body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  background:var(--gray-bg); color:var(--text); font-size:14px; line-height:1.55;
+  font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  /* Sanfter Verlauf, unten leicht dunkler — gibt dem Board Tiefe (Orbit-Feel) */
+  background:linear-gradient(180deg, var(--gray-bg) 0%, var(--gray-bg) 40%, var(--gray-bg2) 100%);
+  background-attachment:fixed; min-height:100vh;
+  color:var(--text); font-size:14px; line-height:1.55;
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
 }
 button{font:inherit;cursor:pointer}
@@ -90,6 +96,10 @@ body.viewer .card{cursor:default}
 .toggle{display:flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
 .toggle button{border:none; background:var(--card); padding:5px 12px; font-size:12px; font-weight:600; color:var(--text-weak)}
 .toggle button.active{background:var(--blue); color:#fff}
+/* Snappy: kurze, dezente Zustandswechsel + klare Fokus-Ringe (Tastatur-Nutzer) */
+.btn,.chip,.toggle button{transition:background .1s ease,color .1s ease,border-color .1s ease}
+.btn:active,.chip:active{transform:translateY(1px)}
+:focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:4px}
 
 /* ---------- Export-Erinnerung ---------- */
 .banner{
@@ -201,11 +211,8 @@ body.viewer .col-name:hover{text-decoration:none}
 .card-menu-pop button:hover{background:var(--blue-bg)}
 
 /* Pixel-Lauf (Gimmick) in der Kopfzeile */
-#dinoWrap{display:flex; align-items:stretch; gap:4px; flex:1 1 200px; min-width:150px; height:34px; overflow:hidden}
-#dinoControls{display:grid; grid-template-columns:repeat(2, 18px); gap:1px 2px; align-content:center; flex:0 0 auto}
-#dinoWrap button{border:none; background:none; color:#b9b7b4; font-size:12px; line-height:1; padding:0; cursor:pointer;
-  width:18px; height:15px; display:inline-flex; align-items:center; justify-content:center}
-#dinoWrap button:hover{color:var(--blue)}
+/* Pixel-Lauf: reiner Deko-Streifen — Steuerung liegt in den Einstellungen */
+#dinoWrap{display:flex; align-items:stretch; flex:1 1 200px; min-width:150px; height:34px; overflow:hidden}
 #dinoCv{flex:1 1 auto; min-width:0; height:34px}
 
 /* Schwarze Schiffskatze (Office-Tipps) auf einem Balken mit Datum/Uhrzeit.
@@ -284,17 +291,16 @@ body.viewer .col-name:hover{text-decoration:none}
   transition:opacity .3s, transform .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* ---------- Ticket-Card ---------- */
+/* ---------- Ticket-Card (ruhig, snappy: nur minimale Bewegung) ---------- */
 .card{
-  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
   border-left:4px solid var(--border);
   box-shadow:var(--shadow); padding:10px 11px; margin-bottom:9px; cursor:pointer;
   position:relative;
-  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  transition:box-shadow .1s ease, border-color .1s ease;
 }
 .card:hover{
-  transform:translateY(-2px);
-  box-shadow:0 6px 14px rgba(0,0,0,.18);
+  box-shadow:0 3px 10px rgba(20,28,45,.14);
   border-color:var(--blue);
 }
 .card.dragging{opacity:.4}
@@ -315,11 +321,12 @@ body.compact .card .desc{display:none}
   background:var(--red); color:#fff; font-weight:800; font-size:11px;
   display:flex; align-items:center; justify-content:center;
 }
-.prio-hoch{border-left-color:var(--red)}
-.prio-mittel{border-left-color:var(--yellow)}
-.prio-niedrig{border-left-color:var(--green)}
+/* Prioritäts-Farben P1 (am wichtigsten) … P5 — ruhige, klar lesbare Skala */
+.prio-1{border-left-color:var(--p1)} .prio-2{border-left-color:var(--p2)} .prio-3{border-left-color:var(--p3)}
+.prio-4{border-left-color:var(--p4)} .prio-5{border-left-color:var(--p5)}
 .pill{border-radius:10px; padding:0 7px; font-weight:700; color:#fff; font-size:11px; white-space:nowrap}
-.pill.hoch{background:var(--red)} .pill.mittel{background:var(--yellow); color:#5a3b00} .pill.niedrig{background:var(--green)}
+.pill.p1{background:var(--p1)} .pill.p2{background:var(--p2)} .pill.p3{background:var(--p3); color:#3a2c00}
+.pill.p4{background:var(--p4)} .pill.p5{background:var(--p5)}
 .tag{border-radius:10px; padding:0 7px; font-size:11px; font-weight:600; white-space:nowrap}
 .deadline{color:var(--text-weak); white-space:nowrap}
 .jira{color:var(--blue); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap; display:inline-flex; align-items:center; gap:3px}
@@ -348,14 +355,40 @@ th{background:var(--col-bg); font-size:11px; text-transform:uppercase; letter-sp
 th.sortable{cursor:pointer}
 th.sortable:hover{color:var(--blue)}
 th .arrow{font-size:10px}
-tr.row{cursor:pointer}
-tr.row td{transition:background .1s}
+tr.row td{transition:background .1s; vertical-align:middle}
 tr.row:hover td{background:var(--blue-bg)}
 tr.row.due-today td{background:var(--today-bg)}
 tr.row.overdue td{background:var(--overdue-bg)}
 tr.row.done td{opacity:.65}
 tr.row.done-final td{opacity:.4}
 .empty{padding:24px; text-align:center; color:var(--text-weak)}
+/* Inline-Editing in der Liste: Felder wirken wie Text, werden beim Fokus zum Eingabefeld */
+.list-wrap input,.list-wrap select{border:1px solid transparent; border-radius:6px; background:transparent;
+  padding:4px 6px; font-size:12.5px; color:var(--text); max-width:100%}
+.list-wrap input:hover,.list-wrap select:hover{border-color:var(--border)}
+.list-wrap input:focus,.list-wrap select:focus{border-color:var(--blue); background:var(--card); outline:none}
+.lt-title{display:flex; align-items:center; gap:4px; min-width:220px}
+.li-title{flex:1; font-weight:600}
+.li-open{border:none; background:none; color:var(--text-weak); font-size:13px; padding:2px 5px; border-radius:5px; opacity:0}
+tr.row:hover .li-open{opacity:1}
+.li-open:hover{color:var(--blue); background:var(--blue-bg)}
+.li-note{width:100%; min-width:160px; color:var(--text-weak)}
+.li-deadline{white-space:nowrap}
+/* Prio-Select in der Zeile trägt die Prio-Farbe als linker Balken */
+tr.lp-1 td:first-child{box-shadow:inset 3px 0 0 var(--p1)} tr.lp-2 td:first-child{box-shadow:inset 3px 0 0 var(--p2)}
+tr.lp-3 td:first-child{box-shadow:inset 3px 0 0 var(--p3)} tr.lp-4 td:first-child{box-shadow:inset 3px 0 0 var(--p4)}
+tr.lp-5 td:first-child{box-shadow:inset 3px 0 0 var(--p5)}
+.pill-select{font-weight:700}
+.pill-select.p1{color:var(--p1)} .pill-select.p2{color:var(--p2)} .pill-select.p3{color:var(--p3)}
+.pill-select.p4{color:var(--p4)} .pill-select.p5{color:var(--p5)}
+.list-hint{font-size:11px; color:var(--text-weak); padding:8px 2px}
+/* Teilen: Codes für Lesen & Bearbeiten */
+.share-code-row{display:flex; align-items:center; gap:8px; margin-top:8px}
+.share-code-row > div{flex:1; min-width:0}
+.share-code-label{font-size:12px; font-weight:700}
+.share-code-label span{font-weight:400; color:var(--text-weak); font-size:11px; margin-left:4px}
+.share-code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; user-select:all; color:var(--blue)}
+.member-role{border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); font-size:11px; padding:2px 4px}
 
 /* ---------- Modals ---------- */
 .overlay{
@@ -442,15 +475,15 @@ tr.row.done-final td{opacity:.4}
 .task-row .task-del{border:none;background:none;color:var(--text-weak);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1}
 .task-row .task-del:hover{color:var(--red)}
 .task-count{font-size:11px;color:var(--text-weak);font-weight:600}
-/* ---------- Prioritäts-Auswahl (drei Kreise: grün/gelb/rot) ---------- */
-.prio-picker{display:flex;gap:12px;align-items:center;min-height:24px}
-.prio-dot{width:22px;height:22px;border-radius:50%;border:none;padding:0;cursor:pointer;opacity:.4;
+/* ---------- Prioritäts-Auswahl (fünf Kreise P1–P5) ---------- */
+.prio-picker{display:flex;gap:8px;align-items:center;min-height:24px}
+.prio-dot{width:24px;height:24px;border-radius:50%;border:none;padding:0;cursor:pointer;opacity:.38;
+  color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
   transition:opacity .12s ease,transform .12s ease,box-shadow .12s ease}
-.prio-dot:hover{opacity:.78;transform:scale(1.1)}
-.prio-dot.active{opacity:1;transform:scale(1.12);box-shadow:0 0 0 3px var(--card),0 0 0 5px rgba(0,0,0,.16)}
-.prio-dot.prio-niedrig{background:var(--green)}
-.prio-dot.prio-mittel{background:var(--yellow)}
-.prio-dot.prio-hoch{background:var(--red)}
+.prio-dot:hover{opacity:.8;transform:scale(1.08)}
+.prio-dot.active{opacity:1;transform:scale(1.1);box-shadow:0 0 0 3px var(--card),0 0 0 5px rgba(0,0,0,.18)}
+.prio-dot.p1{background:var(--p1)} .prio-dot.p2{background:var(--p2)}
+.prio-dot.p3{background:var(--p3);color:#3a2c00} .prio-dot.p4{background:var(--p4)} .prio-dot.p5{background:var(--p5)}
 .prio-label{font-size:12px;color:var(--text-weak);margin-left:2px;font-weight:600}
 .card-tasks{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-weak)}
 
@@ -479,8 +512,8 @@ tr.row.done-final td{opacity:.4}
   header h1{font-size:15px}
   .toolbar{padding:8px 12px 0}
   #kanbanLeft{width:100%}   /* Handy: Spalten scrollen horizontal -> Suche volle Breite */
-  /* Unnötiges auf dem Handy ausblenden: Fälligkeits-Badges, Fokus/Report, Pixel-Lauf */
-  #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #btnFocus, #btnReportAll, #todayDate, #astro{display:none !important}
+  /* Unnötiges auf dem Handy ausblenden: Fälligkeits-Badges, Pixel-Lauf, Katze */
+  #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #todayDate, #astro{display:none !important}
   .kanban{
     display:flex; overflow-x:auto; gap:10px; padding:10px 12px 20px;
     scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
@@ -490,6 +523,17 @@ tr.row.done-final td{opacity:.4}
   .card select.quick-status{display:block}
   .modal-foot{flex-wrap:wrap}
   .modal-foot .foot-left{flex-basis:100%; margin-bottom:6px}
+  /* Ticket-Dialog als Bottom-Sheet: volle Breite, von unten, bequem erreichbar */
+  .overlay{align-items:flex-end; padding:0}
+  .modal{width:100%; max-width:100%; max-height:94vh; border-radius:14px 14px 0 0}
+  /* iOS-Zoom verhindern: Eingaben mind. 16px */
+  input, select, textarea, .richtext{font-size:16px}
+  .toolbar input,.toolbar select{font-size:14px}
+  /* Listenansicht bleibt am Handy nutzbar: horizontal scrollbar */
+  .list-wrap{padding:8px 10px 20px}
+  .lt-title{min-width:170px}
+  /* Sticky Notes stören auf kleinen Screens */
+  .sticky{display:none}
 }
 /* Touch-Geräte: größere Tap-Flächen + Schnellstatus sichtbar */
 @media (pointer:coarse){
@@ -524,15 +568,9 @@ tr.row.done-final td{opacity:.4}
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: fällig in den nächsten 7 Tagen">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: fällig in den nächsten 30 Tagen">0 in 30 Tagen</button>
   <div id="dinoWrap">
-    <div id="dinoControls">
-      <button id="dinoPlay" title="Pause">⏸</button>
-      <button id="dinoEye" title="Pixel-Lauf ein-/ausblenden">👁</button>
-    </div>
     <canvas id="dinoCv" height="34"></canvas>
   </div>
   <div id="globalCat" title="Nach Kategorie filtern"></div>
-  <button class="btn" id="btnFocus" title="Claude fragen: Worum soll ich mich jetzt kümmern?">🚀 Fokus</button>
-  <button class="btn" id="btnReportAll" title="Claude fasst alle ERLEDIGTEN Tickets zusammen (letzte Säule)">🗂 Report</button>
   <div class="toggle">
     <button id="btnKanban" class="active">Kanban</button>
     <button id="btnList">Liste</button>
@@ -546,11 +584,6 @@ tr.row.done-final td{opacity:.4}
   <span>⚠ Letzter Export liegt länger zurück. Lege bei Gelegenheit ein JSON-Backup an.</span>
   <button class="btn" id="btnBannerExport">Jetzt exportieren</button>
   <button class="btn" id="btnBannerDismiss">Später</button>
-</div>
-
-<div class="banner" id="focusBanner" style="background:var(--blue-bg);border-bottom-color:#cfdcf5" hidden>
-  <span>🚀 <b id="focusText"></b></span>
-  <button class="btn" id="btnFocusClose">Schließen</button>
 </div>
 
 <div class="banner" id="tipBar" style="background:var(--card);border-bottom-color:var(--border);font-size:12px;color:var(--text-weak)" hidden>
@@ -580,7 +613,9 @@ tr.row.done-final td{opacity:.4}
   <select id="filterStatus"></select>
   <select id="filterPrio">
     <option value="">Priorität: Alle</option>
-    <option>Hoch</option><option>Mittel</option><option>Niedrig</option>
+    <option value="1">P1 — Sehr hoch</option><option value="2">P2 — Hoch</option>
+    <option value="3">P3 — Mittel</option><option value="4">P4 — Niedrig</option>
+    <option value="5">P5 — Sehr niedrig</option>
   </select>
   <div class="chips" id="quickChips">
     <button class="chip" data-q="today">Heute fällig</button>
@@ -601,15 +636,15 @@ tr.row.done-final td{opacity:.4}
       <thead>
         <tr>
           <th class="sortable" data-sort="title">Titel <span class="arrow"></span></th>
-          <th class="sortable" data-sort="status">Status <span class="arrow"></span></th>
-          <th class="sortable" data-sort="prio">Priorität <span class="arrow"></span></th>
+          <th class="sortable" data-sort="prio">Prio <span class="arrow"></span></th>
           <th class="sortable" data-sort="deadline">Deadline <span class="arrow"></span></th>
-          <th>Kategorien</th>
-          <th>Link</th>
+          <th>Kategorie</th>
+          <th>Kommentar</th>
         </tr>
       </thead>
       <tbody id="listBody"></tbody>
     </table>
+    <div class="list-hint">Alle Felder direkt in der Zeile editierbar · Klick auf den Titel öffnet das Ticket</div>
   </div>
 </main>
 
@@ -634,12 +669,14 @@ tr.row.done-final td{opacity:.4}
           <select id="fStatus" required></select>
         </div>
         <div class="field">
-          <label>Priorität</label>
-          <input type="hidden" id="fPrio" value="Mittel">
+          <label>Priorität (P1 = am wichtigsten)</label>
+          <input type="hidden" id="fPrio" value="3">
           <div id="fPrioPicker" class="prio-picker">
-            <button type="button" class="prio-dot prio-niedrig" data-prio="Niedrig" title="Niedrig" aria-label="Niedrig"></button>
-            <button type="button" class="prio-dot prio-mittel" data-prio="Mittel" title="Mittel" aria-label="Mittel"></button>
-            <button type="button" class="prio-dot prio-hoch" data-prio="Hoch" title="Hoch" aria-label="Hoch"></button>
+            <button type="button" class="prio-dot p1" data-prio="1" title="P1 — Sehr hoch" aria-label="P1">1</button>
+            <button type="button" class="prio-dot p2" data-prio="2" title="P2 — Hoch" aria-label="P2">2</button>
+            <button type="button" class="prio-dot p3" data-prio="3" title="P3 — Mittel" aria-label="P3">3</button>
+            <button type="button" class="prio-dot p4" data-prio="4" title="P4 — Niedrig" aria-label="P4">4</button>
+            <button type="button" class="prio-dot p5" data-prio="5" title="P5 — Sehr niedrig" aria-label="P5">5</button>
             <span id="fPrioLabel" class="prio-label"></span>
           </div>
         </div>
@@ -718,103 +755,148 @@ tr.row.done-final td{opacity:.4}
       <button class="modal-close" data-close-settings aria-label="Schließen">✕</button>
     </div>
     <div class="modal-body">
+
       <div class="settings-section" style="border-top:none;padding-top:0">
-        <h3>Mein Board</h3>
+        <h3>🪐 Board</h3>
         <div class="set-row">
-          <label>Boardname</label>
-          <input type="text" id="setBoardTitle" maxlength="40" style="width:160px">
+          <label>Name des Boards</label>
+          <input type="text" id="setBoardTitle" maxlength="40" style="width:180px">
         </div>
-        <div style="font-size:11px;color:var(--text-weak);margin:6px 0 4px">Säulen benennen. Mit „erledigt" markierst du Erfolgs-/Fertig-Spalten (Konfetti + Erledigt-Markierung, keine Eskalationsfärbung):</div>
+        <div style="font-size:11px;color:var(--text-weak);margin:6px 0 4px">Spalten benennen &amp; sortieren. „Erledigt-Spalte“ = Tickets gelten dort als abgeschlossen (Konfetti, keine Fälligkeits-Warnung):</div>
         <div id="setColumns" style="display:grid;gap:6px"></div>
       </div>
-      <div class="set-row">
-        <label>Standardansicht beim Start</label>
-        <select id="setView"><option value="kanban">Kanban</option><option value="list">Liste</option></select>
+
+      <div class="settings-section">
+        <h3>👁 Ansicht</h3>
+        <div class="set-row">
+          <label>Ansicht beim Öffnen</label>
+          <select id="setView"><option value="kanban">Kanban-Board</option><option value="list">Liste</option></select>
+        </div>
+        <div class="set-row">
+          <label>Karten sortieren nach</label>
+          <select id="setKanbanSort"><option value="deadline">Fälligkeit</option><option value="prio">Priorität (P1 zuerst)</option></select>
+        </div>
+        <div class="set-row">
+          <label>Kompakte Karten (ohne Beschreibungstext)</label>
+          <input type="checkbox" id="setCompact">
+        </div>
       </div>
-      <div class="set-row">
-        <label>Kanban-Standardsortierung</label>
-        <select id="setKanbanSort"><option value="deadline">Fälligkeit</option><option value="prio">Priorität</option></select>
+
+      <div class="settings-section">
+        <h3>🧹 Aufräumen &amp; Erinnerungen</h3>
+        <div class="set-row">
+          <label>Erledigte Tickets ausblenden nach (Tagen, 0 = nie)</label>
+          <input type="number" id="setHideDone" min="0" max="365">
+        </div>
+        <div class="set-row">
+          <label>An Backup-Export erinnern alle (Tage, 0 = aus)</label>
+          <input type="number" id="setRemind" min="0" max="90">
+        </div>
       </div>
-      <div class="set-row">
-        <label>„Erledigt" ausblenden nach (Tage, 0 = nie)</label>
-        <input type="number" id="setHideDone" min="0" max="365">
+
+      <div class="settings-section">
+        <h3>✨ Pixel-Lauf &amp; Extras</h3>
+        <div class="set-row">
+          <label>Pixel-Lauf in der Kopfzeile anzeigen</label>
+          <input type="checkbox" id="setDino">
+        </div>
+        <div class="set-row">
+          <label>Animation</label>
+          <button type="button" class="btn" id="setDinoPlay">⏸ Pause</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-weak)">Die Szene folgt dem Modus: ☀️ Tag = Urzeit-Landschaft, 🌙 Nacht = Sternenhimmel.</div>
+        <div class="set-row" style="margin-top:6px">
+          <label>🐈 Schiffskatze mit Wohlfühl-Tipps</label>
+          <input type="checkbox" id="setTips">
+        </div>
       </div>
-      <div class="set-row">
-        <label>Export-Erinnerung alle (Tage, 0 = aus)</label>
-        <input type="number" id="setRemind" min="0" max="90">
+
+      <div class="settings-section" id="accountSection">
+        <h3>👤 Konto</h3>
+        <div class="set-row">
+          <label>Angemeldet als</label>
+          <span id="setAccountEmail" style="font-size:12px;font-weight:600">–</span>
+        </div>
+        <div class="set-row">
+          <label>E-Mail-Adresse ändern</label>
+          <button type="button" class="btn" id="btnChangeEmail">Ändern…</button>
+        </div>
+        <div class="set-row">
+          <label>Passwort ändern</label>
+          <button type="button" class="btn" id="btnChangePass">Ändern…</button>
+        </div>
+        <div class="set-row">
+          <label>Cloud-Speicher (inkl. Anhänge)</label>
+          <span id="setUsage" style="font-size:12px;color:var(--text-weak)">–</span>
+        </div>
+        <div class="set-row">
+          <label>Verbindung</label>
+          <span id="setConnStatus" style="font-size:12px;font-weight:600">–</span>
+        </div>
+        <div class="set-row" id="setLoginRow" hidden>
+          <label>Anmeldung</label>
+          <button class="btn" id="btnSettingsLogin">🔑 Anmelden</button>
+        </div>
+        <div class="set-row">
+          <label>Sitzung</label>
+          <button class="btn" id="btnLogout">Abmelden</button>
+        </div>
       </div>
-      <div class="set-row">
-        <label>Kompakte Kacheln (ohne Beschreibung)</label>
-        <input type="checkbox" id="setCompact">
-      </div>
-      <div class="set-row">
-        <label>Pixel-Lauf in der Kopfzeile</label>
-        <input type="checkbox" id="setDino">
-      </div>
-      <div class="set-row">
-        <label>🐈 Katze (Office-Tipps) anzeigen</label>
-        <input type="checkbox" id="setTips">
-      </div>
-      <div class="set-row">
-        <label>Cloud-Speicherverbrauch (inkl. Anhänge)</label>
-        <span id="setUsage" style="font-size:12px;color:var(--text-weak)">–</span>
-      </div>
-      <div class="set-row">
-        <label>Cloud-Verbindung</label>
-        <span id="setConnStatus" style="font-size:12px;font-weight:600">–</span>
-      </div>
-      <div class="set-row" id="setLoginRow" hidden>
-        <label>Anmeldung</label>
-        <button class="btn" id="btnSettingsLogin">🔑 Anmelden</button>
-      </div>
-      <div class="set-row">
-        <label>Zugang</label>
-        <button class="btn" id="btnLogout">Abmelden</button>
-      </div>
+
       <div class="settings-section" id="teamSection" hidden>
-        <h3>Boards &amp; Teilen</h3>
+        <h3>👥 Teilen &amp; Mitglieder</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnNewBoard">+ Neues Board</button>
           <button type="button" class="btn btn-danger" id="btnDeleteBoard">Board löschen…</button>
         </div>
-        <!-- Besitzer: Lesezugriff teilen + verwalten -->
+        <!-- Besitzer: Codes für Lesen & Bearbeiten + Mitglieder verwalten -->
         <div id="shareOwner" hidden style="margin-top:12px">
-          <div class="set-row">
-            <label>Teilen-Code (nur Lesezugriff)</label>
-            <span id="setShareCode" style="font-family:monospace;font-size:13px;user-select:all">–</span>
+          <div class="share-code-row">
+            <div>
+              <div class="share-code-label">👁 Lese-Code <span>Mitglieder sehen alles, ändern nichts</span></div>
+              <span id="setShareCode" class="share-code">–</span>
+            </div>
+            <button type="button" class="btn" id="btnCopyShare" title="Lese-Code kopieren">Kopieren</button>
+            <button type="button" class="btn" id="btnRotateShare" title="Neuen Lese-Code erzeugen (alter wird ungültig)">↻</button>
           </div>
-          <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-            <button type="button" class="btn" id="btnCopyShare">Code kopieren</button>
-            <button type="button" class="btn" id="btnRotateShare">Code neu generieren</button>
+          <div class="share-code-row">
+            <div>
+              <div class="share-code-label">✏️ Bearbeiten-Code <span>Mitglieder können Tickets anlegen &amp; ändern</span></div>
+              <span id="setEditCode" class="share-code">–</span>
+            </div>
+            <button type="button" class="btn" id="btnCopyEdit" title="Bearbeiten-Code kopieren">Kopieren</button>
+            <button type="button" class="btn" id="btnRotateEdit" title="Neuen Bearbeiten-Code erzeugen (alter wird ungültig)">↻</button>
           </div>
-          <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Wer diesen Code eingibt, erhält ausschließlich <b>Lesezugriff</b> auf dieses Board. „Neu generieren" sperrt alle alten Codes aus.</div>
-          <div style="font-weight:700;font-size:12px;margin:12px 0 4px">Hat Zugriff:</div>
+          <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Codes weitergeben = einladen. „↻“ erzeugt einen neuen Code und sperrt den alten sofort.</div>
+          <div style="font-weight:700;font-size:12px;margin:12px 0 4px">Mitglieder:</div>
           <div id="memberList" style="display:flex;flex-direction:column;gap:6px"></div>
         </div>
-        <!-- Mitglied: Nur-Lesen-Hinweis + verlassen -->
+        <!-- Mitglied: eigene Rolle + verlassen -->
         <div id="shareViewer" hidden style="margin-top:12px">
-          <div style="font-size:12px;color:var(--text-weak)">👁 Du hast auf diesem Board nur <b>Lesezugriff</b><span id="shareOwnerName"></span>.</div>
+          <div style="font-size:12px;color:var(--text-weak)" id="shareRoleInfo">Du bist Mitglied dieses Boards.</div>
           <button type="button" class="btn" id="btnLeaveShared" style="margin-top:6px">Board verlassen</button>
         </div>
-        <!-- Jeder: einem fremden Board (nur lesend) beitreten -->
+        <!-- Jeder: per Code beitreten -->
         <div style="margin-top:12px">
           <div style="font-weight:700;font-size:12px;margin-bottom:4px">Einem geteilten Board beitreten:</div>
           <div class="cat-add">
-            <input id="setJoinCode" placeholder="Teilen-Code eingeben…" maxlength="40">
+            <input id="setJoinCode" placeholder="Lese- oder Bearbeiten-Code…" maxlength="40">
             <button type="button" class="btn" id="btnJoinBoard">Beitreten</button>
           </div>
         </div>
       </div>
+
       <div class="settings-section">
-        <h3>Daten</h3>
+        <h3>💾 Daten</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn" id="btnSetExport">⤓ Export (JSON)</button>
-          <button type="button" class="btn" id="btnSetImport">⤒ Import (JSON)</button>
+          <button type="button" class="btn" id="btnSetExport">⤓ Backup exportieren (JSON)</button>
+          <button type="button" class="btn" id="btnSetImport">⤒ Backup importieren</button>
         </div>
-        <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Export sichert Tickets, Säulen, Boardname &amp; Voreinstellungen. Import ersetzt das aktuelle Board.</div>
+        <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Der Export sichert Tickets, Spalten, Boardname &amp; Einstellungen. Import ersetzt das aktuelle Board.</div>
       </div>
+
       <div class="settings-section">
-        <h3>Kategorien</h3>
+        <h3>🏷 Kategorien</h3>
         <div id="catManager" style="display:grid;gap:6px"></div>
         <div class="cat-add" style="margin-top:8px">
           <input id="catManagerNew" placeholder="Neue Kategorie…" maxlength="40">
@@ -919,7 +1001,13 @@ const DEFAULT_STATUSES = ['Themenspeicher', 'Geplant', 'In Arbeit', 'Review', 'E
 let STATUSES = DEFAULT_STATUSES.slice();
 let DONE = ['Erledigt'];
 let COLLAPSIBLE = ['Themenspeicher', 'Erledigt'];
-const PRIO_ORDER = { 'Hoch': 0, 'Mittel': 1, 'Niedrig': 2 };
+/* Priorität: 1 (am wichtigsten) … 5 (am unwichtigsten). Alt-Werte werden migriert. */
+const PRIO_NAMES = { 1: 'P1 — Sehr hoch', 2: 'P2 — Hoch', 3: 'P3 — Mittel', 4: 'P4 — Niedrig', 5: 'P5 — Sehr niedrig' };
+function normPrio(p) {
+  if (p === 'Hoch') return 1; if (p === 'Mittel') return 3; if (p === 'Niedrig') return 5;
+  const n = parseInt(p, 10);
+  return (n >= 1 && n <= 5) ? n : 3;
+}
 // Schlanke Outline-Icons (CI-konform, erben die Textfarbe) statt Emoji
 const FILE_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 const LINK_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1 1"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1-1"/></svg>';
@@ -1027,7 +1115,7 @@ function migrateTickets() {
     if (!Array.isArray(t.cats)) t.cats = [];
     if (!Array.isArray(t.imgs)) t.imgs = [];
     if (!Array.isArray(t.tasks)) t.tasks = [];
-    if (!PRIO_ORDER.hasOwnProperty(t.prio)) t.prio = 'Mittel'; // nie undefined -> kein Render-Crash
+    t.prio = normPrio(t.prio); // Alt: Hoch/Mittel/Niedrig -> 1/3/5; sonst 1..5 (nie undefined)
     if (typeof t.deadline !== 'string') t.deadline = '';
     if (typeof t.title !== 'string') t.title = '';
     if (!t.descFormat) { // Alt-Daten: Plaintext einmalig nach HTML wandeln
@@ -1234,14 +1322,17 @@ function renderKanban() {
     const col = document.createElement('div');
     col.className = 'col'; col.dataset.status = status;
     let items = state.tickets.filter(t => t.status === status && !isHidden(t));
-    if (kanbanQuick === 'today') items = items.filter(isToday);
-    else if (kanbanQuick === 'week') items = items.filter(isThisWeek);
-    else if (kanbanQuick === 'month') items = items.filter(isNext30Days);
+    // Aktive Suche übersteuert die Fälligkeits-Schnellfilter (man sucht ja gezielt)
+    if (!kanbanSearch) {
+      if (kanbanQuick === 'today') items = items.filter(isToday);
+      else if (kanbanQuick === 'week') items = items.filter(isThisWeek);
+      else if (kanbanQuick === 'month') items = items.filter(isNext30Days);
+    }
     if (globalCat) items = items.filter(t => t.cats.includes(globalCat));
     if (kanbanSearch) items = items.filter(t => matchesSearch(t, kanbanSearch));
     items.sort((a, b) => kanbanSortKey === 'prio'
-      ? (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]) || a.deadline.localeCompare(b.deadline)
-      : a.deadline.localeCompare(b.deadline) || (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]));
+      ? (a.prio - b.prio) || a.deadline.localeCompare(b.deadline)
+      : a.deadline.localeCompare(b.deadline) || (a.prio - b.prio));
     // Bei aktiver Suche alle Spalten aufklappen, damit Treffer sichtbar sind
     const collapsed = !kanbanSearch && COLLAPSIBLE.includes(status) && !!(state.settings.collapsed || {})[status];
     col.innerHTML = '<div class="col-head"><span class="col-head-l">' +
@@ -1305,7 +1396,7 @@ function renderKanban() {
 
 function cardEl(t) {
   const el = document.createElement('div');
-  el.className = ['card', 'prio-' + t.prio.toLowerCase(), deadlineClass(t), doneClass(t)].join(' ').trim();
+  el.className = ['card', 'prio-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
   el.draggable = !boardReadOnly; el.dataset.id = t.id;
 
   const tags = t.cats.map(c =>
@@ -1316,7 +1407,7 @@ function cardEl(t) {
     '<div class="title">' + esc(t.title) + '</div>' +
     '<div class="desc">' + esc(stripHtml(t.desc)) + '</div>' +
     '<div class="meta">' +
-      '<span class="pill ' + t.prio.toLowerCase() + '">' + t.prio + '</span>' +
+      '<span class="pill p' + t.prio + '" title="' + PRIO_NAMES[t.prio] + '">P' + t.prio + '</span>' +
       '<span class="deadline">' + esc(deadlineLabel(t)) + '</span>' +
       ((t.tasks && t.tasks.length) ? '<span class="card-tasks" title="Aufgaben erledigt">☑ ' + t.tasks.filter(x => x.done).length + '/' + t.tasks.length + '</span>' : '') + tags +
     '</div>' +
@@ -1364,12 +1455,14 @@ function toggleCardMenu(cardEl, id) {
   cardEl.classList.add('menu-open'); // Karte über Plus/Geisterticket heben
   const m = document.createElement('div');
   m.className = 'card-menu-pop';
-  m.innerHTML = '<button data-act="dup">⧉ Duplizieren</button>' +
+  m.innerHTML = '<button data-act="link">🔗 Link kopieren</button>' +
+                '<button data-act="dup">⧉ Duplizieren</button>' +
                 '<button data-act="del" style="color:var(--red)">🗑 Löschen</button>';
   m.addEventListener('click', e => {
     e.stopPropagation();
     const act = e.target.dataset.act;
     closeCardMenus();
+    if (act === 'link') copyTicketLink(id);
     if (act === 'dup') duplicateTicket(id);
     if (act === 'del') deleteTicketById(id);
   });
@@ -1406,29 +1499,30 @@ function deleteTicketById(id) {
   save(); render();
 }
 
-/* ---------- Liste ---------- */
+/* ---------- Liste (alle Felder direkt in der Zeile editierbar) ---------- */
 function renderList() {
   const body = document.getElementById('listBody');
   const q = document.getElementById('search').value.trim().toLowerCase();
   const fs = document.getElementById('filterStatus').value;
   const fp = document.getElementById('filterPrio').value;
+  const searching = !!q;   // aktive Suche übersteuert die Fälligkeits-Schnellfilter
   let rows = state.tickets.filter(t =>
     !isHidden(t) &&
     (!fs || t.status === fs) &&
-    (!fp || t.prio === fp) &&
+    (!fp || t.prio === parseInt(fp, 10)) &&
     (!globalCat || t.cats.includes(globalCat)) &&
     (!q || t.title.toLowerCase().includes(q) || stripHtml(t.desc).toLowerCase().includes(q)) &&
-    (quick !== 'today'   || isToday(t)) &&
-    (quick !== 'overdue' || isOverdue(t)) &&
-    (quick !== 'week'    || isThisWeek(t)) &&
-    (quick !== 'month'   || isNext30Days(t)) &&
-    (quick !== 'active'  || !DONE.includes(t.status))
+    (searching || quick !== 'today'   || isToday(t)) &&
+    (searching || quick !== 'overdue' || isOverdue(t)) &&
+    (searching || quick !== 'week'    || isThisWeek(t)) &&
+    (searching || quick !== 'month'   || isNext30Days(t)) &&
+    (searching || quick !== 'active'  || !DONE.includes(t.status))
   );
 
   rows.sort((a, b) => {
     let v = 0;
     if (sort.key === 'deadline') v = a.deadline.localeCompare(b.deadline);
-    else if (sort.key === 'prio') v = PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio];
+    else if (sort.key === 'prio') v = a.prio - b.prio;
     else if (sort.key === 'status') v = STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
     else if (sort.key === 'title') v = a.title.localeCompare(b.title, 'de');
     return v * sort.dir;
@@ -1437,25 +1531,48 @@ function renderList() {
   document.querySelectorAll('th.sortable').forEach(th =>
     th.querySelector('.arrow').textContent = th.dataset.sort === sort.key ? (sort.dir === 1 ? '▲' : '▼') : '');
   document.querySelectorAll('#quickChips .chip').forEach(c =>
-    c.classList.toggle('active', c.dataset.q === quick));
+    c.classList.toggle('active', !searching && c.dataset.q === quick));
 
   body.innerHTML = '';
-  if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty">Keine Tickets gefunden.</td></tr>'; return; }
-  rows.forEach(t => {
-    const tr = document.createElement('tr');
-    tr.className = ['row', deadlineClass(t), doneClass(t)].join(' ').trim();
-    tr.innerHTML =
-      '<td>' + (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;margin-right:5px">!</span>'
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="empty">Keine Tickets gefunden.</td></tr>'; return; }
+  rows.forEach(t => body.appendChild(listRowEl(t)));
+}
+/* Eine editierbare Listenzeile: Titel | Prio | Deadline | Kategorie | Kommentar */
+function listRowEl(t) {
+  const tr = document.createElement('tr');
+  tr.className = ['row', 'lp-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
+  const ro = boardReadOnly ? ' disabled' : '';
+  tr.innerHTML =
+    '<td class="lt-title">' +
+      (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;margin-right:5px">!</span>'
         : isToday(t) ? '<span class="escal today" style="position:static;display:inline-flex;margin-right:5px">!</span>' : '') +
-        '<strong>' + esc(t.title) + '</strong>' + (collectIds(t).length ? ' <span style="color:var(--text-weak)">📎' + collectIds(t).length + '</span>' : '') + '<br><span style="color:var(--text-weak)">' + esc(stripHtml(t.desc)) + '</span></td>' +
-      '<td>' + t.status + '</td>' +
-      '<td><span class="pill ' + t.prio.toLowerCase() + '">' + t.prio + '</span></td>' +
-      '<td><span class="deadline">' + fmtDate(t.deadline) + '</span></td>' +
-      '<td>' + t.cats.map(c => '<span class="tag" style="background:' + catColor(c) + ';color:' + textOn(catColor(c)) + '">' + esc(c) + '</span>').join(' ') + '</td>' +
-      '<td>' + (t.jira ? '<a class="jira" href="' + esc(t.jira) + '" target="_blank" rel="noopener">öffnen ↗</a>' : '') + '</td>';
-    tr.addEventListener('click', e => { if (!e.target.closest('a')) openModal(t.id); });
-    body.appendChild(tr);
+      '<input class="li-title" maxlength="200" value="' + esc(t.title) + '"' + ro + '>' +
+      '<button type="button" class="li-open" title="Ticket öffnen">↗</button></td>' +
+    '<td><select class="li-prio pill-select p' + t.prio + '"' + ro + '>' +
+      [1, 2, 3, 4, 5].map(p => '<option value="' + p + '"' + (p === t.prio ? ' selected' : '') + '>P' + p + '</option>').join('') +
+    '</select></td>' +
+    '<td><input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '"></td>' +
+    '<td class="li-cat-cell"></td>' +
+    '<td><input class="li-note" maxlength="500" placeholder="Kommentar…" value="' + esc(stripHtml(t.note || '')) + '"' + ro + '></td>';
+  // Titel: Tippen = editieren, Enter/Blur = speichern; ↗ öffnet das Ticket
+  const ti = tr.querySelector('.li-title');
+  ti.addEventListener('change', () => { if (!requireEdit()) { ti.value = t.title; return; } t.title = ti.value.trim() || t.title; ti.value = t.title; save(); });
+  ti.addEventListener('keydown', e => { if (e.key === 'Enter') ti.blur(); });
+  tr.querySelector('.li-open').addEventListener('click', () => openModal(t.id));
+  const pr = tr.querySelector('.li-prio');
+  pr.addEventListener('change', () => { if (!requireEdit()) { pr.value = t.prio; return; } t.prio = normPrio(pr.value); save(); renderList(); });
+  const dl = tr.querySelector('.li-deadline');
+  dl.addEventListener('change', () => { if (!requireEdit()) { dl.value = t.deadline; return; } if (dl.value) { t.deadline = dl.value; save(); renderList(); } });
+  const nt = tr.querySelector('.li-note');
+  nt.addEventListener('change', () => { if (!requireEdit()) return; t.note = esc(nt.value).replace(/\n/g, '<br>'); save(); });
+  // Kategorie: bestehendes Dropdown mit Farbkreisen (erste Kategorie des Tickets)
+  buildCatDropdown(tr.querySelector('.li-cat-cell'), {
+    items: state.categories.map(c => ({ name: c.name, color: c.color })),
+    value: t.cats[0] || '',
+    placeholder: '— keine —',
+    onSelect: name => { if (!requireEdit()) return; t.cats = name ? [name, ...t.cats.filter(c => c !== name && c !== t.cats[0])] : t.cats.slice(1); save(); renderList(); }
   });
+  return tr;
 }
 
 /* Kategorie-Dropdown mit Farbkreis-Vorschau (statt komplett eingefärbter Optionen) */
@@ -1515,7 +1632,7 @@ function modalFingerprint() {
   return JSON.stringify({
     title: document.getElementById('fTitle').value,
     status: document.getElementById('fStatus').value,
-    prio: document.getElementById('fPrio').value,
+    prio: normPrio(document.getElementById('fPrio').value),
     deadline: document.getElementById('fDeadline').value,
     jira: document.getElementById('fJira').value,
     desc: document.getElementById('fDesc').innerHTML,
@@ -1671,11 +1788,12 @@ function updateTaskCount() {
   const total = modalTasks.length, done = modalTasks.filter(t => t.done).length;
   document.getElementById('taskCount').textContent = total ? '(' + done + '/' + total + ' erledigt)' : '';
 }
-/* Prioritäts-Kreise (grün/gelb/rot) -> setzt das versteckte #fPrio */
+/* Prioritäts-Kreise P1–P5 -> setzt das versteckte #fPrio */
 function setPrioPicker(value) {
+  value = String(normPrio(value));
   document.getElementById('fPrio').value = value;
   document.querySelectorAll('#fPrioPicker .prio-dot').forEach(d => d.classList.toggle('active', d.dataset.prio === value));
-  const lbl = document.getElementById('fPrioLabel'); if (lbl) lbl.textContent = value;
+  const lbl = document.getElementById('fPrioLabel'); if (lbl) lbl.textContent = PRIO_NAMES[value] || '';
 }
 document.querySelectorAll('#fPrioPicker .prio-dot').forEach(d =>
   d.addEventListener('click', () => setPrioPicker(d.dataset.prio)));
@@ -1717,7 +1835,7 @@ function saveTicket() {
   const noteHtml = sanitizeHtml(document.getElementById('fNote').innerHTML);
   const data = {
     title: document.getElementById('fTitle').value.trim(),
-    prio: document.getElementById('fPrio').value,
+    prio: normPrio(document.getElementById('fPrio').value),
     deadline: document.getElementById('fDeadline').value,
     desc: descHtml,
     jira: document.getElementById('fJira').value.trim(),
@@ -1782,6 +1900,9 @@ function openSettings() {
   document.getElementById('setTips').checked = s.tips !== false;
   renderCatManager();
   document.getElementById('setUsage').textContent = sb && sbSession ? 'wird von Supabase verwaltet' : 'nur lokal (nicht angemeldet)';
+  document.getElementById('setAccountEmail').textContent = (sbSession && sbSession.user && sbSession.user.email) || 'nicht angemeldet';
+  document.getElementById('accountSection').querySelectorAll('#btnChangeEmail,#btnChangePass').forEach(b => b.disabled = !(sb && sbSession));
+  updateDinoPlayIcon();
   // Board-Verwaltung nur im angemeldeten (Supabase-)Modus
   const team = document.getElementById('teamSection');
   team.hidden = !(sb && sbSession && boardId);
@@ -1791,34 +1912,58 @@ function openSettings() {
     document.getElementById('shareOwner').hidden = !owner;
     document.getElementById('shareViewer').hidden = owner;
     document.getElementById('btnDeleteBoard').hidden = !owner;      // fremdes Board nicht löschbar
-    if (owner) {
-      document.getElementById('setShareCode').textContent = (b && b.share_code) || '–';
-      loadMembers();
-    }
+    if (owner) { loadShareCodes(); loadMembers(); }
+    else document.getElementById('shareRoleInfo').innerHTML = myRole === 'editor'
+      ? '✏️ Du kannst auf diesem geteilten Board <b>lesen und bearbeiten</b>.'
+      : '👁 Du hast auf diesem geteilten Board <b>Lesezugriff</b>.';
   }
   settingsOverlay.classList.add('open');
 }
 document.getElementById('btnNewBoard').onclick = createBoard;
 document.getElementById('btnDeleteBoard').onclick = deleteBoard;
 document.getElementById('btnJoinBoard').onclick = joinBoardByCode;
-document.getElementById('btnRotateShare').onclick = rotateShareCode;
 document.getElementById('btnLeaveShared').onclick = leaveSharedBoard;
-document.getElementById('btnCopyShare').onclick = () => {
-  const code = document.getElementById('setShareCode').textContent.trim();
+document.getElementById('btnRotateShare').onclick = () => rotateCode('share');
+document.getElementById('btnRotateEdit').onclick = () => rotateCode('edit');
+const copyCode = (elId) => {
+  const code = document.getElementById(elId).textContent.trim();
   if (code && code !== '–') navigator.clipboard?.writeText(code).then(() => toast('Code kopiert'), () => {});
 };
+document.getElementById('btnCopyShare').onclick = () => copyCode('setShareCode');
+document.getElementById('btnCopyEdit').onclick = () => copyCode('setEditCode');
+/* Codes stehen in board_codes (RLS: nur der Besitzer kann sie lesen) */
+async function loadShareCodes() {
+  const s1 = document.getElementById('setShareCode'), s2 = document.getElementById('setEditCode');
+  s1.textContent = '…'; s2.textContent = '…';
+  const { data, error } = await sb.from('board_codes').select('share_code,edit_code').eq('board_id', boardId).maybeSingle();
+  if (error || !data) { s1.textContent = '–'; s2.textContent = '–'; return; }
+  s1.textContent = data.share_code || '–';
+  s2.textContent = data.edit_code || '–';
+}
 async function loadMembers() {
   const root = document.getElementById('memberList');
   root.innerHTML = '<span style="font-size:12px;color:var(--text-weak)">lädt…</span>';
   const { data, error } = await sb.rpc('board_members_list', { b: boardId });
   if (error) { root.innerHTML = '<span style="font-size:12px;color:var(--red)">Fehler: ' + esc(error.message) + '</span>'; return; }
-  if (!data || !data.length) { root.innerHTML = '<span style="font-size:12px;color:var(--text-weak)">Noch niemand. Teile den Code oben.</span>'; return; }
+  if (!data || !data.length) { root.innerHTML = '<span style="font-size:12px;color:var(--text-weak)">Noch niemand. Teile einen der Codes oben.</span>'; return; }
   root.innerHTML = '';
   data.forEach(m => {
     const row = document.createElement('div');
     row.className = 'set-row';
-    row.innerHTML = '<span style="font-size:12px">👁 ' + esc(m.email || m.user_id) + '</span>' +
-      '<button type="button" class="btn btn-danger" style="padding:2px 8px;font-size:11px">Entfernen</button>';
+    row.innerHTML =
+      '<span style="font-size:12px">' + esc(m.email || m.user_id) + '</span>' +
+      '<span style="display:flex;gap:6px;align-items:center">' +
+        '<select class="member-role" title="Rolle ändern">' +
+          '<option value="viewer"' + (m.role !== 'editor' ? ' selected' : '') + '>👁 Lesen</option>' +
+          '<option value="editor"' + (m.role === 'editor' ? ' selected' : '') + '>✏️ Bearbeiten</option>' +
+        '</select>' +
+        '<button type="button" class="btn btn-danger" style="padding:2px 8px;font-size:11px">Entfernen</button>' +
+      '</span>';
+    row.querySelector('.member-role').onchange = async (e) => {
+      const { error: err } = await sb.rpc('set_member_role', { b: boardId, uid: m.user_id, r: e.target.value });
+      if (err) { alert('Rolle ändern fehlgeschlagen: ' + err.message); loadMembers(); return; }
+      toast(e.target.value === 'editor' ? '✏️ Darf jetzt bearbeiten' : '👁 Darf jetzt nur lesen');
+    };
     row.querySelector('button').onclick = () => removeMember(m.user_id, m.email);
     root.appendChild(row);
   });
@@ -1832,25 +1977,44 @@ async function joinBoardByCode() {
   document.getElementById('setJoinCode').value = '';
   await ensureBoards(); renderBoardSwitch();
   closeSettings(); setActiveBoard(data);
-  toast('👁 Board beigetreten (Lesezugriff)');
+  toast('Board beigetreten');
 }
-async function rotateShareCode() {
-  if (!confirm('Neuen Code generieren? Der alte Code funktioniert danach nicht mehr.')) return;
-  const { data, error } = await sb.rpc('rotate_share_code', { b: boardId });
+async function rotateCode(kind) {
+  const what = kind === 'edit' ? 'Bearbeiten-Code' : 'Lese-Code';
+  if (!confirm('Neuen ' + what + ' generieren? Der alte funktioniert danach nicht mehr.')) return;
+  const { data, error } = await sb.rpc('rotate_code', { b: boardId, kind });
   if (error) { alert('Fehlgeschlagen: ' + error.message); return; }
-  const b = myBoards.find(x => x.id === boardId); if (b) b.share_code = data;
-  document.getElementById('setShareCode').textContent = data;
-  toast('Neuer Teilen-Code erzeugt');
+  document.getElementById(kind === 'edit' ? 'setEditCode' : 'setShareCode').textContent = data;
+  toast('Neuer ' + what + ' erzeugt');
 }
 async function removeMember(uid, email) {
-  if (!confirm('Zugriff von „' + (email || uid) + '" entfernen?\nDer Teilen-Code wird dabei neu generiert.')) return;
-  const { data, error } = await sb.rpc('remove_member', { b: boardId, uid });
+  if (!confirm('Zugriff von „' + (email || uid) + '" entfernen?\nBeide Teilen-Codes werden dabei neu generiert.')) return;
+  const { error } = await sb.rpc('remove_member', { b: boardId, uid });
   if (error) { alert('Fehlgeschlagen: ' + error.message); return; }
-  const b = myBoards.find(x => x.id === boardId); if (b) b.share_code = data;
-  document.getElementById('setShareCode').textContent = data;
-  loadMembers();
-  toast('Zugriff entfernt, Code rotiert');
+  loadShareCodes(); loadMembers();
+  toast('Zugriff entfernt, Codes rotiert');
 }
+/* ---------- Konto: E-Mail & Passwort ändern (Supabase Auth) ---------- */
+document.getElementById('btnChangeEmail').onclick = async () => {
+  if (!sb || !sbSession) return;
+  const mail = prompt('Neue E-Mail-Adresse:', sbSession.user.email || '');
+  if (!mail || mail === sbSession.user.email) return;
+  const { error } = await sb.auth.updateUser({ email: mail.trim() });
+  if (error) { alert('E-Mail ändern fehlgeschlagen: ' + error.message); return; }
+  alert('Fast geschafft: Bitte bestätige die Änderung über die Links, die an die alte UND neue Adresse geschickt wurden.');
+};
+document.getElementById('btnChangePass').onclick = async () => {
+  if (!sb || !sbSession) return;
+  const p1 = prompt('Neues Passwort (mind. 8 Zeichen):');
+  if (!p1) return;
+  if (p1.length < 8) { alert('Bitte mindestens 8 Zeichen.'); return; }
+  const p2 = prompt('Neues Passwort wiederholen:');
+  if (p1 !== p2) { alert('Die Passwörter stimmen nicht überein.'); return; }
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  if (error) { alert('Passwort ändern fehlgeschlagen: ' + error.message); return; }
+  toast('🔒 Passwort geändert');
+};
+document.getElementById('setDinoPlay').onclick = toggleDinoPlay;
 async function leaveSharedBoard() {
   if (!confirm('Dieses geteilte Board verlassen?')) return;
   const { error } = await sb.rpc('leave_board', { b: boardId });
@@ -1989,7 +2153,7 @@ function importJSON(file) {
       setColumnsFromSettings(); migrateTickets(); ensureCategories(); save();
       kanbanSortKey = state.settings.kanbanSort;
       document.getElementById('kanbanSort').value = kanbanSortKey;
-      applyBoardConfig(); render(); applyGimmick(); applyTips(); renderNotes();
+      applyBoardConfig(); render(); applyGimmick(); applyTips(); renderNotes(); openTicketFromHash();
       alert(state.tickets.length + ' Tickets importiert — inkl. Säulen, Boardname und Voreinstellungen. Bestehende Daten wurden ersetzt.');
     } catch (e) { alert('Import fehlgeschlagen: keine gültige JSON-Datei.'); }
   };
@@ -2009,6 +2173,29 @@ function setView(v) {
   document.getElementById('listWrap').hidden = v !== 'list';
   render();
 }
+
+/* ---------- Ticket-Deep-Links: #t=<id> öffnet das Ticket in der Kanban-Ansicht ---------- */
+function ticketUrl(id) { return location.origin + location.pathname + '#t=' + encodeURIComponent(id); }
+function copyTicketLink(id) {
+  const url = ticketUrl(id);
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(
+    () => toast('🔗 Ticket-Link kopiert'),
+    () => { prompt('Link zum Ticket:', url); }
+  );
+}
+let pendingTicketHash = null;   // Ticket-id aus der URL, falls das Board noch lädt
+function openTicketFromHash() {
+  const m = (location.hash || '').match(/^#t=([\w-]+)/);
+  if (!m) return;
+  const id = decodeURIComponent(m[1]);
+  const t = state.tickets.find(x => x.id === id);
+  if (!t) { pendingTicketHash = id; return; }             // Board evtl. noch nicht geladen
+  pendingTicketHash = null;
+  if (view !== 'kanban') setView('kanban');               // Deep-Link öffnet immer in Kanban
+  openModal(id);
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}  // Hash aufräumen
+}
+window.addEventListener('hashchange', openTicketFromHash);
 
 document.getElementById('btnKanban').onclick = () => setView('kanban');
 document.getElementById('btnList').onclick = () => setView('list');
@@ -2366,12 +2553,11 @@ let boardId = null;         // aktives Board
 let myBoards = [];          // alle erreichbaren Boards (eigene + geteilte)
 let boardChannel = null;
 let appStarted = false;
-let boardReadOnly = false;  // true, wenn das aktive Board nur geteilt/lesbar ist (nicht eigenes)
+let boardReadOnly = false;  // true = aktives Board ist nur lesbar (Rolle 'viewer')
+let myRole = 'owner';       // 'owner' | 'editor' | 'viewer' auf dem aktiven Board
 const OFFLINE_PROFILE = { focus: true, reportAll: true, housekeeper: true };
 
 function applyProfile(p) {
-  document.getElementById('btnFocus').hidden = !p.focus;
-  document.getElementById('btnReportAll').hidden = !p.reportAll;
   document.getElementById('btnHousekeeper').hidden = !p.housekeeper;
 }
 function refreshStatusOptions() {
@@ -2558,7 +2744,7 @@ async function imgGetC(id) {
 
 /* ---------- Board-Verwaltung ---------- */
 async function ensureBoards() {
-  const { data, error } = await sb.from('boards').select('id,title,data,share_code,owner').order('updated_at', { ascending: false });
+  const { data, error } = await sb.from('boards').select('id,title,data,owner').order('updated_at', { ascending: false });
   if (error) throw error;
   myBoards = data || [];
   if (!myBoards.length) {
@@ -2580,14 +2766,23 @@ function renderBoardSwitch() {
 function setActiveBoard(id) {
   const b = myBoards.find(x => x.id === id) || myBoards[0];
   boardId = b.id;
-  boardReadOnly = !!(sbSession && b.owner && b.owner !== sbSession.user.id); // fremdes (geteiltes) Board = nur Lesen
+  // Fremdes Board: erst mal Nur-Lesen; die echte Rolle (viewer/editor) kommt async nach.
+  const foreign = !!(sbSession && b.owner && b.owner !== sbSession.user.id);
+  boardReadOnly = foreign;
+  myRole = foreign ? 'viewer' : 'owner';
+  if (foreign && sb) {
+    sb.rpc('my_board_role', { b: b.id }).then(({ data }) => {
+      if (data === 'editor' && boardId === b.id) { myRole = 'editor'; boardReadOnly = false; applyReadOnly(); render(); }
+      else if (data) { myRole = data; }
+    }).catch(() => {});
+  }
   loadBoardData(b);
   kanbanSortKey = state.settings.kanbanSort;
   document.getElementById('kanbanSort').value = kanbanSortKey;
   applyBoardConfig();
   applyReadOnly();
   setView(state.settings.defaultView || 'kanban');
-  applyGimmick(); applyTips(); renderNotes();
+  applyGimmick(); applyTips(); renderNotes(); openTicketFromHash();
   renderBoardSwitch();
   subscribeBoard();
   setSync(true);
@@ -2615,7 +2810,7 @@ async function startSupabase(session) {
     kanbanSortKey = state.settings.kanbanSort;
     document.getElementById('kanbanSort').value = kanbanSortKey;
     setView(state.settings.defaultView || 'kanban');
-    applyGimmick(); applyTips(); renderNotes();
+    applyGimmick(); applyTips(); renderNotes(); openTicketFromHash();
     setSync(false);
   }
 }
@@ -2630,7 +2825,7 @@ function startOffline() {
   kanbanSortKey = state.settings.kanbanSort;
   document.getElementById('kanbanSort').value = kanbanSortKey;
   setView(state.settings.defaultView || 'kanban');
-  applyGimmick(); applyTips(); renderNotes();
+  applyGimmick(); applyTips(); renderNotes(); openTicketFromHash();
   setSync(false);
 }
 
@@ -2775,76 +2970,9 @@ async function runHousekeeper() {
 }
 document.getElementById('btnHousekeeper').onclick = runHousekeeper;
 
-/* Fokus: Claude liest die aktiven Tickets und sagt in einem Satz,
-   worum sich der Nutzer jetzt kümmern soll. */
-async function runFocus() {
-  const btn = document.getElementById('btnFocus');
-  if (!claudeReady()) return;
-  const tickets = state.tickets
-    .filter(t => !DONE.includes(t.status))
-    .map(t => ({
-      titel: t.title,
-      status: t.status,
-      prio: t.prio,
-      deadline: t.deadline,
-      ueberfaellig: isOverdue(t),
-      heuteFaellig: isToday(t),
-      kategorien: t.cats,
-      beschreibung: stripHtml(t.desc).slice(0, 300)
-    }));
-  if (!tickets.length) { toast('Keine aktiven Tickets — nichts zu tun 🎉'); return; }
-  btn.disabled = true; btn.textContent = '🚀 denkt…';
-  try {
-    const res = await cloudFetch('/focus', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ heute: todayStr(), tickets })
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const out = await res.json();
-    document.getElementById('focusText').textContent = out.fokus || 'Keine Empfehlung erhalten.';
-    document.getElementById('focusBanner').hidden = false;
-  } catch (e) {
-    alert('Fokus fehlgeschlagen: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = '🚀 Fokus';
-  }
-}
-document.getElementById('btnFocus').onclick = runFocus;
-document.getElementById('btnFocusClose').onclick = () => document.getElementById('focusBanner').hidden = true;
-
-/* Report: fasst ausschließlich erledigte Tickets (letzte Säule) zusammen */
+/* Fokus- und Report-Buttons wurden aus dem Header entfernt (bewusst reduziert).
+   Der Report-Dialog bleibt für den Housekeeper erhalten. */
 const reportOverlay = document.getElementById('reportOverlay');
-async function fetchReport(btnId, route, tickets, title) {
-  const btn = document.getElementById(btnId);
-  if (!claudeReady()) return;
-  if (!tickets.length) { toast('Keine passenden Tickets.'); return; }
-  const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '… erstellt';
-  try {
-    const res = await cloudFetch(route, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ heute: todayStr(), tickets })
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const out = await res.json();
-    document.getElementById('reportTitle').textContent = title;
-    document.getElementById('reportText').textContent = out.report || 'Kein Report erhalten.';
-    reportOverlay.classList.add('open');
-  } catch (e) {
-    alert('Report fehlgeschlagen: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = orig;
-  }
-}
-document.getElementById('btnReportAll').onclick = () => fetchReport('btnReportAll', '/report-all',
-  state.tickets.filter(t => DONE.includes(t.status)).map(t => ({
-    titel: t.title, kategorien: t.cats,
-    beschreibung: stripHtml(t.desc).slice(0, 250),
-    offenTage: (t.createdAt && t.completedAt)
-      ? Math.max(0, Math.round((new Date(t.completedAt) - new Date(t.createdAt)) / 86400000)) : null
-  })), '🗂 Report — nur erledigte Tickets (Säule „' + DONE[0] + '“)');
 document.querySelectorAll('[data-close-report]').forEach(b => b.onclick = () => reportOverlay.classList.remove('open'));
 reportOverlay.addEventListener('click', e => { if (e.target === reportOverlay) reportOverlay.classList.remove('open'); });
 document.getElementById('btnReportCopy').onclick = () => {
@@ -3075,6 +3203,12 @@ const DINO = (() => {
     ['....##', '...###', '..####', '.####.', '..##..', '..a.b.', '..a.b.'],                                                                                     // Urvogel
     ['.#...#.', '.#####.', '#######', '#######', '.a...b.', 'a.....b'],                                                                                         // Frosch
     ['.....##.', '..#######', '.########', '########.', '..a#.#b.', '..a..b..'],                                                                                // Pteranodon (am Boden)
+    ['..........##', '........####', '.........###', '.........##.', '....######..', '..#########.', '..########..', '..a##...#b..', '..a.....b...'],           // Parasaurolophus (Kamm)
+    ['....#.#.#.#...', '...#########..', '..##########..', '.############.', '.############.', '..##########..', '..a.#....#b...', '..a.#....#b...'],           // Spinosaurus (Segel)
+    ['...#.#.#..', '..#######.', '.#########', '.#########', '.a##..##b.', '.a......b.'],                                                                        // Dimetrodon (Ur-Segelechse)
+    ['.......#.#', '.......###', '......####', '#....#####', '########..', '.######...', '.a.##.b...', '.a....b...'],                                            // Säbelzahnkatze
+    ['..............##', '.............###', '.............#..', '............##..', '#.........###...', '.##.....#####...', '..###########...', '...#########....', '...a#....#b.....', '...a#....#b.....'], // Diplodocus
+    ['......#.##', '......####', '......###.', '#.....##..', '.#..####..', '..######..', '...####...', '...a..b...', '..aa..b...'],                              // Dilophosaurus
   ];
   const VARIANTS = [];
   SPRITES.forEach(sp => [2, 3].forEach(px => [0, 1].forEach(shade => VARIANTS.push({ sp, px, shade }))));
@@ -3082,7 +3216,8 @@ const DINO = (() => {
 
   // Landschaft in Parallax-Ebenen: ferne Bergkette (far, hell/langsam),
   // nahe Schneeberge (near, dunkel/schnell, Beispiel-Look), Vulkan-Highlight.
-  const PLANTS = ['tree', 'leaf2', 'pine', 'cycad', 'deadtree', 'fern', 'fernbig', 'grass', 'tallgrass', 'reed', 'rock', 'rock2', 'boulder', 'shrub', 'flower', 'mushroom', 'log', 'sapling'];
+  const PLANTS = ['tree', 'leaf2', 'pine', 'cycad', 'deadtree', 'fern', 'fernbig', 'grass', 'tallgrass', 'reed', 'rock', 'rock2', 'boulder', 'shrub', 'flower', 'mushroom', 'log', 'sapling',
+                  'palm', 'palm', 'horsetail', 'ginkgo', 'flowerpatch'];  // neue Arten (Palme etwas häufiger)
 
   let running = true, started = false, rafId = null, lastTs = 0, nowTs = 0;
   let curX = -999, curY = -999;   // Mauszeiger im Canvas (Tiere reagieren)
@@ -3093,6 +3228,7 @@ const DINO = (() => {
   const SCENES = ['run', 'space'];
   let mode = 'run';
   let stars = [], shooters = [], nextShoot = 0, rocket = null, ufo = null, nextFlyby = 0;
+  let ship = null, shower = null, nextShower = 0;          // Raumschiff-Cruiser + Meteorschauer
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -3240,6 +3376,30 @@ const DINO = (() => {
       R(o.x, groundY - 2 * s, 8 * s, 2 * s); R(o.x + 7 * s, groundY - 2.5 * s, s, 2.5 * s);
     } else if (k === 'sapling') { // Setzling
       r(1.5 * s, 4 * s, s, 4 * s); R(o.x, groundY - 5 * s, s, s); R(o.x + 2 * s, groundY - 6 * s, s, s);
+    } else if (k === 'palm') { // Urzeit-Palme: schlanker gebogener Stamm, Wedel-Krone
+      r(2.6 * s, 3 * s, 1.2 * s, 3 * s); r(3 * s, 6 * s, 1.2 * s, 3 * s); r(3.4 * s, 9 * s, 1.2 * s, 3 * s);
+      R(o.x + 0.4 * s, groundY - 12.4 * s, 3 * s, s); R(o.x + 4.6 * s, groundY - 12.4 * s, 3 * s, s);          // Seitenwedel
+      R(o.x - 0.6 * s, groundY - 11.4 * s, 2.4 * s, s); R(o.x + 6.2 * s, groundY - 11.4 * s, 2.4 * s, s);      // äußere Wedel (hängend)
+      R(o.x + 2.4 * s, groundY - 13.4 * s, 3.2 * s, s);                                                        // Krone oben
+      R(o.x + 1.2 * s, groundY - 10.6 * s, 1.6 * s, s); R(o.x + 5.2 * s, groundY - 10.6 * s, 1.6 * s, s);      // Wedelspitzen fallen ab
+    } else if (k === 'horsetail') { // Schachtelhalm: segmentierte Ur-Stängel
+      for (let i = 0; i < 3; i++) {
+        const hx = i * 2 * s, hh = (6 + (i % 2) * 2) * s;
+        r(hx, hh, s, hh);
+        for (let seg = 1; seg <= hh / (2 * s); seg++) R(o.x + hx - 0.5 * s, groundY - seg * 2 * s, 2 * s, 0.6 * s); // Ringe
+      }
+    } else if (k === 'ginkgo') { // Ginkgo: kompakter Stamm, fächerförmige Stufen-Krone
+      r(2.6 * s, 5 * s, 1.4 * s, 5 * s);
+      R(o.x + 1.6 * s, groundY - 7 * s, 3.4 * s, 1.2 * s);
+      R(o.x + 0.6 * s, groundY - 8.4 * s, 5.4 * s, 1.4 * s);
+      R(o.x - 0.4 * s, groundY - 10 * s, 7.4 * s, 1.6 * s);      // breiteste Fächer-Ebene
+      R(o.x + 1 * s, groundY - 11.2 * s, 4.6 * s, 1.2 * s);
+    } else if (k === 'flowerpatch') { // kleine Blumenwiese (mehrere Blüten)
+      for (let i = 0; i < 3; i++) {
+        const fx = i * 2.4 * s, fh = (3 + (i % 2)) * s;
+        r(fx + 0.5 * s, fh, 0.6 * s, fh);
+        R(o.x + fx, groundY - fh - s, 1.6 * s, s); R(o.x + fx + 0.5 * s, groundY - fh - 1.8 * s, 0.6 * s, s);
+      }
     }
   }
   // Berge in Pixel-Spalten (stufige Silhouette wie im Beispiel, kein Antialiasing-Flackern)
@@ -3354,21 +3514,45 @@ const DINO = (() => {
        von beiden — eine Rakete (Bogenbahn über die ganze Breite, Richtung wechselnd) ODER ein
        UFO (immer kerzengerade von links/rechts). Raketen & UFOs nutzen die ganze Breite. ---------- */
   const TAU = Math.PI * 2;
+  /* Echte Sternbild-Formen (normalisiert), werden zufällig am Himmel platziert */
+  const CONSTELLATIONS = [
+    { name: 'Wagen',      pts: [[0, .30], [.18, .22], [.36, .20], [.52, .28], [.56, .52], [.82, .58], [.86, .32]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,3]] },
+    { name: 'Kassiopeia', pts: [[0, .42], [.22, .18], [.46, .38], [.72, .12], [.95, .30]], lines: [[0,1],[1,2],[2,3],[3,4]] },
+    { name: 'Orion',      pts: [[.12, .05], [.72, .10], [.34, .45], [.46, .50], [.58, .55], [.18, .92], [.82, .88]], lines: [[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]] },
+    { name: 'Schwan',     pts: [[.5, 0], [.5, .40], [.10, .55], [.90, .30], [.5, .95]], lines: [[0,1],[1,2],[1,3],[1,4]] },
+  ];
+  let constLines = [];                                     // [{a,b}] Indizes in stars
   function seedSpace() {
-    stars = [];
-    const n = 84;                                          // ~20 % mehr Sterne
-    for (let i = 0; i < n; i++) stars.push({
-      x: Math.random(), y: Math.random(),
-      s: Math.random() < 0.18 ? 2 : 1,                     // wenige größere Sterne
+    stars = []; constLines = [];
+    const mkStar = (x, y, o) => stars.push(Object.assign({
+      x, y,
+      s: 1, glow: false,
       tw: 1.2 + Math.random() * 2.6, ph: Math.random() * TAU,        // Funkeln
-      b: 0.35 + Math.random() * 0.6, blue: Math.random() < 0.25,
-      // super subtiles Wandern (Lissajous, je Stern eigene Frequenz/Phase) -> Formation lebt leise
-      ax: 2 + Math.random() * 4, ay: 1 + Math.random() * 2,
+      b: 0.30 + Math.random() * 0.55,
+      tint: Math.random() < 0.22 ? 'b' : (Math.random() < 0.14 ? 'w' : 'n'),  // blau / warm / neutral
+      ax: 2 + Math.random() * 4, ay: 1 + Math.random() * 2,          // super subtiles Wandern
       fx: 0.05 + Math.random() * 0.12, fy: 0.04 + Math.random() * 0.1,
       phx: Math.random() * TAU, phy: Math.random() * TAU
+    }, o));
+    // Hintergrund-Sternfeld: viele feine, wenige helle, sehr wenige mit Glanz-Kreuz
+    for (let i = 0; i < 96; i++) {
+      const r = Math.random();
+      mkStar(Math.random(), Math.random(),
+        r < 0.82 ? {} : r < 0.96 ? { s: 2, b: 0.5 + Math.random() * 0.4 } : { s: 2, glow: true, b: 0.85, tw: 0.5 });
+    }
+    // Zwei zufällige Sternbilder: hellere, ruhig funkelnde Sterne + hauchzarte Linien
+    const picks = [...CONSTELLATIONS].sort(() => Math.random() - 0.5).slice(0, 2);
+    picks.forEach((c, ci) => {
+      const scale = 0.13 + Math.random() * 0.06;
+      const ox = 0.06 + Math.random() * 0.55 + ci * 0.25, oy = 0.08 + Math.random() * 0.45;
+      const base = stars.length;
+      c.pts.forEach(([px, py]) => mkStar(Math.min(0.97, ox + px * scale), Math.min(0.92, oy + py * scale * 1.6),
+        { s: 2, b: 0.75, tw: 0.4 + Math.random() * 0.4, ax: 1, ay: 0.6 }));   // Sternbild wandert kaum
+      c.lines.forEach(([a, b]) => constLines.push({ a: base + a, b: base + b }));
     });
-    shooters = []; rocket = null; ufo = null;
+    shooters = []; rocket = null; ufo = null; ship = null; shower = null;
     nextShoot = nowTs + 1600 + Math.random() * 2600;
+    nextShower = nowTs + 100000 + Math.random() * 140000;  // Meteorschauer: selten, ruhig
     nextFlyby = nowTs + 90000 + Math.random() * 60000;     // erstes Überfliegen nach ~1,5–2,5 Min
   }
   // Sternschnuppe in ZUFÄLLIGER Richtung über die ganze Breite (optional an Klickposition)
@@ -3424,16 +3608,44 @@ const DINO = (() => {
     g.addColorStop(0, '#05060f'); g.addColorStop(1, '#0e1026');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     const tsec = ts * 0.001;
-    // Funkelnde Sterne, super subtil wandernd (volle Breite)
-    stars.forEach(st => {
+    // aktuelle Positionen (für Sterne UND Sternbild-Linien)
+    const pos = stars.map(st => [st.x * w + Math.sin(tsec * st.fx + st.phx) * st.ax,
+                                 st.y * h + Math.sin(tsec * st.fy + st.phy) * st.ay]);
+    // Sternbild-Linien: hauchzart, ruhig — sie verbinden die (leicht wandernden) Sterne
+    if (constLines.length) {
+      ctx.strokeStyle = 'rgba(150,175,230,0.10)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      constLines.forEach(l => { ctx.moveTo(pos[l.a][0], pos[l.a][1]); ctx.lineTo(pos[l.b][0], pos[l.b][1]); });
+      ctx.stroke();
+    }
+    // Funkelnde Sterne (Größenklassen, dezente Farbtemperatur, seltene Glanz-Kreuze)
+    stars.forEach((st, i) => {
       const tw = 0.45 + 0.55 * Math.sin(tsec * st.tw + st.ph);
       const a = Math.max(0.05, Math.min(1, st.b * tw));
-      const px = st.x * w + Math.sin(tsec * st.fx + st.phx) * st.ax;
-      const py = st.y * h + Math.sin(tsec * st.fy + st.phy) * st.ay;
-      ctx.fillStyle = st.blue ? 'rgba(180,205,255,' + a.toFixed(3) + ')' : 'rgba(255,255,255,' + a.toFixed(3) + ')';
+      const px = pos[i][0], py = pos[i][1];
+      ctx.fillStyle = st.tint === 'b' ? 'rgba(175,200,255,' + a.toFixed(3) + ')'
+                    : st.tint === 'w' ? 'rgba(255,235,200,' + a.toFixed(3) + ')'
+                    : 'rgba(255,255,255,' + a.toFixed(3) + ')';
       R(px, py, st.s, st.s);
+      if (st.glow && tw > 0.72) {          // heller Stern: kleines Funkel-Kreuz
+        ctx.fillStyle = 'rgba(255,255,255,' + (a * 0.45).toFixed(3) + ')';
+        R(px - 2, py + 0.5, 2, 1); R(px + st.s, py + 0.5, 2, 1);
+        R(px + 0.5, py - 2, 1, 2); R(px + 0.5, py + st.s, 1, 2);
+      }
     });
-    // Sternschnuppen
+    // Meteorschauer: seltenes, ruhiges Ereignis — 3–6 Schnuppen in ähnlicher Richtung
+    if (running && !shower && ts > nextShower) {
+      shower = { left: 3 + (Math.random() * 4 | 0), next: ts, ang: TAU * 0.12 + Math.random() * TAU * 0.2 };
+      nextShower = ts + 200000 + Math.random() * 200000;
+    }
+    if (running && shower && ts >= shower.next) {
+      const sp = 120 + Math.random() * 60, jitter = (Math.random() - 0.5) * 0.25;
+      shooters.push({ x: Math.random() * w, y: h * (0.05 + Math.random() * 0.3),
+        vx: Math.cos(shower.ang + jitter) * sp, vy: Math.sin(shower.ang + jitter) * sp, life: 1, len: 9 + (Math.random() * 6 | 0) });
+      shower.next = ts + 260 + Math.random() * 420;
+      if (--shower.left <= 0) shower = null;
+    }
+    // Einzelne Sternschnuppen
     if (running && ts > nextShoot) { spawnShooter(); nextShoot = ts + 3200 + Math.random() * 5200; }
     if (running) shooters.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 0.55; });
     shooters = shooters.filter(s => s.life > 0 && s.x > -40 && s.x < w + 40 && s.y > -40 && s.y < h + 40);
@@ -3446,9 +3658,13 @@ const DINO = (() => {
       ctx.fillStyle = 'rgba(255,255,255,' + Math.max(0, s.life).toFixed(3) + ')';
       R(s.x, s.y, 2, 2);
     });
-    // Selten: alle ~5 Min EINES von beiden (Rakete ODER UFO), nur wenn gerade keins unterwegs ist
-    if (running && !rocket && !ufo && ts > nextFlyby) {
-      if (Math.random() < 0.6) spawnRocket(w, h); else spawnSpaceUfo(w, h);
+    // Selten: alle ~5 Min EIN Ereignis (Rakete, UFO oder Raumschiff-Cruiser)
+    if (running && !rocket && !ufo && !ship && ts > nextFlyby) {
+      const r = Math.random();
+      if (r < 0.45) spawnRocket(w, h);
+      else if (r < 0.72) spawnSpaceUfo(w, h);
+      else { const dir = Math.random() < 0.5 ? 1 : -1;      // Cruiser: groß, langsam, majestätisch
+        ship = { dir, x: dir > 0 ? -34 : w + 34, y: h * (0.15 + Math.random() * 0.3), v: w / (14 + Math.random() * 6) }; }
       nextFlyby = ts + 270000 + Math.random() * 90000;     // danach 4,5–6 Min
     }
     // Rakete auf Bogenbahn (volle Breite), Nase entlang der Flugrichtung
@@ -3471,6 +3687,20 @@ const DINO = (() => {
       if (running) ufo.x += ufo.dir * ufo.v * dt;
       drawSpaceUfo(ufo.x, ufo.y, ts);
       if (ufo.x < -20 || ufo.x > w + 20) ufo = null;
+    }
+    // Raumschiff-Cruiser: lange Silhouette, beleuchtete Fenster, Triebwerksglühen
+    if (ship) {
+      if (running) ship.x += ship.dir * ship.v * dt;
+      const x = Math.round(ship.x), y = Math.round(ship.y), d = ship.dir;
+      ctx.fillStyle = '#39404f'; R(x - 14, y, 28, 4);                       // Rumpf
+      ctx.fillStyle = '#4a5263'; R(x - 8, y - 2, 14, 2);                    // Aufbau
+      ctx.fillStyle = '#39404f'; R(x + d * 14, y + 1, d * 3, 2);            // Bug
+      const eng = (Math.sin(ts * 0.02) + 1) / 2;                            // Triebwerk pulsiert sanft
+      ctx.fillStyle = 'rgba(120,190,255,' + (0.5 + eng * 0.4).toFixed(2) + ')';
+      R(x - d * 16, y + 1, -d * (2 + eng * 2), 2);
+      ctx.fillStyle = '#ffd98a';                                            // warme Fensterreihe
+      for (let i = -11; i <= 9; i += 4) R(x + i, y + 1, 2, 1);
+      if (ship.x < -40 || ship.x > w + 40) ship = null;
     }
   }
   function frame(ts) {
@@ -3799,31 +4029,19 @@ function applyGimmick() {
   else { DINO.stop(); document.getElementById('spaceCv').style.display = 'none'; }  // aus -> auch Weltall-Hintergrund weg
   updateDinoPlayIcon();
 }
-// Quick-Toggle (Auge): blendet nur die Animation aus, Buttons bleiben
+// Steuerung des Pixel-Laufs liegt in den EINSTELLUNGEN (Header bewusst clean).
 let dinoHidden = false;
-// Ein Knopf für Play/Pause: Symbol & Tooltip folgen dem Zustand
 function updateDinoPlayIcon() {
-  const b = document.getElementById('dinoPlay');
+  const b = document.getElementById('setDinoPlay');
   if (!b) return;
   const playing = DINO.running() && !dinoHidden;
-  b.textContent = playing ? '⏸' : '▶';
-  b.title = playing ? 'Pause' : 'Weiter';
+  b.textContent = playing ? '⏸ Pause' : '▶ Abspielen';
 }
-document.getElementById('dinoPlay').onclick = () => {
-  if (dinoHidden) toggleDinoEye();              // ausgeblendet -> wieder zeigen und laufen lassen
-  else if (DINO.running()) DINO.pause();
-  else DINO.resume();
-  updateDinoPlayIcon();
-};
-function toggleDinoEye() {
-  dinoHidden = !dinoHidden;
-  const vis = dinoHidden ? 'hidden' : 'visible';
-  document.getElementById('dinoCv').style.visibility = vis;
-  document.getElementById('spaceCv').style.visibility = vis;   // im Dark Mode den Weltall-Hintergrund mit ein-/ausblenden
-  if (dinoHidden) DINO.pause(); else DINO.resume();
+function toggleDinoPlay() {
+  if (dinoHidden) { dinoHidden = false; document.getElementById('dinoCv').style.visibility = 'visible'; document.getElementById('spaceCv').style.visibility = 'visible'; }
+  if (DINO.running()) DINO.pause(); else DINO.resume();
   updateDinoPlayIcon();
 }
-document.getElementById('dinoEye').onclick = toggleDinoEye;
 
 /* ============================================================
    OFFICE-TIPPS — Gesundheit, Haltung, Motivation, Humor
