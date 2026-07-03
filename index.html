@@ -401,8 +401,7 @@ tr.row.done td{opacity:.65}
 tr.row.done-final td{opacity:.4}
 .empty{padding:24px; text-align:center; color:var(--text-weak)}
 /* ---------- Prio-Liste (gruppiert nach P1–P4, Zeilen mit klickbaren Prio-Punkten) ---------- */
-.prio-list{display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--border);
-  border-radius:12px; padding:6px; box-shadow:var(--shadow)}
+.prio-list{display:flex; flex-direction:column; gap:5px; padding:2px}
 .plist-head{display:flex; align-items:center; gap:8px; padding:10px 10px 6px; font-size:11px; font-weight:700;
   text-transform:uppercase; letter-spacing:.06em; color:var(--text-weak); font-family:var(--font-mono)}
 .plist-head .plist-dot{width:8px; height:8px; border-radius:50%}
@@ -412,14 +411,21 @@ tr.row.done-final td{opacity:.4}
 /* Gemeinsames Spalten-Raster: Prio | Titel | Beschreibung | Deadline | Status | Kategorie */
 .plist-grid{display:grid; align-items:center; gap:10px; padding:6px 10px; min-width:760px;
   grid-template-columns:88px minmax(150px,1.1fr) minmax(170px,1.4fr) 118px minmax(110px,150px) minmax(96px,130px)}
-.plist-cols{padding:8px 10px 4px; font-size:10.5px; font-weight:600; text-transform:uppercase;
-  letter-spacing:.07em; color:var(--text-weak); font-family:var(--font-mono);
-  border-bottom:1px solid var(--border); border-radius:0}
-.plist-row{border-radius:8px}
+.plist-cols{padding:6px 11px 2px; font-size:10.5px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--text-weak); font-family:var(--font-mono)}
+/* Jede Zeile als klar abgegrenzte Karte: Rahmen + sehr subtiler Schatten (Best Practice:
+   1px Hairline trennt, der Schatten gibt minimale Tiefe — Augen müssen nicht raten) */
+.plist-row{border-radius:10px; background:var(--card); border:1px solid var(--border);
+  box-shadow:0 1px 2px rgba(15,22,40,.05);
+  transition:border-color .1s ease, box-shadow .1s ease}
+.plist-row:hover{border-color:color-mix(in srgb, var(--blue) 40%, var(--border));
+  box-shadow:0 2px 6px rgba(15,22,40,.09)}
+:root[data-theme="dark"] .plist-row{box-shadow:0 1px 3px rgba(0,0,0,.35)}
 .plist-title-cell{display:flex; align-items:center; gap:5px; min-width:0}
 .li-desc{font-size:12px; color:var(--text-weak); line-height:1.35;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
-.plist-row:hover{background:var(--blue-bg)}
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; cursor:text}
+.li-desc-edit{min-width:0; width:100%; border:1px solid var(--blue); border-radius:6px;
+  background:var(--card); padding:3px 6px; font-size:12px; color:var(--text); outline:none}
 .plist-row.due-today{background:var(--today-bg)} .plist-row.overdue{background:var(--overdue-bg)}
 .plist-row.done{opacity:.55}
 /* Die 4 Prio-Punkte: aktueller gefüllt, andere hohl — ein Klick steckt um */
@@ -629,7 +635,7 @@ tr.row.done-final td{opacity:.4}
     style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
   <span class="header-meta" id="todayDate"></span>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
-  <button class="badge-today" id="dueTodayBadge" title="Klick: auf heute fällig filtern">0 heute fällig</button>
+  <button class="badge-today" id="dueTodayBadge" title="Klick: heute fällige und überfällige Tickets filtern">0 fällig</button>
   <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: fällig in den nächsten 7 Tagen">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: fällig in den nächsten 30 Tagen">0 in 30 Tagen</button>
   <div id="dinoWrap">
@@ -682,11 +688,8 @@ tr.row.done-final td{opacity:.4}
     <option value="3">P3 — Normal</option><option value="4">P4 — Niedrig</option>
   </select>
   <div class="chips" id="quickChips">
-    <button class="chip" data-q="today">Heute fällig</button>
-    <button class="chip" data-q="overdue">Überfällig</button>
-    <button class="chip" data-q="week">Diese Woche</button>
-    <button class="chip" data-q="month">Nächste 30 Tage</button>
     <button class="chip" data-q="active">Aktiv</button>
+    <button class="chip" data-q="overdue">Überfällig</button>
   </div>
   <span class="spacer"></span>
   <button class="chip undo-btn" title="Rückgängig — Strg+Z" disabled>↶</button>
@@ -1232,6 +1235,7 @@ function dueWithin(t, n) {
 function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return d + '.' + m + '.' + y; }
 function isOverdue(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline < todayStr(); }
 function isToday(t)       { return !!t.deadline && !DONE.includes(t.status) && t.deadline === todayStr(); }
+function isDue(t)         { return isOverdue(t) || isToday(t); }   // „fällig" = heute fällig ODER überfällig
 function isThisWeek(t)    { return dueWithin(t, 7); }    // fällig in den nächsten 7 Tagen
 function isNext30Days(t)  { return dueWithin(t, 30); }   // fällig in den nächsten 30 Tagen
 function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
@@ -1358,7 +1362,7 @@ function tickClock() {
 function renderHeader() {
   tickClock();
   const cur = view === 'kanban' ? kanbanQuick : quick;
-  [['dueTodayBadge', isToday, ' heute fällig', 'today'],
+  [['dueTodayBadge', isDue, ' fällig', 'today'],
    ['dueWeekBadge', isThisWeek, ' diese Woche', 'week'],
    ['dueMonthBadge', isNext30Days, ' in 30 Tagen', 'month']
   ].forEach(([id, fn, label, q]) => {
@@ -1380,7 +1384,7 @@ function renderKanban() {
     let items = state.tickets.filter(t => t.status === status && !isHidden(t));
     // Aktive Suche übersteuert die Fälligkeits-Schnellfilter (man sucht ja gezielt)
     if (!kanbanSearch) {
-      if (kanbanQuick === 'today') items = items.filter(isToday);
+      if (kanbanQuick === 'today') items = items.filter(isDue);
       else if (kanbanQuick === 'week') items = items.filter(isThisWeek);
       else if (kanbanQuick === 'month') items = items.filter(isNext30Days);
     }
@@ -1578,7 +1582,7 @@ function renderList() {
     (!fp || t.prio === parseInt(fp, 10)) &&
     (!globalCat || t.cats.includes(globalCat)) &&
     (!q || t.title.toLowerCase().includes(q) || stripHtml(t.desc).toLowerCase().includes(q)) &&
-    (searching || quick !== 'today'   || isToday(t)) &&
+    (searching || quick !== 'today'   || isDue(t)) &&
     (searching || quick !== 'overdue' || isOverdue(t)) &&
     (searching || quick !== 'week'    || isThisWeek(t)) &&
     (searching || quick !== 'month'   || isNext30Days(t)) &&
@@ -1641,6 +1645,21 @@ function listRowEl(t) {
   row.querySelector('.plist-title-cell').appendChild(open);
   const dl = row.querySelector('.li-deadline');
   dl.addEventListener('change', () => { if (!requireEdit()) { dl.value = t.deadline; return; } if (dl.value) { t.deadline = dl.value; save(); renderList(); } });
+  // Beschreibung: Doppelklick -> Textfeld, Enter/Blur speichert
+  const de = row.querySelector('.li-desc');
+  de.addEventListener('dblclick', () => {
+    if (!requireEdit()) return;
+    const inp = document.createElement('input');
+    inp.className = 'li-desc-edit'; inp.maxLength = 500;
+    inp.value = stripHtml(t.desc || '');
+    de.replaceWith(inp); inp.focus();
+    const done = (saveIt) => {
+      if (saveIt) { t.desc = esc(inp.value.trim()).replace(/\n/g, '<br>'); save(); }
+      renderList();
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); });
+    inp.addEventListener('blur', () => done(true));
+  });
   const st = row.querySelector('.li-status');
   st.addEventListener('change', () => { if (!requireEdit()) { st.value = t.status; return; } moveToStatus(t, st.value); });
   buildCatDropdown(row.querySelector('.li-cat-cell'), {
