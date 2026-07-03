@@ -409,11 +409,16 @@ tr.row.done-final td{opacity:.4}
 .plist-head.lp-1 .plist-dot{background:var(--p1)} .plist-head.lp-2 .plist-dot{background:var(--p2)}
 .plist-head.lp-3 .plist-dot{background:var(--p3)} .plist-head.lp-4 .plist-dot{background:var(--p4)}
 .plist-count{margin-left:auto; font-weight:600; color:var(--text-weak); opacity:.7}
-.plist-row{display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px}
-.plist-main{flex:1; min-width:120px; display:flex; flex-direction:column; gap:1px}
-.li-desc{font-size:11.5px; color:var(--text-weak); line-height:1.35; padding:0 6px;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:640px}
-.li-desc:empty{display:none}
+/* Gemeinsames Spalten-Raster: Prio | Titel | Beschreibung | Deadline | Status | Kategorie */
+.plist-grid{display:grid; align-items:center; gap:10px; padding:6px 10px; min-width:760px;
+  grid-template-columns:88px minmax(150px,1.1fr) minmax(170px,1.4fr) 118px minmax(110px,150px) minmax(96px,130px)}
+.plist-cols{padding:8px 10px 4px; font-size:10.5px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--text-weak); font-family:var(--font-mono);
+  border-bottom:1px solid var(--border); border-radius:0}
+.plist-row{border-radius:8px}
+.plist-title-cell{display:flex; align-items:center; gap:5px; min-width:0}
+.li-desc{font-size:12px; color:var(--text-weak); line-height:1.35;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
 .plist-row:hover{background:var(--blue-bg)}
 .plist-row.due-today{background:var(--today-bg)} .plist-row.overdue{background:var(--overdue-bg)}
 .plist-row.done{opacity:.55}
@@ -427,18 +432,17 @@ tr.row.done-final td{opacity:.4}
 .pd.p3:hover,.pd.p3.on{border-color:var(--p3); background:var(--p3)}
 .pd.p4:hover,.pd.p4.on{border-color:var(--p4); background:var(--p4)}
 .pd:hover:not(.on){background:transparent}
-.li-title{font-weight:600; border:1px solid transparent; border-radius:6px;
+.li-title{font-weight:600; flex:1; min-width:0; width:100%; border:1px solid transparent; border-radius:6px;
   background:transparent; padding:4px 6px; font-size:13px; color:var(--text)}
 .li-title:hover{border-color:var(--border)}
 .li-title:focus{border-color:var(--blue); background:var(--card); outline:none}
 .li-open{border:none; background:none; color:var(--text-weak); font-size:13px; padding:2px 6px; border-radius:5px; opacity:0; flex:0 0 auto}
 .plist-row:hover .li-open{opacity:1}
 .li-open:hover{color:var(--blue); background:var(--card)}
-.plist-meta{display:flex; align-items:center; gap:6px; flex:0 0 auto}
-.plist-meta input,.plist-meta select{border:1px solid transparent; border-radius:6px; background:transparent;
-  padding:3px 5px; font-size:12px; color:var(--text-weak)}
-.plist-meta input:hover,.plist-meta select:hover{border-color:var(--border)}
-.plist-meta input:focus,.plist-meta select:focus{border-color:var(--blue); background:var(--card); outline:none}
+.plist-row input.li-deadline,.plist-row select.li-status{border:1px solid transparent; border-radius:6px; background:transparent;
+  padding:3px 5px; font-size:12px; color:var(--text-weak); min-width:0; max-width:100%}
+.plist-row input.li-deadline:hover,.plist-row select.li-status:hover{border-color:var(--border)}
+.plist-row input.li-deadline:focus,.plist-row select.li-status:focus{border-color:var(--blue); background:var(--card); outline:none}
 .list-hint{font-size:11px; color:var(--text-weak); padding:8px 4px}
 /* Teilen: Codes für Lesen & Bearbeiten */
 .share-code-row{display:flex; align-items:center; gap:8px; margin-top:8px}
@@ -1585,6 +1589,11 @@ function renderList() {
 
   body.innerHTML = '';
   if (!rows.length) { body.innerHTML = '<div class="empty">Keine Tickets gefunden.</div>'; return; }
+  // Spaltenüberschriften (eine Kopfzeile für alle Gruppen)
+  const cols = document.createElement('div');
+  cols.className = 'plist-grid plist-cols';
+  cols.innerHTML = '<span>Prio</span><span>Titel</span><span>Beschreibung</span><span>Deadline</span><span>Status</span><span>Kategorie</span>';
+  body.appendChild(cols);
   // Gruppen P1..P4, innerhalb nach Fälligkeit
   [1, 2, 3, 4].forEach(p => {
     const grp = rows.filter(t => t.prio === p).sort((a, b) => a.deadline.localeCompare(b.deadline));
@@ -1599,23 +1608,21 @@ function renderList() {
 /* Eine Zeile: [P1–P4-Punkte] Titel … Deadline | Status | Kategorie */
 function listRowEl(t) {
   const row = document.createElement('div');
-  row.className = ['plist-row', 'lp-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
+  row.className = ['plist-grid', 'plist-row', 'lp-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
   const ro = boardReadOnly ? ' disabled' : '';
   row.innerHTML =
     '<span class="plist-prios">' +
       [1, 2, 3, 4].map(p => '<button type="button" class="pd p' + p + (p === t.prio ? ' on' : '') + '" title="' + PRIO_NAMES[p] + '"' + ro + '></button>').join('') +
     '</span>' +
-    (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;flex:0 0 auto">!</span>'
-      : isToday(t) ? '<span class="escal today" style="position:static;display:inline-flex;flex:0 0 auto">!</span>' : '') +
-    '<span class="plist-main">' +
+    '<span class="plist-title-cell">' +
+      (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;flex:0 0 auto">!</span>'
+        : isToday(t) ? '<span class="escal today" style="position:static;display:inline-flex;flex:0 0 auto">!</span>' : '') +
       '<input class="li-title" maxlength="200" value="' + esc(t.title) + '"' + ro + '>' +
-      '<span class="li-desc">' + esc(stripHtml(t.desc || '')) + '</span>' +
     '</span>' +
-    '<span class="plist-meta">' +
-      '<input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '">' +
-      '<select class="li-status"' + ro + '>' + STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
-      '<span class="li-cat-cell"></span>' +
-    '</span>';
+    '<span class="li-desc" title="' + esc(stripHtml(t.desc || '')) + '">' + esc(stripHtml(t.desc || '')) + '</span>' +
+    '<input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '">' +
+    '<select class="li-status"' + ro + '>' + STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
+    '<span class="li-cat-cell"></span>';
   // Prio-Punkte: ein Klick steckt um (Kernfunktion dieser Ansicht)
   row.querySelectorAll('.pd').forEach((b, i) => b.addEventListener('click', () => {
     if (!requireEdit()) return;
@@ -1631,7 +1638,7 @@ function listRowEl(t) {
   const open = document.createElement('button');
   open.type = 'button'; open.className = 'li-open'; open.title = 'Ticket öffnen'; open.textContent = '↗';
   open.addEventListener('click', () => openModal(t.id));
-  row.insertBefore(open, row.querySelector('.plist-meta'));
+  row.querySelector('.plist-title-cell').appendChild(open);
   const dl = row.querySelector('.li-deadline');
   dl.addEventListener('change', () => { if (!requireEdit()) { dl.value = t.deadline; return; } if (dl.value) { t.deadline = dl.value; save(); renderList(); } });
   const st = row.querySelector('.li-status');
