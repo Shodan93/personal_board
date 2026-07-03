@@ -636,7 +636,7 @@ tr.row.done-final td{opacity:.4}
   <span class="header-meta" id="todayDate"></span>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: heute fällige und überfällige Tickets filtern">0 fällig</button>
-  <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: fällig in den nächsten 7 Tagen">0 diese Woche</button>
+  <button class="badge-today badge-week" id="dueWeekBadge" title="Klick: fällig in dieser Kalenderwoche (heute bis Sonntag)">0 diese Woche</button>
   <button class="badge-today badge-month" id="dueMonthBadge" title="Klick: fällig in den nächsten 30 Tagen">0 in 30 Tagen</button>
   <div id="dinoWrap">
     <canvas id="dinoCv" height="34"></canvas>
@@ -1236,7 +1236,18 @@ function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); r
 function isOverdue(t) { return !!t.deadline && !DONE.includes(t.status) && t.deadline < todayStr(); }
 function isToday(t)       { return !!t.deadline && !DONE.includes(t.status) && t.deadline === todayStr(); }
 function isDue(t)         { return isOverdue(t) || isToday(t); }   // „fällig" = heute fällig ODER überfällig
-function isThisWeek(t)    { return dueWithin(t, 7); }    // fällig in den nächsten 7 Tagen
+// Sonntag der AKTUELLEN Kalenderwoche (lokal, Wochenstart Montag)
+function endOfWeekStr() {
+  const d = new Date(); const day = (d.getDay() + 6) % 7;   // Mo=0 … So=6
+  d.setDate(d.getDate() + (6 - day));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// „diese Woche" = ECHTE Kalenderwoche: heute bis einschließlich Sonntag
+// (Vergangenes dieser Woche ist überfällig und läuft über den „fällig"-Filter)
+function isThisWeek(t) {
+  if (!t.deadline || DONE.includes(t.status)) return false;
+  return t.deadline >= todayStr() && t.deadline <= endOfWeekStr();
+}
 function isNext30Days(t)  { return dueWithin(t, 30); }   // fällig in den nächsten 30 Tagen
 function deadlineClass(t) { return isOverdue(t) ? 'overdue' : isToday(t) ? 'due-today' : ''; }
 function deadlineLabel(t) {

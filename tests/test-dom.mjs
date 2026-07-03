@@ -483,21 +483,25 @@ try {
   ok(vm.runInContext('isoWeek(new Date(2024,0,1))', context) === 1, 'isoWeek: 01.01.2024 (Mo) = KW 1');
   ok(typeof vm.runInContext('isoWeek(new Date())', context) === 'number', 'isoWeek liefert Zahl für heute');
 
-  // Fällig-Fenster: rollierend ab heute, nächste 30 Tage statt Kalendermonat
+  // Fällig-Fenster: „diese Woche" = ECHTE Kalenderwoche (bis So), 30 Tage rollierend
   const win = vm.runInContext(`(function(){
     var mk = (off, status) => ({ deadline: addDays(todayStr(), off), status: status || 'In Arbeit' });
+    var dow = (new Date().getDay() + 6) % 7;      // Mo=0 … So=6
+    var toSun = 6 - dow;                           // Tage bis Sonntag dieser Woche
     return {
       heute:    isToday(mk(0)),
-      woche5:   isThisWeek(mk(5)),     // in 5 Tagen -> diese Woche
-      woche9:   isThisWeek(mk(9)),     // in 9 Tagen -> NICHT mehr diese Woche
-      t20:      isNext30Days(mk(20)),  // in 20 Tagen -> in 30 Tagen
-      t40:      isNext30Days(mk(40)),  // in 40 Tagen -> NICHT in 30 Tagen
-      ueber:    isNext30Days(mk(-3)),  // überfällig -> NICHT (nur zukünftig)
-      erledigt: isNext30Days(mk(5, DONE[DONE.length-1] || 'Erledigt'))  // erledigt zählt nicht
+      faellig:  isDue(mk(-3)) && isDue(mk(0)) && !isDue(mk(1)),      // überfällig+heute, nicht morgen
+      inWoche:  isThisWeek(mk(0)) && isThisWeek(mk(toSun)),          // heute + Sonntag -> diese Woche
+      nachWoche: isThisWeek(mk(toSun + 1)),                          // Montag nächster Woche -> NICHT
+      t20:      isNext30Days(mk(20)),
+      t40:      isNext30Days(mk(40)),
+      ueber:    isNext30Days(mk(-3)),
+      erledigt: isNext30Days(mk(5, DONE[DONE.length-1] || 'Erledigt'))
     };
   })()`, context);
   ok(win.heute === true,  'isToday: heute fällig');
-  ok(win.woche5 === true && win.woche9 === false, 'isThisWeek: rollierendes 7-Tage-Fenster');
+  ok(win.faellig === true, 'isDue („fällig"): überfällig + heute, nicht morgen');
+  ok(win.inWoche === true && win.nachWoche === false, 'isThisWeek: echte Kalenderwoche (bis Sonntag)');
   ok(win.t20 === true && win.t40 === false, 'isNext30Days: nächste 30 Tage (nicht Kalendermonat)');
   ok(win.ueber === false, 'Fällig-Fenster ignoriert überfällige Tickets');
   ok(win.erledigt === false, 'Fällig-Fenster ignoriert erledigte Tickets');
