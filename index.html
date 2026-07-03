@@ -86,20 +86,24 @@ body.viewer .card{cursor:default}
 .modal.viewer #btnSave,.modal.viewer #btnDelete,.modal.viewer #btnHousekeeper,
 .modal.viewer .task-grip,.modal.viewer .task-del,.modal.viewer .task-ghost,
 .modal.viewer .cat-add,.modal.viewer .att-zone,.modal.viewer #catChips [data-rm]{display:none}
-/* Fälligkeits-Badges: leicht transparent, ruhiger Konsolen-Look */
+/* Fälligkeits-Badges — Best Practice „getönte Chips": heller Farbton als Fläche,
+   kräftige Textfarbe, Radius/Größe wie die übrigen Schaltflächen. */
 .badge-today{
-  background:color-mix(in srgb, var(--red) 82%, transparent); color:#fff; border-radius:10px; padding:1px 10px;
-  font-size:10.5px; font-weight:600; border:2px solid transparent; cursor:pointer;
-  font-family:var(--font-mono); letter-spacing:.01em;
+  border-radius:var(--radius); padding:4px 11px;
+  font-size:11px; font-weight:600; border:1px solid transparent; cursor:pointer;
+  font-family:var(--font-mono); letter-spacing:.01em; line-height:1.4;
+  background:#FBE4E2; color:#9A2B27; border-color:#F0C4C1;               /* heute: rot getönt */
 }
-.badge-today:hover{background:var(--red)}
-.badge-today.zero{background:color-mix(in srgb, var(--blue) 72%, transparent)}   /* nichts fällig -> blau */
-.badge-today.zero:hover{background:var(--blue)}
-.badge-today.filter-on{border-color:var(--blue-dark); box-shadow:0 0 0 2px var(--blue-bg)}
-.badge-week{background:color-mix(in srgb, var(--yellow) 82%, transparent); color:#4a3000}
-.badge-week:hover{background:var(--yellow)}
-.badge-month{background:color-mix(in srgb, var(--green) 82%, transparent)}
-.badge-month:hover{background:var(--green)}
+.badge-week{background:#FCEEDB; color:#8A5A12; border-color:#EFD9B6}     /* Woche: bernstein */
+.badge-month{background:#E3EEFC; color:#1D5CA8; border-color:#C6DBF5}    /* 30 Tage: blau */
+.badge-today.zero{background:var(--col-bg); color:var(--text-weak); border-color:var(--border)}  /* nichts fällig: neutral */
+.badge-today:hover{filter:brightness(.97)}
+.badge-today.filter-on{border-color:var(--blue); box-shadow:0 0 0 2px var(--blue-bg)}
+/* Dark Mode: leicht transparent + an die dunkle Palette angepasst */
+:root[data-theme="dark"] .badge-today{background:rgba(224,96,90,.16); color:#F0A6A2; border-color:rgba(224,96,90,.35)}
+:root[data-theme="dark"] .badge-week{background:rgba(227,154,74,.15); color:#EBC08A; border-color:rgba(227,154,74,.35)}
+:root[data-theme="dark"] .badge-month{background:rgba(92,150,232,.15); color:#A8C7F2; border-color:rgba(92,150,232,.35)}
+:root[data-theme="dark"] .badge-today.zero{background:rgba(140,150,170,.10); color:var(--text-weak); border-color:rgba(140,150,170,.28)}
 .spacer{flex:1}
 .btn{
   border:1px solid var(--border); background:var(--card); color:var(--blue);
@@ -331,8 +335,13 @@ body.viewer .col-name:hover{text-decoration:none}
   border-color:color-mix(in srgb, var(--blue) 45%, var(--border));
 }
 .card:active{cursor:grabbing}
-/* Beim Ziehen bleibt die Quellkarte klar sichtbar (nur markiert, NICHT transparent) */
-.card.dragging{opacity:1; outline:2px dashed var(--blue); outline-offset:2px; transform:none; box-shadow:none}
+/* Beim Ziehen wird die Quellkarte HERVORGEHOBEN (heller Glow statt Transparenz) */
+.card.dragging{
+  opacity:1; transform:none;
+  border-color:var(--blue);
+  background:linear-gradient(180deg, var(--blue-bg), var(--card) 70%);
+  box-shadow:0 0 0 2px var(--blue), 0 6px 18px color-mix(in srgb, var(--blue) 35%, transparent);
+}
 .card .title{font-weight:700; font-size:14px; line-height:1.35; margin-bottom:4px; word-break:break-word; padding-right:18px}
 .card .desc{color:var(--text-weak); font-size:12.5px; line-height:1.45; max-height:38px; overflow:hidden; margin-bottom:6px}
 body.compact .card .desc{display:none}
@@ -400,7 +409,11 @@ tr.row.done-final td{opacity:.4}
 .plist-head.lp-1 .plist-dot{background:var(--p1)} .plist-head.lp-2 .plist-dot{background:var(--p2)}
 .plist-head.lp-3 .plist-dot{background:var(--p3)} .plist-head.lp-4 .plist-dot{background:var(--p4)}
 .plist-count{margin-left:auto; font-weight:600; color:var(--text-weak); opacity:.7}
-.plist-row{display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px}
+.plist-row{display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px}
+.plist-main{flex:1; min-width:120px; display:flex; flex-direction:column; gap:1px}
+.li-desc{font-size:11.5px; color:var(--text-weak); line-height:1.35; padding:0 6px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:640px}
+.li-desc:empty{display:none}
 .plist-row:hover{background:var(--blue-bg)}
 .plist-row.due-today{background:var(--today-bg)} .plist-row.overdue{background:var(--overdue-bg)}
 .plist-row.done{opacity:.55}
@@ -414,7 +427,7 @@ tr.row.done-final td{opacity:.4}
 .pd.p3:hover,.pd.p3.on{border-color:var(--p3); background:var(--p3)}
 .pd.p4:hover,.pd.p4.on{border-color:var(--p4); background:var(--p4)}
 .pd:hover:not(.on){background:transparent}
-.li-title{flex:1; min-width:120px; font-weight:600; border:1px solid transparent; border-radius:6px;
+.li-title{font-weight:600; border:1px solid transparent; border-radius:6px;
   background:transparent; padding:4px 6px; font-size:13px; color:var(--text)}
 .li-title:hover{border-color:var(--border)}
 .li-title:focus{border-color:var(--blue); background:var(--card); outline:none}
@@ -661,7 +674,7 @@ tr.row.done-final td{opacity:.4}
   <select id="filterStatus"></select>
   <select id="filterPrio">
     <option value="">Priorität: Alle</option>
-    <option value="1">P1 — Kritisch</option><option value="2">P2 — Hoch</option>
+    <option value="1">P1 — Höchste</option><option value="2">P2 — Hoch</option>
     <option value="3">P3 — Normal</option><option value="4">P4 — Niedrig</option>
   </select>
   <div class="chips" id="quickChips">
@@ -708,10 +721,10 @@ tr.row.done-final td{opacity:.4}
           <select id="fStatus" required></select>
         </div>
         <div class="field">
-          <label>Priorität (P1 = kritisch)</label>
+          <label>Priorität (P1 = höchste)</label>
           <input type="hidden" id="fPrio" value="3">
           <div id="fPrioPicker" class="prio-picker">
-            <button type="button" class="prio-dot p1" data-prio="1" title="P1 — Kritisch" aria-label="P1">1</button>
+            <button type="button" class="prio-dot p1" data-prio="1" title="P1 — Höchste" aria-label="P1">1</button>
             <button type="button" class="prio-dot p2" data-prio="2" title="P2 — Hoch" aria-label="P2">2</button>
             <button type="button" class="prio-dot p3" data-prio="3" title="P3 — Normal" aria-label="P3">3</button>
             <button type="button" class="prio-dot p4" data-prio="4" title="P4 — Niedrig" aria-label="P4">4</button>
@@ -752,15 +765,15 @@ tr.row.done-final td{opacity:.4}
         <div class="att-thumbs" id="attThumbs"></div>
       </div>
       <div class="field">
-        <label>Link</label>
+        <label>Externer Link <span style="font-weight:400;color:var(--text-weak)">— z.&nbsp;B. Jira-Ticket, Dokument oder E-Mail; erscheint als „Link öffnen" auf der Karte</span></label>
         <input type="url" id="fJira" placeholder="https://…">
       </div>
     </form>
     <div class="modal-foot">
       <span class="foot-left">
         <button class="btn btn-danger" id="btnDelete" hidden>Löschen</button>
-        <button type="button" class="btn" id="btnHousekeeper" title="Rechtschreibung &amp; Formatierung per KI aufräumen">🧹 Housekeeper</button>
-        <button type="button" class="btn" id="btnCopyInfo" title="Titel, Beschreibung, Notiz &amp; Aufgaben in die Zwischenablage kopieren">📋 Kopieren</button>
+        <button type="button" class="btn" id="btnHousekeeper" title="Rechtschreibung &amp; Formatierung per KI aufräumen">Housekeeper</button>
+        <button type="button" class="btn" id="btnCopyInfo" title="Titel, Beschreibung, Notiz &amp; Aufgaben in die Zwischenablage kopieren">Kopieren</button>
       </span>
       <button class="btn" data-close>Abbrechen</button>
       <button class="btn btn-primary" id="btnSave">Speichern</button>
@@ -1039,8 +1052,8 @@ const DEFAULT_STATUSES = ['Themenspeicher', 'Geplant', 'In Arbeit', 'Review', 'E
 let STATUSES = DEFAULT_STATUSES.slice();
 let DONE = ['Erledigt'];
 let COLLAPSIBLE = ['Themenspeicher', 'Erledigt'];
-/* Priorität: 1 (kritisch) … 4 (niedrig). Alt-Werte (Hoch/Mittel/Niedrig, P5) werden migriert. */
-const PRIO_NAMES = { 1: 'P1 — Kritisch', 2: 'P2 — Hoch', 3: 'P3 — Normal', 4: 'P4 — Niedrig' };
+/* Priorität: 1 (höchste) … 4 (niedrig). Alt-Werte (Hoch/Mittel/Niedrig, P5) werden migriert. */
+const PRIO_NAMES = { 1: 'P1 — Höchste', 2: 'P2 — Hoch', 3: 'P3 — Normal', 4: 'P4 — Niedrig' };
 function normPrio(p) {
   if (p === 'Hoch') return 1; if (p === 'Mittel') return 3; if (p === 'Niedrig') return 4;
   const n = parseInt(p, 10);
@@ -1063,7 +1076,7 @@ let taskDragFrom = -1;                        // Index der gerade gezogenen Aufg
 let modalImgs = [], sessionNewImgs = [], attUrls = [];
 let idb = null;                              // IndexedDB-Handle für Bild-Anhänge
 let sort = { key: 'deadline', dir: 1 };      // Liste: default Deadline aufsteigend
-let quick = '';                              // Schnellfilter Liste
+let quick = 'active';                        // Schnellfilter Liste — „Aktiv" ist Standard
 let kanbanQuick = '';                        // Badge-Filter im Kanban: ''|today|week|month
 let kanbanSearch = '';                       // Volltext-Suche im Kanban (Titel/Beschreibung/Notiz)
 let kanbanSortKey = 'deadline';
@@ -1594,7 +1607,10 @@ function listRowEl(t) {
     '</span>' +
     (isOverdue(t) ? '<span class="escal" style="position:static;display:inline-flex;flex:0 0 auto">!</span>'
       : isToday(t) ? '<span class="escal today" style="position:static;display:inline-flex;flex:0 0 auto">!</span>' : '') +
-    '<input class="li-title" maxlength="200" value="' + esc(t.title) + '"' + ro + '>' +
+    '<span class="plist-main">' +
+      '<input class="li-title" maxlength="200" value="' + esc(t.title) + '"' + ro + '>' +
+      '<span class="li-desc">' + esc(stripHtml(t.desc || '')) + '</span>' +
+    '</span>' +
     '<span class="plist-meta">' +
       '<input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '">' +
       '<select class="li-status"' + ro + '>' + STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
@@ -3001,7 +3017,7 @@ async function deleteBoard() {
 async function runHousekeeper() {
   const btn = document.getElementById('btnHousekeeper');
   if (!claudeReady()) return;
-  btn.disabled = true; btn.textContent = '🧹 arbeitet…';
+  btn.disabled = true; btn.textContent = 'arbeitet…';
   try {
     const res = await cloudFetch('/housekeeper', {
       method: 'POST',
@@ -3021,7 +3037,7 @@ async function runHousekeeper() {
   } catch (e) {
     alert('Housekeeper fehlgeschlagen: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '🧹 Housekeeper';
+    btn.disabled = false; btn.textContent = 'Housekeeper';
   }
 }
 document.getElementById('btnHousekeeper').onclick = runHousekeeper;
@@ -3283,8 +3299,9 @@ const DINO = (() => {
   // Szenen-Modus: 'run' (Urzeit-Pixellauf) | 'space' (Weltall, funkelnde Sterne + Sternschnuppen)
   const SCENES = ['run', 'space'];
   let mode = 'run';
-  let stars = [], shooters = [], nextShoot = 0, rocket = null, ufo = null, nextFlyby = 0;
-  let ship = null, shower = null, nextShower = 0;          // Raumschiff-Cruiser + Meteorschauer
+  let stars = [], shooters = [], nextShoot = 0;
+  let vessels = [], nextVessel = 0;                        // Flotte (Kreuzer/Fregatte/Rakete/UFO)
+  let shower = null, nextShower = 0;                       // Meteorschauer
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const R = (x, y, w, h) => ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -3574,46 +3591,43 @@ const DINO = (() => {
      temperatur, wenige Ring-Sterne und Funkel-Kreuze. Persistente Sterne + ein Teil,
      der leise ein- und ausblendet (Churn). Unendlich langsamer Zoom (Raumschiff-
      Gefühl): Positionen sind zentriert gespeichert und wachsen kaum merklich. */
-  let zoomS = 1, planet = null;
+  /* Weltall v4 — STATISCH (kein Zoom), dichteres Sternenfeld mit mehr Variation,
+     keine Planeten/Monde. Häufigere Sternschnuppen. Dazu eine kleine Flotte
+     zufälliger Schiffe: große Kreuzer ziehen langsam vorbei, kleine Raketen
+     und UFOs flitzen schneller — beide Richtungen, nie mehr als 2 gleichzeitig. */
   const STAR_TINTS = [                                       // dezent bunt, nicht knallig
-    ['rgba(232,238,252,', 0.50],                             // neutral-weiß (häufig)
-    ['rgba(168,196,255,', 0.16],                             // blau
+    ['rgba(232,238,252,', 0.46],                             // neutral-weiß (häufig)
+    ['rgba(168,196,255,', 0.18],                             // blau
     ['rgba(255,220,160,', 0.14],                             // warm-gelb
-    ['rgba(255,160,170,', 0.10],                             // zart rot
-    ['rgba(150,230,214,', 0.10],                             // zart türkis
+    ['rgba(255,160,170,', 0.11],                             // zart rot
+    ['rgba(150,230,214,', 0.11],                             // zart türkis
   ];
   function pickTint() {
     let r = Math.random();
     for (const [c, p] of STAR_TINTS) { if ((r -= p) <= 0) return c; }
     return STAR_TINTS[0][0];
   }
-  function newSpaceStar(nearCenter) {
-    const ang = Math.random() * TAU;
-    const rad = nearCenter ? 0.04 + Math.random() * 0.1 : Math.sqrt(Math.random()) * 0.72;
+  function newSpaceStar() {
     const kind = Math.random();
     return {
-      a: ang, r: rad,                                        // Polar, zentriert -> Zoom = r wächst
-      s: kind < 0.8 ? 1 : 2,
-      ring: kind > 0.965,                                    // seltene Ring-Sterne (wie Referenz)
-      glow: kind > 0.92 && kind <= 0.965,                    // seltene Funkel-Kreuze
+      x: Math.random(), y: Math.random(),                    // statisch — kein Zoom, kein Drift
+      s: kind < 0.62 ? 1 : (kind < 0.94 ? 2 : 3),            // drei Größenklassen für mehr Tiefe
+      ring: kind > 0.975,                                    // seltene Ring-Sterne (wie Referenz)
+      glow: kind > 0.93 && kind <= 0.975,                    // seltene Funkel-Kreuze
       tint: pickTint(),
-      b: 0.28 + Math.random() * 0.6,
-      tw: 0.5 + Math.random() * 2.2, ph: Math.random() * TAU,
-      churn: Math.random() < 0.3,                            // 30 % blenden zyklisch ein/aus
-      cph: Math.random() * TAU, cf: 0.02 + Math.random() * 0.05,
+      b: 0.22 + Math.random() * 0.66,
+      tw: 0.4 + Math.random() * 2.4, ph: Math.random() * TAU,
+      churn: Math.random() < 0.35,                           // gut ein Drittel wechselt leise durch
+      cph: Math.random() * TAU, cf: 0.02 + Math.random() * 0.06,
     };
   }
   function seedSpace() {
     stars = [];
-    for (let i = 0; i < 120; i++) stars.push(newSpaceStar(false));
-    zoomS = 1;
-    // Subtiler kleiner Planet mit Ring — sitzt ruhig in einer Ecke, driftet mit dem Zoom
-    planet = { a: (Math.random() < 0.5 ? 0.12 : 0.88) * TAU * 0.5 + (Math.random() < 0.5 ? 0 : Math.PI),
-               r: 0.52 + Math.random() * 0.1, size: 5 + Math.random() * 2, ring: Math.random() < 0.7 };
-    shooters = []; rocket = null; ufo = null; ship = null; shower = null;
-    nextShoot = nowTs + 1600 + Math.random() * 2600;
-    nextShower = nowTs + 100000 + Math.random() * 140000;  // Meteorschauer: selten, ruhig
-    nextFlyby = nowTs + 90000 + Math.random() * 60000;     // erstes Überfliegen nach ~1,5–2,5 Min
+    for (let i = 0; i < 175; i++) stars.push(newSpaceStar()); // dichter, aber weiter subtil
+    vessels = []; shooters = []; shower = null;
+    nextShoot = nowTs + 1200 + Math.random() * 1800;
+    nextShower = nowTs + 80000 + Math.random() * 100000;     // Meteorschauer: gelegentlich
+    nextVessel = nowTs + 12000 + Math.random() * 18000;      // erstes Schiff nach ~12–30 s
   }
   // Sternschnuppe in ZUFÄLLIGER Richtung über die ganze Breite (optional an Klickposition)
   function spawnShooter(px, py) {
@@ -3623,84 +3637,79 @@ const DINO = (() => {
     const sy = py != null ? py : h * (0.12 + Math.random() * 0.6);
     shooters.push({ x: sx, y: sy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 1, len: 7 + (Math.random() * 7 | 0) });
   }
-  // Rakete: über die GANZE Breite auf einer Bogenbahn, Richtung links<->rechts wechselnd, nie senkrecht.
-  function spawnRocket(w, h) {
-    rocket = {
-      dir: Math.random() < 0.5 ? 1 : -1, prog: 0,
-      v: 1 / (4.5 + Math.random() * 3),                    // Bruchteil/Sekunde -> Dauer ~4,5–7,5 s
-      baseY: h * (0.32 + Math.random() * 0.36),
-      arc: h * (0.18 + Math.random() * 0.26) * (Math.random() < 0.5 ? 1 : -1), // Bogen hoch/runter
-      trail: []
-    };
+  /* ---- Flotte: Schiffstypen (dur = Sekunden für die volle Breite) ---- */
+  const VESSEL_TYPES = [
+    { kind: 'cruiser', weight: 0.18, dur: [4, 5.5], half: 18 },   // groß, gleitet gemächlich
+    { kind: 'frigate', weight: 0.22, dur: [3, 4], half: 10 },     // mittlerer Begleiter
+    { kind: 'rocket',  weight: 0.34, dur: [1.8, 2.6], half: 7 },  // klein & fix, leichte Bogenbahn
+    { kind: 'ufo',     weight: 0.26, dur: [2, 3], half: 8 },      // flitzt gerade durch
+  ];
+  function spawnVessel(w, h) {
+    let r = Math.random(), t = VESSEL_TYPES[0];
+    for (const v of VESSEL_TYPES) { if ((r -= v.weight) <= 0) { t = v; break; } }
+    const dur = t.dur[0] + Math.random() * (t.dur[1] - t.dur[0]);
+    vessels.push({
+      kind: t.kind, half: t.half,
+      dir: Math.random() < 0.5 ? 1 : -1,                     // beide Richtungen
+      prog: 0, v: 1 / dur,
+      y: h * (0.14 + Math.random() * 0.5),
+      arc: t.kind === 'rocket' ? h * (0.12 + Math.random() * 0.18) * (Math.random() < 0.5 ? 1 : -1) : 0,
+      trail: [],
+    });
   }
-  // UFO: immer komplett gerade von links ODER rechts.
-  function spawnSpaceUfo(w, h) {
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    ufo = { dir, x: dir > 0 ? -14 : w + 14, y: h * (0.18 + Math.random() * 0.34), v: w / (6 + Math.random() * 4) };
-  }
-  // Position der Rakete entlang der Bogenbahn (p = 0..1 über die ganze Breite)
-  function rocketXY(Rk, w, p) {
-    const x = (Rk.dir > 0 ? -14 : w + 14) + Rk.dir * p * (w + 28);
-    const y = Rk.baseY + Rk.arc * Math.sin(p * Math.PI);
+  function vesselXY(vs, w, p) {
+    const x = (vs.dir > 0 ? -vs.half - 6 : w + vs.half + 6) + vs.dir * p * (w + 2 * vs.half + 12);
+    const y = vs.y + (vs.arc ? vs.arc * Math.sin(p * Math.PI) : 0);
     return [x, y];
   }
-  function drawSpaceRocket(x, y, ang, ts) {
-    ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(ang);
-    const fl = (Math.sin(ts * 0.05) > 0) ? 3 : 2;
-    ctx.fillStyle = '#ff8c1a'; ctx.fillRect(-6, -1, 2, 2);
-    ctx.fillStyle = '#ffd23f'; ctx.fillRect(-4, -1, fl, 2);                              // Flamme (hinten)
-    ctx.fillStyle = '#ff3b30'; ctx.fillRect(-2, -3, 2, 1); ctx.fillRect(-2, 2, 2, 1);    // Finnen
-    ctx.fillStyle = '#e9ecf5'; ctx.fillRect(-2, -2, 6, 4);                               // Körper
-    ctx.fillStyle = '#c3c8d3'; ctx.fillRect(4, -1, 2, 2);                                // Nase
-    ctx.fillStyle = '#4aa3ff'; ctx.fillRect(1, -1, 2, 2);                                // Fenster
-    ctx.restore();
-  }
-  function drawSpaceUfo(x, y, ts) {
+  function drawVessel(vs, x, y, ang, ts) {
+    const d = vs.dir;
     x = Math.round(x); y = Math.round(y);
-    ctx.fillStyle = '#9aa6c8'; R(x - 6, y, 12, 2);                   // Untertasse
-    ctx.fillStyle = '#c3c8d3'; R(x - 3, y - 2, 6, 2);               // Kuppel
-    const on = Math.sin(ts * 0.012) > 0;                            // blinkende Lichter
-    ctx.fillStyle = on ? '#4aff8c' : '#ff4a6e';
-    R(x - 5, y + 2, 1, 1); R(x, y + 2, 1, 1); R(x + 4, y + 2, 1, 1);
+    if (vs.kind === 'cruiser') {           // langer Rumpf, Aufbau, warme Fensterreihe, Triebwerksglühen
+      ctx.fillStyle = '#39404f'; R(x - 14, y, 28, 4);
+      ctx.fillStyle = '#4a5263'; R(x - 8, y - 2, 14, 2);
+      ctx.fillStyle = '#39404f'; R(x + d * 14, y + 1, d * 3, 2);
+      const eng = (Math.sin(ts * 0.02) + 1) / 2;
+      ctx.fillStyle = 'rgba(120,190,255,' + (0.5 + eng * 0.4).toFixed(2) + ')';
+      R(x - d * 16, y + 1, -d * (2 + eng * 2), 2);
+      ctx.fillStyle = '#ffd98a';
+      for (let i = -11; i <= 9; i += 4) R(x + i, y + 1, 2, 1);
+    } else if (vs.kind === 'frigate') {    // kompakter Keil mit Doppel-Triebwerk
+      ctx.fillStyle = '#414a5c'; R(x - 8, y, 16, 3);
+      ctx.fillStyle = '#556077'; R(x - 3, y - 2, 8, 2);
+      ctx.fillStyle = '#414a5c'; R(x + d * 8, y + 1, d * 2, 1);
+      const eng = (Math.sin(ts * 0.03) + 1) / 2;
+      ctx.fillStyle = 'rgba(140,200,255,' + (0.45 + eng * 0.4).toFixed(2) + ')';
+      R(x - d * 10, y, -d * 2, 1); R(x - d * 10, y + 2, -d * 2, 1);
+      ctx.fillStyle = '#ffd98a'; R(x - 1, y + 1, 2, 1);
+    } else if (vs.kind === 'rocket') {     // kleine Rakete, Nase in Flugrichtung
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+      const fl = (Math.sin(ts * 0.05) > 0) ? 3 : 2;
+      ctx.fillStyle = '#ff8c1a'; ctx.fillRect(-6, -1, 2, 2);
+      ctx.fillStyle = '#ffd23f'; ctx.fillRect(-4, -1, fl, 2);
+      ctx.fillStyle = '#ff3b30'; ctx.fillRect(-2, -3, 2, 1); ctx.fillRect(-2, 2, 2, 1);
+      ctx.fillStyle = '#e9ecf5'; ctx.fillRect(-2, -2, 6, 4);
+      ctx.fillStyle = '#c3c8d3'; ctx.fillRect(4, -1, 2, 2);
+      ctx.fillStyle = '#4aa3ff'; ctx.fillRect(1, -1, 2, 2);
+      ctx.restore();
+    } else {                               // UFO: Untertasse, blinkende Lichter
+      ctx.fillStyle = '#9aa6c8'; R(x - 6, y, 12, 2);
+      ctx.fillStyle = '#c3c8d3'; R(x - 3, y - 2, 6, 2);
+      const on = Math.sin(ts * 0.012) > 0;
+      ctx.fillStyle = on ? '#4aff8c' : '#ff4a6e';
+      R(x - 5, y + 2, 1, 1); R(x, y + 2, 1, 1); R(x + 4, y + 2, 1, 1);
+    }
   }
   function spaceFrame(w, h, ts, dt) {
     let g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#0b0e22'); g.addColorStop(1, '#12163a');   // Navy wie die Referenz
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    const tsec = ts * 0.001, cx = w / 2, cy = h / 2;
-    // Unendlich langsamer Zoom: kaum merkbar, aber spürbar (Raumschiff-Drift)
-    if (running) zoomS *= 1 + 0.0015 * dt;
-    // Subtiler Planet mit Ring (gedeckte Farben, klein — kein Klotz)
-    if (planet) {
-      const pr = planet.r * zoomS;
-      if (pr > 0.9) { planet.r = 0.5; planet.a = Math.random() * TAU; }        // driftet raus -> leise neu
-      const px = Math.round(cx + Math.cos(planet.a) * pr * w * 0.62);
-      const py = Math.round(cy + Math.sin(planet.a) * pr * h * 0.62);
-      const s = planet.size * Math.min(1.4, zoomS ** 0.25);
-      ctx.globalAlpha = 0.85;
-      if (planet.ring) {                                                        // Ring hinter dem Planeten
-        ctx.strokeStyle = '#8fa0c8'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.ellipse(px, py, s * 2, s * 0.62, -0.42, Math.PI * 0.08, Math.PI * 1.08); ctx.stroke();
-      }
-      const pg = ctx.createRadialGradient && ctx.createRadialGradient(px - s * 0.35, py - s * 0.35, s * 0.2, px, py, s);
-      if (pg && pg.addColorStop) { pg.addColorStop(0, '#c99a68'); pg.addColorStop(0.6, '#8d6a4f'); pg.addColorStop(1, '#4c3d38'); }
-      ctx.fillStyle = (pg && pg.addColorStop) ? pg : '#8d6a4f';
-      ctx.beginPath(); ctx.arc(px, py, s, 0, TAU); ctx.fill();
-      if (planet.ring) {                                                        // Ring vor dem Planeten
-        ctx.strokeStyle = '#a8b6d8'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.ellipse(px, py, s * 2, s * 0.62, -0.42, Math.PI * 1.08, Math.PI * 2.08); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-    }
-    // Sterne: persistent + leiser Churn; Ring-Sterne & Funkel-Kreuze wie in der Referenz
+    const tsec = ts * 0.001;
+    // Sterne: statisch, drei Größen, dezente Farbtemperatur; Teil wechselt leise durch
     stars.forEach(st => {
-      const rr = st.r * zoomS;
-      if (rr > 0.78) { Object.assign(st, newSpaceStar(true)); return; }        // außen raus -> innen neu (Zoom-Kreislauf)
-      const px = Math.round(cx + Math.cos(st.a) * rr * w * 1.05);
-      const py = Math.round(cy + Math.sin(st.a) * rr * h * 1.05);
-      if (px < -3 || px > w + 3 || py < -3 || py > h + 3) return;
-      const tw = 0.55 + 0.45 * Math.sin(tsec * st.tw + st.ph);                 // ruhiges Funkeln
-      const churn = st.churn ? Math.max(0, Math.sin(tsec * st.cf + st.cph)) : 1; // Teil der Sterne wechselt durch
+      const px = Math.round(st.x * w), py = Math.round(st.y * h);
+      const tw = 0.55 + 0.45 * Math.sin(tsec * st.tw + st.ph);
+      const churn = st.churn ? Math.max(0, Math.sin(tsec * st.cf + st.cph)) : 1;
       const a = Math.max(0, Math.min(1, st.b * tw * churn));
       if (a < 0.03) return;
       ctx.fillStyle = st.tint + a.toFixed(3) + ')';
@@ -3716,10 +3725,10 @@ const DINO = (() => {
         R(px - 1, py - 2, st.s + 2, 1); R(px - 1, py + st.s + 1, st.s + 2, 1);
       }
     });
-    // Meteorschauer: seltenes, ruhiges Ereignis — 3–6 Schnuppen in ähnlicher Richtung
+    // Meteorschauer: gelegentliches, ruhiges Ereignis — 3–6 Schnuppen in ähnlicher Richtung
     if (running && !shower && ts > nextShower) {
       shower = { left: 3 + (Math.random() * 4 | 0), next: ts, ang: TAU * 0.12 + Math.random() * TAU * 0.2 };
-      nextShower = ts + 200000 + Math.random() * 200000;
+      nextShower = ts + 140000 + Math.random() * 160000;
     }
     if (running && shower && ts >= shower.next) {
       const sp = 120 + Math.random() * 60, jitter = (Math.random() - 0.5) * 0.25;
@@ -3728,8 +3737,8 @@ const DINO = (() => {
       shower.next = ts + 260 + Math.random() * 420;
       if (--shower.left <= 0) shower = null;
     }
-    // Einzelne Sternschnuppen
-    if (running && ts > nextShoot) { spawnShooter(); nextShoot = ts + 3200 + Math.random() * 5200; }
+    // Einzelne Sternschnuppen — spürbar häufiger
+    if (running && ts > nextShoot) { spawnShooter(); nextShoot = ts + 1400 + Math.random() * 2600; }
     if (running) shooters.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 0.55; });
     shooters = shooters.filter(s => s.life > 0 && s.x > -40 && s.x < w + 40 && s.y > -40 && s.y < h + 40);
     shooters.forEach(s => {
@@ -3741,50 +3750,27 @@ const DINO = (() => {
       ctx.fillStyle = 'rgba(255,255,255,' + Math.max(0, s.life).toFixed(3) + ')';
       R(s.x, s.y, 2, 2);
     });
-    // Selten: alle ~5 Min EIN Ereignis (Rakete, UFO oder Raumschiff-Cruiser)
-    if (running && !rocket && !ufo && !ship && ts > nextFlyby) {
-      const r = Math.random();
-      if (r < 0.45) spawnRocket(w, h);
-      else if (r < 0.72) spawnSpaceUfo(w, h);
-      else { const dir = Math.random() < 0.5 ? 1 : -1;      // Cruiser: groß, langsam, majestätisch
-        ship = { dir, x: dir > 0 ? -34 : w + 34, y: h * (0.15 + Math.random() * 0.3), v: w / (14 + Math.random() * 6) }; }
-      nextFlyby = ts + 270000 + Math.random() * 90000;     // danach 4,5–6 Min
+    // Flotte: zufällige Schiffe (max. 2 gleichzeitig), Kreuzer langsam, Kleine fix
+    if (running && vessels.length < 2 && ts > nextVessel) {
+      spawnVessel(w, h);
+      nextVessel = ts + 15000 + Math.random() * 30000;       // alle ~15–45 s eines
     }
-    // Rakete auf Bogenbahn (volle Breite), Nase entlang der Flugrichtung
-    if (rocket) {
+    vessels.forEach(vs => {
       if (running) {
-        rocket.prog += rocket.v * dt;
-        const [hx, hy] = rocketXY(rocket, w, rocket.prog);
-        rocket.trail.push({ x: hx, y: hy, life: 1 });
-        rocket.trail.forEach(p => p.life -= dt * 0.7);
-        rocket.trail = rocket.trail.filter(p => p.life > 0);
+        vs.prog += vs.v * dt;
+        if (vs.kind === 'rocket') {
+          const [hx, hy] = vesselXY(vs, w, vs.prog);
+          vs.trail.push({ x: hx, y: hy, life: 1 });
+          vs.trail.forEach(p => p.life -= dt * 1.4);
+          vs.trail = vs.trail.filter(p => p.life > 0);
+        }
       }
-      const [x, y] = rocketXY(rocket, w, rocket.prog);
-      const [x2, y2] = rocketXY(rocket, w, rocket.prog + 0.01);
-      rocket.trail.forEach(p => { ctx.fillStyle = 'rgba(220,230,255,' + (p.life * 0.5).toFixed(3) + ')'; R(p.x, p.y, 2, 2); });
-      drawSpaceRocket(x, y, Math.atan2(y2 - y, x2 - x), ts);
-      if (rocket.prog > 1) rocket = null;
-    }
-    // UFO kerzengerade von links/rechts
-    if (ufo) {
-      if (running) ufo.x += ufo.dir * ufo.v * dt;
-      drawSpaceUfo(ufo.x, ufo.y, ts);
-      if (ufo.x < -20 || ufo.x > w + 20) ufo = null;
-    }
-    // Raumschiff-Cruiser: lange Silhouette, beleuchtete Fenster, Triebwerksglühen
-    if (ship) {
-      if (running) ship.x += ship.dir * ship.v * dt;
-      const x = Math.round(ship.x), y = Math.round(ship.y), d = ship.dir;
-      ctx.fillStyle = '#39404f'; R(x - 14, y, 28, 4);                       // Rumpf
-      ctx.fillStyle = '#4a5263'; R(x - 8, y - 2, 14, 2);                    // Aufbau
-      ctx.fillStyle = '#39404f'; R(x + d * 14, y + 1, d * 3, 2);            // Bug
-      const eng = (Math.sin(ts * 0.02) + 1) / 2;                            // Triebwerk pulsiert sanft
-      ctx.fillStyle = 'rgba(120,190,255,' + (0.5 + eng * 0.4).toFixed(2) + ')';
-      R(x - d * 16, y + 1, -d * (2 + eng * 2), 2);
-      ctx.fillStyle = '#ffd98a';                                            // warme Fensterreihe
-      for (let i = -11; i <= 9; i += 4) R(x + i, y + 1, 2, 1);
-      if (ship.x < -40 || ship.x > w + 40) ship = null;
-    }
+      const [x, y] = vesselXY(vs, w, vs.prog);
+      const [x2, y2] = vesselXY(vs, w, vs.prog + 0.01);
+      vs.trail.forEach(p => { ctx.fillStyle = 'rgba(220,230,255,' + (p.life * 0.5).toFixed(3) + ')'; R(p.x, p.y, 2, 2); });
+      drawVessel(vs, x, y, Math.atan2(y2 - y, x2 - x), ts);
+    });
+    vessels = vessels.filter(vs => vs.prog <= 1.02);
   }
   function frame(ts) {
     rafId = requestAnimationFrame(frame);
