@@ -40,6 +40,12 @@
   color-scheme:dark;
 }
 :root[data-theme="dark"] th{background:var(--col-bg)}
+/* Leere Säulen (keine einzige Karte) lösen sich im Dark Mode nach unten hin
+   ganz leicht auf — sehr subtil, lenkt den Blick auf gefüllte Spalten */
+:root[data-theme="dark"] .col:not(:has(.card)){
+  background:linear-gradient(180deg, var(--col-bg) 0%, var(--col-bg) 45%,
+    color-mix(in srgb, var(--col-bg) 55%, transparent) 100%);
+}
 :root[data-theme="dark"] .due-today .deadline{color:#e0a955}
 :root[data-theme="dark"] .badge-today{color:#fff}
 /* Dark Mode: Kopfzeile liegt über dem Weltall — Texte gut lesbar halten (best practice:
@@ -516,8 +522,10 @@ tr.row.done-final td{opacity:.4}
 .set-row select,.set-row input[type=number]{width:130px}
 #setColumns input,#setBoardTitle{width:170px}
 #setColumns .set-row label{color:var(--text-weak)}
-.set-col-row{gap:10px}
-.set-col-row .set-col{flex:1 1 auto; width:auto; min-width:0}
+.set-col-row{gap:8px; justify-content:flex-start; flex-wrap:nowrap}
+.set-col-row .set-col{flex:1 1 auto; width:auto; min-width:80px}
+.set-col-row .set-done{flex:0 0 auto}
+@media (max-width:480px){ .set-col-row{flex-wrap:wrap} .set-col-row .set-col{flex-basis:100%} }
 .set-done{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-weak); white-space:nowrap; cursor:pointer}
 .set-done input{width:auto}
 #setColumns input:focus,#setBoardTitle:focus{outline:2px solid var(--blue); outline-offset:-1px}
@@ -4588,7 +4596,7 @@ function catCyclePose() {  // automatischer Posenwechsel — selten und ohne Ani
   drawCat();
   catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);   // alle ~24–46 s
 }
-const CAT_LIVE = false;   // Katze vorerst aus der Live-Version entfernt (auf true setzen, um sie zurückzuholen)
+const CAT_LIVE = true;    // Schiffskatze ist wieder an Bord — das Setting schaltet sie um
 if (CAT_LIVE) {
   drawCat();
   catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
@@ -4663,9 +4671,10 @@ function scheduleAutoTip() {
   }, 18000); // erster Tipp nach 18 Sekunden
 }
 function applyTips() {
-  // Katze vorerst aus der Live-Version entfernt (Datum/Uhrzeit stehen wieder im Header).
-  document.getElementById('astro').style.display = 'none';
-  document.getElementById('tipBar').hidden = true;
+  const on = CAT_LIVE && state.settings.tips !== false;
+  document.getElementById('astro').style.display = on ? 'block' : 'none';
+  document.getElementById('tipBar').hidden = true;   // alte Tipp-Leiste bleibt aus
+  scheduleAutoTip();
 }
 document.getElementById('astroCv').onclick = () => { speakTip(); clearTimeout(catMoveT); catCyclePose(); };
 document.getElementById('btnTipClose').onclick = () => document.getElementById('tipBar').hidden = true;
