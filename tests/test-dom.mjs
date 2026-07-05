@@ -270,6 +270,24 @@ try {
     };
   })()`, context);
   ok(gen.statuses === 'Ideen|Recherche|Schreiben|Lektorat|Veröffentlicht', 'Board: eigene 5 Säulen aktiv');
+
+  // Spalten deaktivieren: weniger Säulen, Tickets bleiben erhalten (nur ausgeblendet)
+  const colToggle = vm.runInContext(`(function(){
+    state.settings.disabledStatuses = ['Recherche', 'Lektorat'];
+    applyBoardConfig();
+    var active = ACTIVE_STATUSES.join('|');
+    var full = STATUSES.join('|');
+    state.tickets = [{ id:'dis1', title:'Versteckt', prio:2, deadline:'2099-01-01', desc:'', note:'', cats:[], imgs:[], tasks:[], status:'Recherche', createdAt:'2026-01-01' }];
+    migrateTickets();                       // darf den Status NICHT wegmigrieren
+    var kept = state.tickets[0].status === 'Recherche';
+    var ncols = document.getElementById('kanban').style.getPropertyValue('--ncols');
+    state.settings.disabledStatuses = []; applyBoardConfig();
+    return { active, full, kept, ncols: String(ncols) };
+  })()`, context);
+  ok(colToggle.active === 'Ideen|Schreiben|Veröffentlicht', 'Deaktivierte Spalten fehlen in ACTIVE_STATUSES');
+  ok(colToggle.full.split('|').length === 5, 'Volle Spaltenliste bleibt erhalten (keine Datenmigration)');
+  ok(colToggle.kept === true, 'Ticket in deaktivierter Spalte behält seinen Status');
+  ok(colToggle.ncols === '3', 'Kanban zeigt nur die aktiven Spalten (--ncols)');
   ok(gen.done === 'Veröffentlicht', 'Board: letzte Säule = erledigt');
   ok(gen.title.indexOf('Mein Buch')===0, 'Board: eigener Titel im Header');
   ok(String(gen.ncols) === '5', 'Board: Kanban auf 5 Spalten');

@@ -911,18 +911,20 @@ tr.row.done-final td{opacity:.4}
         <div id="shareOwner" hidden style="margin-top:12px">
           <div class="share-code-row">
             <div>
-              <div class="share-code-label">👁 Lese-Code <span>Mitglieder sehen alles, ändern nichts</span></div>
-              <span id="setShareCode" class="share-code">–</span>
+              <div class="share-code-label">Lese-Code <span>Mitglieder sehen alles, ändern nichts</span></div>
+              <span id="setShareCode" class="share-code" data-code="">••••••••••</span>
             </div>
-            <button type="button" class="btn" id="btnCopyShare" title="Lese-Code kopieren">Kopieren</button>
+            <button type="button" class="btn" id="btnRevealShare" title="Code anzeigen/verbergen">Anzeigen</button>
+            <button type="button" class="btn" id="btnCopyShare" title="Lese-Code in die Zwischenablage kopieren">Kopieren</button>
             <button type="button" class="btn" id="btnRotateShare" title="Neuen Lese-Code erzeugen (alter wird ungültig)">↻</button>
           </div>
           <div class="share-code-row">
             <div>
-              <div class="share-code-label">✏️ Bearbeiten-Code <span>Mitglieder können Tickets anlegen &amp; ändern</span></div>
-              <span id="setEditCode" class="share-code">–</span>
+              <div class="share-code-label">Bearbeiten-Code <span>Mitglieder können Tickets anlegen &amp; ändern</span></div>
+              <span id="setEditCode" class="share-code" data-code="">••••••••••</span>
             </div>
-            <button type="button" class="btn" id="btnCopyEdit" title="Bearbeiten-Code kopieren">Kopieren</button>
+            <button type="button" class="btn" id="btnRevealEdit" title="Code anzeigen/verbergen">Anzeigen</button>
+            <button type="button" class="btn" id="btnCopyEdit" title="Bearbeiten-Code in die Zwischenablage kopieren">Kopieren</button>
             <button type="button" class="btn" id="btnRotateEdit" title="Neuen Bearbeiten-Code erzeugen (alter wird ungültig)">↻</button>
           </div>
           <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Codes weitergeben = einladen. „↻“ erzeugt einen neuen Code und sperrt den alten sofort.</div>
@@ -1057,6 +1059,7 @@ tr.row.done-final td{opacity:.4}
 // werden in den Einstellungen manuell angekreuzt (DONE), Default = letzte Säule.
 const DEFAULT_STATUSES = ['Themenspeicher', 'Geplant', 'In Arbeit', 'Review', 'Erledigt'];
 let STATUSES = DEFAULT_STATUSES.slice();
+let ACTIVE_STATUSES = DEFAULT_STATUSES.slice();  // nur die im Board sichtbaren (aktiven) Spalten
 let DONE = ['Erledigt'];
 let COLLAPSIBLE = ['Themenspeicher', 'Erledigt'];
 /* Priorität: 1 (höchste) … 4 (niedrig). Alt-Werte (Hoch/Mittel/Niedrig, P5) werden migriert. */
@@ -1095,6 +1098,7 @@ function defaultSettings() {
            dino: true, tips: true, tipsAuto: true, collapsed: {},
            statuses: DEFAULT_STATUSES.slice(),
            doneStatuses: [DEFAULT_STATUSES[DEFAULT_STATUSES.length - 1]],
+           disabledStatuses: [],
            theme: 'light', dinoScene: 'run',
            boardTitle: 'Mein Board' };
 }
@@ -1123,7 +1127,19 @@ function setColumnsFromSettings() {
     ? state.settings.doneStatuses.filter(s => st.includes(s)) : null;
   if (!done || !done.length) done = [st[st.length - 1]];
   DONE = st.filter(s => done.includes(s)); // in Board-Reihenfolge
-  COLLAPSIBLE = STATUSES.filter(s => s === STATUSES[0] || /block|wart/i.test(s) || DONE.includes(s));
+  // Deaktivierte Spalten: bleiben in den Daten (kein Ticket geht verloren),
+  // werden aber nicht angezeigt. Mindestens eine Spalte bleibt immer aktiv.
+  let dis = (state.settings && Array.isArray(state.settings.disabledStatuses))
+    ? state.settings.disabledStatuses.filter(x => st.includes(x)) : [];
+  if (dis.length >= st.length) dis = dis.slice(0, st.length - 1);
+  ACTIVE_STATUSES = st.filter(x => !dis.includes(x));
+  COLLAPSIBLE = ACTIVE_STATUSES.filter(s => s === ACTIVE_STATUSES[0] || /block|wart/i.test(s) || DONE.includes(s));
+}
+// Optionen fürs Status-Select: aktive Spalten + (falls nötig) der aktuelle inaktive Status
+function statusOptions(current) {
+  const list = ACTIVE_STATUSES.slice();
+  if (current && !list.includes(current) && STATUSES.includes(current)) list.push(current);
+  return list.map(x => '<option' + (x === current ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
 }
 /* Board-Aussehen anwenden: Säulen, Titel, Spaltenzahl, Auswahllisten */
 function applyBoardConfig() {
@@ -1132,8 +1148,8 @@ function applyBoardConfig() {
   // Oben links nur die Marke; der Boardname steht in der Pickliste (kein Doppel)
   document.getElementById('boardTitle').innerHTML = '<span class="orbit-mark" aria-hidden="true"></span>Orbit';
   document.title = (state.settings.boardTitle || 'Orbit') + ' · Orbit';
-  document.getElementById('kanban').style.setProperty('--ncols', STATUSES.length);
-  document.documentElement.style.setProperty('--ncols', STATUSES.length);  // auch für die Toolbar-Ausrichtung
+  document.getElementById('kanban').style.setProperty('--ncols', ACTIVE_STATUSES.length);
+  document.documentElement.style.setProperty('--ncols', ACTIVE_STATUSES.length);  // auch für die Toolbar-Ausrichtung
   // aktuellen Boardnamen in der Pickliste aktualisieren
   if (typeof myBoards !== 'undefined' && boardId) {
     const b = myBoards.find(x => x.id === boardId); if (b) b.title = state.settings.boardTitle;
@@ -1389,7 +1405,7 @@ function renderHeader() {
 function renderKanban() {
   const root = document.getElementById('kanban');
   root.innerHTML = '';
-  STATUSES.forEach(status => {
+  ACTIVE_STATUSES.forEach(status => {
     const col = document.createElement('div');
     col.className = 'col'; col.dataset.status = status;
     let items = state.tickets.filter(t => t.status === status && !isHidden(t));
@@ -1483,7 +1499,7 @@ function cardEl(t) {
     '</div>' +
     '<div class="card-foot">' +
       '<select class="quick-status" title="Status ändern">' +
-        STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') +
+        statusOptions(t.status) +
       '</select>' +
       '<span class="foot-right">' +
         (collectIds(t).length ? '<span class="att-chip" title="' + collectIds(t).length + ' Anhang/Anhänge">' + FILE_SVG + collectIds(t).length + '</span>' : '') +
@@ -1589,6 +1605,7 @@ function renderList() {
   const searching = !!q;   // aktive Suche übersteuert die Fälligkeits-Schnellfilter
   let rows = state.tickets.filter(t =>
     !isHidden(t) &&
+    ACTIVE_STATUSES.includes(t.status) &&   // deaktivierte Spalten: Tickets ausgeblendet (bleiben erhalten)
     (!fs || t.status === fs) &&
     (!fp || t.prio === parseInt(fp, 10)) &&
     (!globalCat || t.cats.includes(globalCat)) &&
@@ -1636,7 +1653,7 @@ function listRowEl(t) {
     '</span>' +
     '<span class="li-desc" title="' + esc(stripHtml(t.desc || '')) + '">' + esc(stripHtml(t.desc || '')) + '</span>' +
     '<input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '">' +
-    '<select class="li-status"' + ro + '>' + STATUSES.map(s => '<option' + (s === t.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
+    '<select class="li-status"' + ro + '>' + statusOptions(t.status) + '</select>' +
     '<span class="li-cat-cell"></span>';
   // Prio-Punkte: ein Klick steckt um (Kernfunktion dieser Ansicht)
   row.querySelectorAll('.pd').forEach((b, i) => b.addEventListener('click', () => {
@@ -1714,7 +1731,7 @@ document.addEventListener('click', () => closeCatDropdowns());
 
 function refreshFilters() {
   document.getElementById('filterStatus').innerHTML =
-    '<option value="">Status: Alle</option>' + STATUSES.map(s => '<option>' + esc(s) + '</option>').join('');
+    '<option value="">Status: Alle</option>' + ACTIVE_STATUSES.map(s => '<option>' + esc(s) + '</option>').join('');
   buildCatDropdown(document.getElementById('globalCat'), {
     placeholder: 'Kategorie: Alle',
     value: globalCat,
@@ -1764,7 +1781,10 @@ function openModal(id, presetStatus, presetDesc) {
   document.getElementById('btnDelete').hidden = !t;
   document.getElementById('btnShareTicket').hidden = !t;   // Link teilen nur für bestehende Tickets
   document.getElementById('fTitle').value = t ? t.title : '';
-  document.getElementById('fStatus').value = t ? t.status : (presetStatus || 'Themenspeicher');
+  // Liegt das Ticket in einer deaktivierten Spalte, dessen Status als Option ergänzen
+  if (t && !ACTIVE_STATUSES.includes(t.status)) document.getElementById('fStatus').innerHTML = statusOptions(t.status);
+  else refreshStatusOptions();
+  document.getElementById('fStatus').value = t ? t.status : (presetStatus || ACTIVE_STATUSES[0] || 'Themenspeicher');
   setPrioPicker(t ? t.prio : 'Mittel');
   document.getElementById('fDeadline').value = t ? t.deadline : todayStr();
   const fc = document.getElementById('fCreated');
@@ -1995,6 +2015,9 @@ function openSettings() {
   document.getElementById('setColumns').innerHTML = STATUSES.map((name, i) =>
     '<div class="set-row set-col-row">' +
       '<input type="text" class="set-col" maxlength="30" value="' + esc(name) + '">' +
+      '<label class="set-done" title="Spalte auf dem Board anzeigen. Deaktiviert = ausgeblendet — Tickets darin bleiben erhalten.">' +
+        '<input type="checkbox" class="set-active-cb"' + (ACTIVE_STATUSES.includes(name) ? ' checked' : '') + '> aktiv' +
+      '</label>' +
       '<label class="set-done" title="Tickets in dieser Spalte gelten als erledigt: Konfetti + Erledigt-Markierung, keine Fälligkeits-/Eskalationsfärbung.">' +
         '<input type="checkbox" class="set-done-cb"' + (DONE.includes(name) ? ' checked' : '') + '> erledigt' +
       '</label>' +
@@ -2033,10 +2056,29 @@ document.getElementById('btnJoinBoard').onclick = joinBoardByCode;
 document.getElementById('btnLeaveShared').onclick = leaveSharedBoard;
 document.getElementById('btnRotateShare').onclick = () => rotateCode('share');
 document.getElementById('btnRotateEdit').onclick = () => rotateCode('edit');
+/* Codes sind standardmäßig MASKIERT (Shoulder-Surfing/Screenshares):
+   „Anzeigen" blendet ein, „Kopieren" geht auch ohne Anzeigen. */
+const MASK = '••••••••••';
+function setCode(elId, code) {
+  const el = document.getElementById(elId);
+  el.dataset.code = code || '';
+  el.dataset.shown = '';
+  el.textContent = code ? MASK : '–';
+}
+function toggleReveal(elId, btn) {
+  const el = document.getElementById(elId);
+  if (!el.dataset.code) return;
+  const show = !el.dataset.shown;
+  el.dataset.shown = show ? '1' : '';
+  el.textContent = show ? el.dataset.code : MASK;
+  btn.textContent = show ? 'Verbergen' : 'Anzeigen';
+}
 const copyCode = (elId) => {
-  const code = document.getElementById(elId).textContent.trim();
-  if (code && code !== '–') navigator.clipboard?.writeText(code).then(() => toast('Code kopiert'), () => {});
+  const code = (document.getElementById(elId).dataset.code || '').trim();
+  if (code) navigator.clipboard?.writeText(code).then(() => toast('Code kopiert'), () => { prompt('Code:', code); });
 };
+document.getElementById('btnRevealShare').onclick = function () { toggleReveal('setShareCode', this); };
+document.getElementById('btnRevealEdit').onclick = function () { toggleReveal('setEditCode', this); };
 document.getElementById('btnCopyShare').onclick = () => copyCode('setShareCode');
 document.getElementById('btnCopyEdit').onclick = () => copyCode('setEditCode');
 /* Codes stehen in board_codes (RLS: nur der Besitzer kann sie lesen) */
@@ -2044,9 +2086,11 @@ async function loadShareCodes() {
   const s1 = document.getElementById('setShareCode'), s2 = document.getElementById('setEditCode');
   s1.textContent = '…'; s2.textContent = '…';
   const { data, error } = await sb.from('board_codes').select('share_code,edit_code').eq('board_id', boardId).maybeSingle();
-  if (error || !data) { s1.textContent = '–'; s2.textContent = '–'; return; }
-  s1.textContent = data.share_code || '–';
-  s2.textContent = data.edit_code || '–';
+  if (error || !data) { setCode('setShareCode', ''); setCode('setEditCode', ''); return; }
+  setCode('setShareCode', data.share_code || '');
+  setCode('setEditCode', data.edit_code || '');
+  document.getElementById('btnRevealShare').textContent = 'Anzeigen';
+  document.getElementById('btnRevealEdit').textContent = 'Anzeigen';
 }
 async function loadMembers() {
   const root = document.getElementById('memberList');
@@ -2092,7 +2136,8 @@ async function rotateCode(kind) {
   if (!confirm('Neuen ' + what + ' generieren? Der alte funktioniert danach nicht mehr.')) return;
   const { data, error } = await sb.rpc('rotate_code', { b: boardId, kind });
   if (error) { alert('Fehlgeschlagen: ' + error.message); return; }
-  document.getElementById(kind === 'edit' ? 'setEditCode' : 'setShareCode').textContent = data;
+  setCode(kind === 'edit' ? 'setEditCode' : 'setShareCode', data);
+  document.getElementById(kind === 'edit' ? 'btnRevealEdit' : 'btnRevealShare').textContent = 'Anzeigen';
   toast('Neuer ' + what + ' erzeugt');
 }
 async function removeMember(uid, email) {
@@ -2153,6 +2198,11 @@ function closeSettings() {
     const doneFlags = [...document.querySelectorAll('#setColumns .set-done-cb')].map(cb => cb.checked);
     let newDone = newStatuses.filter((n, i) => doneFlags[i]);
     if (!newDone.length) newDone = [newStatuses[newStatuses.length - 1]];
+    // Aktiv-Flags: deaktivierte Spalten merken (mind. eine bleibt aktiv)
+    const activeFlags = [...document.querySelectorAll('#setColumns .set-active-cb')].map(cb => cb.checked);
+    let newDisabled = newStatuses.filter((n, i) => activeFlags[i] === false);
+    if (newDisabled.length >= newStatuses.length) newDisabled = newDisabled.slice(1);
+    s.disabledStatuses = newDisabled;
     const prevDone = DONE.slice();
     s.doneStatuses = newDone;
     // Tickets in neu als „erledigt" markierten Säulen abschließen (Konfetti einmalig)
@@ -2670,7 +2720,7 @@ function applyProfile(p) {
   document.getElementById('btnHousekeeper').hidden = !p.housekeeper;
 }
 function refreshStatusOptions() {
-  document.getElementById('fStatus').innerHTML = STATUSES.map(s => '<option>' + esc(s) + '</option>').join('');
+  document.getElementById('fStatus').innerHTML = ACTIVE_STATUSES.map(s => '<option>' + esc(s) + '</option>').join('');
 }
 function cloudFetch(p, opts) {
   opts = opts || {};
