@@ -164,13 +164,13 @@ try {
   ok(create.opened === true, 'openModal(null): Modal öffnet sich (Neues Ticket)');
   ok(create.added === 1, 'saveTicket(): Ticket wird angelegt (BUG behoben)');
 
-  // Erstelldatum im Modal (bestehendes Ticket öffnen)
+  // Erstelldatum: als Info-Punkt im Ticket-Kopf (Tooltip bei Hover)
   const created = vm.runInContext(`(function(){
     openModal('t1');
-    return document.getElementById('fCreated').hidden === false &&
-           /Erstellt am/.test(document.getElementById('fCreated').textContent);
+    return document.getElementById('ticketInfo').hidden === false &&
+           /Erstellt am/.test(document.getElementById('ticketInfo').title);
   })()`, context);
-  ok(created, 'Erstelldatum wird im Modal angezeigt (nicht in der Kachel)');
+  ok(created, 'Erstelldatum als Info-Punkt im Ticket-Kopf (Hover-Tooltip)');
 
   // Öffnen eines Tickets setzt automatisch status „geöffnet"
   const openedStatus = vm.runInContext(`(function(){

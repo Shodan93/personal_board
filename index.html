@@ -163,7 +163,7 @@ body.viewer .card{cursor:default}
   display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
   padding:10px 16px 24px; align-items:stretch;
 }
-.col{background:var(--col-bg); border-radius:var(--radius); padding:10px; min-height:140px}
+.col{background:var(--col-bg); border-radius:12px; padding:11px 11px 12px; min-height:140px}
 /* Sobald ein Ticket angehoben wird, leuchten ALLE Ablage-Spalten blau (nicht erst beim Hovern) */
 .col.drop-active{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
 .col.dragover{outline:2px solid var(--blue); outline-offset:-2px; background:var(--blue-bg); box-shadow:inset 0 0 0 9999px rgba(60,120,240,.08)}
@@ -450,7 +450,8 @@ tr.row.done-final td{opacity:.4}
 .modal-head h2{font-size:16px; color:var(--blue-dark)}
 .modal-close{border:none; background:none; font-size:18px; color:var(--text-weak)}
 .modal-body{padding:16px 18px; display:grid; gap:14px}
-.field label{display:block; font-size:12px; font-weight:700; color:var(--text-weak); margin-bottom:5px; letter-spacing:.01em}
+.field{margin-bottom:0}   /* Abstand kommt aus dem modal-body-Grid (gap) */
+.field label{display:block; font-size:12px; font-weight:600; color:var(--text-weak); margin-bottom:6px; letter-spacing:.01em}
 .field label .req{color:var(--red)}
 .field input,.field select,.field textarea{
   width:100%; border:1px solid var(--border); border-radius:var(--radius);
@@ -463,8 +464,9 @@ tr.row.done-final td{opacity:.4}
 }
 .field textarea{resize:vertical; min-height:56px}
 .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--blue); outline-offset:-1px}
-.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-.modal-foot{display:flex; gap:8px; justify-content:flex-end; padding:4px 18px 16px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+.modal-foot{display:flex; gap:8px; justify-content:flex-end; align-items:center;
+  padding:12px 18px; border-top:1px solid var(--border)}
 .modal-foot .foot-left{display:flex; gap:8px; margin-right:auto}
 
 /* Kategorie-Auswahl im Ticket-Modal */
@@ -483,7 +485,15 @@ tr.row.done-final td{opacity:.4}
 /* Undo/Redo-Tasten in der Taskleiste (mit sichtbarem Tastenkürzel) */
 .undo-btn,.redo-btn{font-variant-numeric:tabular-nums}
 .undo-btn:disabled,.redo-btn:disabled{opacity:.4; cursor:default}
+/* Settings-Tabs: eine ruhige Leiste statt langem Scrollen */
+.tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:16px}
+.tabs button{border:none; background:none; padding:8px 13px; font-size:12.5px; font-weight:600;
+  color:var(--text-weak); border-bottom:2px solid transparent; margin-bottom:-1px; border-radius:6px 6px 0 0}
+.tabs button:hover{color:var(--text); background:var(--gray-bg)}
+.tabs button.active{color:var(--blue); border-bottom-color:var(--blue)}
+.tab-hidden{display:none !important}
 .settings-section{border-top:1px solid var(--border); padding-top:12px; margin-top:4px}
+.settings-section[data-tab]{border-top:none; padding-top:0; margin-top:0; margin-bottom:18px}
 .settings-section h3{font-size:11px; color:var(--text-weak); margin-bottom:10px; text-transform:uppercase;
   letter-spacing:.09em; font-family:var(--font-mono); font-weight:600;
   display:flex; align-items:center; gap:8px}
@@ -531,8 +541,15 @@ tr.row.done-final td{opacity:.4}
 .task-row .task-del:hover{color:var(--red)}
 .task-count{font-size:11px;color:var(--text-weak);font-weight:600}
 /* ---------- Wiederholen (Recurring) ---------- */
-.recur-toggle{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+.recur-toggle{display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
   color:var(--text-weak); cursor:pointer; margin-bottom:6px}
+/* WICHTIG: die generische .field-input-Breite gilt NICHT für die Checkbox */
+.field .recur-toggle input[type=checkbox]{width:auto; margin:0; accent-color:var(--blue)}
+/* Info-Punkt im Ticket-Kopf: zeigt bei Hover das Erstelldatum */
+.head-info{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
+  border-radius:50%; border:1.5px solid var(--text-weak); color:var(--text-weak);
+  font-size:11px; font-weight:700; font-family:var(--font-mono); cursor:help; user-select:none}
+.head-info:hover{border-color:var(--blue); color:var(--blue)}
 .recur-panel{border:1px solid var(--border); border-radius:8px; padding:10px 12px;
   display:grid; gap:9px; background:var(--gray-bg)}
 .recur-row{display:flex; align-items:center; gap:8px; font-size:12px; flex-wrap:wrap}
@@ -621,6 +638,19 @@ tr.row.done-final td{opacity:.4}
 #dinoGameCv{display:block; width:100%; height:auto; border-radius:8px; background:var(--gray-bg); image-rendering:pixelated; touch-action:manipulation}
 #dinoGameClose{position:absolute; top:6px; right:8px; border:none; background:none; font-size:18px; color:var(--text-weak); cursor:pointer; z-index:2}
 #dinoGameHint{text-align:center; font-size:12px; color:var(--text-weak); margin-top:8px}
+/* ---------- Enterprise-Feinschliff: konsistente Abstände auf allen Größen ---------- */
+header{gap:12px}
+.modal-head h2{font-size:15px; letter-spacing:.01em}
+.toolbar{padding:10px 16px 2px}
+.kanban{padding:12px 16px 28px}
+.list-wrap{padding:12px 16px 28px}
+@media (max-width:600px){
+  .modal-body{padding:14px}
+  .modal-foot{padding:10px 14px}
+  .modal-head{padding:12px 14px}
+  .kanban{padding:10px 12px 22px}
+  .list-wrap{padding:10px 12px 22px}
+}
 @media (prefers-reduced-motion:reduce){ .card{transition:none} .card:hover{transform:none} }
 </style>
 </head>
@@ -709,6 +739,7 @@ tr.row.done-final td{opacity:.4}
     <div class="modal-head">
       <h2 id="modalTitle">Neues Ticket</h2>
       <span>
+        <span class="head-info" id="ticketInfo" hidden tabindex="0" aria-label="Ticket-Info">i</span>
         <button class="modal-close" id="btnShareTicket" title="Ticket-Link kopieren" aria-label="Ticket-Link kopieren" hidden>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
         </button>
@@ -740,9 +771,31 @@ tr.row.done-final td{opacity:.4}
       </div>
       <div class="field">
         <label>Deadline <span class="req">*</span></label>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <input type="date" id="fDeadline" required>
-          <span id="fCreated" style="font-size:11px;color:var(--text-weak)" hidden></span>
+        <input type="date" id="fDeadline" required>
+      </div>
+      <div class="field">
+        <label class="recur-toggle"><input type="checkbox" id="fRecurOn"> Wiederholen</label>
+        <div id="recurPanel" class="recur-panel" hidden>
+          <div class="recur-row">
+            <span>Wiederholen alle</span>
+            <input type="number" id="fRecurEvery" min="1" max="365" value="1" style="width:58px">
+            <select id="fRecurUnit">
+              <option value="day">Tag(e)</option>
+              <option value="week" selected>Woche(n)</option>
+              <option value="month">Monat(e)</option>
+            </select>
+          </div>
+          <div class="recur-row" id="recurWeekdayRow">
+            <span>am</span>
+            <span id="recurWeekdays" class="wd-chips"></span>
+          </div>
+          <div class="recur-row recur-end">
+            <span>Ende</span>
+            <label><input type="radio" name="fRecurEnd" value="never" checked> Nie</label>
+            <label><input type="radio" name="fRecurEnd" value="date"> Am <input type="date" id="fRecurEndDate"></label>
+            <label><input type="radio" name="fRecurEnd" value="count"> Nach <input type="number" id="fRecurEndCount" min="1" max="999" value="10" style="width:56px"> Terminen</label>
+          </div>
+          <div id="recurPreview" class="recur-preview"></div>
         </div>
       </div>
       <div class="field">
@@ -771,32 +824,7 @@ tr.row.done-final td{opacity:.4}
         <div class="att-thumbs" id="attThumbs"></div>
       </div>
       <div class="field">
-        <label class="recur-toggle"><input type="checkbox" id="fRecurOn"> Wiederholen</label>
-        <div id="recurPanel" class="recur-panel" hidden>
-          <div class="recur-row">
-            <span>Wiederholen alle</span>
-            <input type="number" id="fRecurEvery" min="1" max="365" value="1" style="width:58px">
-            <select id="fRecurUnit">
-              <option value="day">Tag(e)</option>
-              <option value="week" selected>Woche(n)</option>
-              <option value="month">Monat(e)</option>
-            </select>
-          </div>
-          <div class="recur-row" id="recurWeekdayRow">
-            <span>am</span>
-            <span id="recurWeekdays" class="wd-chips"></span>
-          </div>
-          <div class="recur-row recur-end">
-            <span>Ende</span>
-            <label><input type="radio" name="fRecurEnd" value="never" checked> Nie</label>
-            <label><input type="radio" name="fRecurEnd" value="date"> Am <input type="date" id="fRecurEndDate"></label>
-            <label><input type="radio" name="fRecurEnd" value="count"> Nach <input type="number" id="fRecurEndCount" min="1" max="999" value="10" style="width:56px"> Terminen</label>
-          </div>
-          <div id="recurPreview" class="recur-preview"></div>
-        </div>
-      </div>
-      <div class="field">
-        <label>Externer Link <span style="font-weight:400;color:var(--text-weak)">— z.&nbsp;B. Jira-Ticket, Dokument oder E-Mail; erscheint als „Link öffnen" auf der Karte</span></label>
+        <label>Externer Link</label>
         <input type="url" id="fJira" placeholder="https://…">
       </div>
     </form>
@@ -837,8 +865,15 @@ tr.row.done-final td{opacity:.4}
       <button class="modal-close" data-close-settings aria-label="Schließen">✕</button>
     </div>
     <div class="modal-body">
+      <div class="tabs" id="setTabs" role="tablist">
+        <button type="button" data-tab="board" class="active">Board</button>
+        <button type="button" data-tab="view">Ansicht</button>
+        <button type="button" data-tab="account">Konto</button>
+        <button type="button" data-tab="share" id="tabShareBtn">Teilen</button>
+        <button type="button" data-tab="data">Daten</button>
+      </div>
 
-      <div class="settings-section" style="border-top:none;padding-top:0">
+      <div class="settings-section" data-tab="board" style="border-top:none;padding-top:0">
         <h3>Board</h3>
         <div class="set-row">
           <label>Name des Boards</label>
@@ -848,7 +883,7 @@ tr.row.done-final td{opacity:.4}
         <div id="setColumns" style="display:grid;gap:6px"></div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" data-tab="view">
         <h3>Ansicht</h3>
         <div class="set-row">
           <label>Ansicht beim Öffnen</label>
@@ -878,7 +913,7 @@ tr.row.done-final td{opacity:.4}
         </div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" data-tab="view">
         <h3>Aufräumen &amp; Erinnerungen</h3>
         <div class="set-row">
           <label>Erledigte Tickets ausblenden nach (Tagen, 0 = nie)</label>
@@ -890,7 +925,7 @@ tr.row.done-final td{opacity:.4}
         </div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" data-tab="view">
         <h3>Pixel-Lauf &amp; Extras</h3>
         <div class="set-row">
           <label>Pixel-Lauf in der Kopfzeile anzeigen</label>
@@ -904,7 +939,7 @@ tr.row.done-final td{opacity:.4}
 
       </div>
 
-      <div class="settings-section" id="accountSection">
+      <div class="settings-section" id="accountSection" data-tab="account">
         <h3>Konto</h3>
         <div class="set-row">
           <label>Angemeldet als</label>
@@ -936,7 +971,7 @@ tr.row.done-final td{opacity:.4}
         </div>
       </div>
 
-      <div class="settings-section" id="teamSection" hidden>
+      <div class="settings-section" id="teamSection" data-tab="share" hidden>
         <h3>Teilen &amp; Mitglieder</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnNewBoard">+ Neues Board</button>
@@ -981,7 +1016,7 @@ tr.row.done-final td{opacity:.4}
         </div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" data-tab="data">
         <h3>Daten</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn" id="btnSetExport">⤓ Backup exportieren (JSON)</button>
@@ -990,7 +1025,7 @@ tr.row.done-final td{opacity:.4}
         <div style="font-size:11px;color:var(--text-weak);margin-top:6px">Der Export sichert Tickets, Spalten, Boardname &amp; Einstellungen. Import ersetzt das aktuelle Board.</div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" data-tab="board">
         <h3>Kategorien</h3>
         <div id="catManager" style="display:grid;gap:6px"></div>
         <div class="cat-add" style="margin-top:8px">
@@ -1593,7 +1628,7 @@ function cardEl(t) {
     '<div class="desc">' + esc(stripHtml(t.desc)) + '</div>' +
     '<div class="meta">' +
       '<span class="deadline">' + esc(deadlineLabel(t)) + '</span>' +
-      (t.recur ? '<span class="recur-chip" title="Wiederholt sich ' + esc(recurLabel(t.recur)) + '">⟳</span>' : '') +
+      (t.recur ? '<span class="recur-chip" title="Wiederholt sich ' + esc(recurLabel(t.recur)) + '">' + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>' + '</span>' : '') +
       ((t.tasks && t.tasks.length) ? '<span class="card-tasks" title="Aufgaben erledigt">☑ ' + t.tasks.filter(x => x.done).length + '/' + t.tasks.length + '</span>' : '') + tags +
     '</div>' +
     '<div class="card-foot">' +
@@ -1887,9 +1922,9 @@ function openModal(id, presetStatus, presetDesc) {
   setPrioPicker(t ? t.prio : 'Mittel');
   fillRecurUI(t ? t.recur : null);
   document.getElementById('fDeadline').value = t ? t.deadline : todayStr();
-  const fc = document.getElementById('fCreated');
-  if (t && t.createdAt) { fc.textContent = '🗓 Erstellt am ' + fmtDate(t.createdAt); fc.hidden = false; }
-  else fc.hidden = true;
+  const info = document.getElementById('ticketInfo');
+  if (t && t.createdAt) { info.hidden = false; info.title = 'Erstellt am ' + fmtDate(t.createdAt); }
+  else { info.hidden = true; info.title = ''; }
   document.getElementById('fJira').value = t ? (t.jira || '') : '';
   document.getElementById('fDesc').innerHTML = '';
   document.getElementById('fNote').innerHTML = '';
@@ -2208,6 +2243,8 @@ function openSettings() {
       ? '✏️ Du kannst auf diesem geteilten Board <b>lesen und bearbeiten</b>.'
       : '👁 Du hast auf diesem geteilten Board <b>Lesezugriff</b>.';
   }
+  document.getElementById('tabShareBtn').style.display = team.hidden ? 'none' : '';
+  setSettingsTab('board');
   settingsOverlay.classList.add('open');
 }
 document.getElementById('btnNewBoard').onclick = createBoard;
@@ -2328,6 +2365,14 @@ document.getElementById('btnChangePass').onclick = async () => {
   toast('🔒 Passwort geändert');
 };
 document.getElementById('setDinoPlay').onclick = toggleDinoPlay;
+function setSettingsTab(name) {
+  document.querySelectorAll('#setTabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('#settingsOverlay .settings-section[data-tab]').forEach(sec => {
+    // teamSection bleibt zusätzlich über das hidden-Attribut (Anmeldung) gesteuert
+    sec.classList.toggle('tab-hidden', sec.dataset.tab !== name);
+  });
+}
+document.querySelectorAll('#setTabs button').forEach(b => b.addEventListener('click', () => setSettingsTab(b.dataset.tab)));
 document.getElementById('setThemeMode').addEventListener('change', e => {
   document.getElementById('rowThemeTimes').hidden = e.target.value !== 'auto';
 });
