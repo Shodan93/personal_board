@@ -142,12 +142,13 @@ body.viewer .card{cursor:default}
 }
 .toolbar input[type=search]{min-width:180px; flex:1; max-width:320px}
 /* Linke Toolbar-Gruppe (Undo/Redo, Sortierung, Suche) endet bündig mit der RECHTEN
-   Kante der ersten Kanban-Spalte: gleiche Breite wie eine Spalte, Suche füllt den Rest. */
+   Kante der ersten Kanban-Spalte: gleiche Breite wie eine Spalte, Suche füllt den Rest.
+   Ab 5 Spalten (--search-span:2) reicht die Gruppe bis zur RECHTEN Kante der 2. Spalte. */
 #kanbanLeft{display:flex; gap:8px; align-items:center; flex:0 0 auto;
-  width:calc((100% - (var(--ncols,5) - 1) * 10px) / var(--ncols,5))}
+  width:calc(var(--search-span,1) * ((100% - (var(--ncols,5) - 1) * 10px) / var(--ncols,5)) + (var(--search-span,1) - 1) * 10px)}
 #kanbanLeft #kanbanSearch{flex:1 1 auto; min-width:0; max-width:none}
-/* Board-Auswahl (Header) und Sortierung (Toolbar) exakt gleich breit */
-#kanbanSort{width:160px; flex:0 0 auto}
+/* Board-Auswahl (Header) und Sortierung (Toolbar) exakt gleich breit — schmal, damit die UI oben links schlank bleibt */
+#kanbanSort{width:112px; flex:0 0 auto}
 @media (max-width:700px){ #kanbanSort{width:auto} }
 @media (max-width:1180px){ #kanbanLeft{ width:calc((100% - (min(var(--ncols,5),3) - 1) * 10px) / min(var(--ncols,5),3)) } }
 @media (max-width:860px){ #kanbanLeft{ width:calc((100% - (min(var(--ncols,5),2) - 1) * 10px) / min(var(--ncols,5),2)) } }
@@ -265,6 +266,10 @@ body.viewer .col-name:hover{text-decoration:none}
   padding:8px; font-size:13px; font-family:inherit; color:#4a431a}
 .sticky-foot{font-size:10px; color:#a89a52; text-align:center; padding:0 0 4px; user-select:none}
 
+/* Kategorie-Filter (Header): bündig mit der rechtesten Kanban-Spalte ab 5 Spalten,
+   sonst mittig. Fixe rechte/linke Position wird von positionCatFilter() (JS) gesetzt,
+   da die Toggle/Theme/Settings-Gruppe rechts davon noch Platz braucht. */
+#globalCat{position:absolute; top:50%}
 /* Kategorie-Dropdown mit Farbkreis-Vorschau */
 .csel{position:relative}
 .csel-btn{
@@ -681,7 +686,7 @@ header{gap:12px}
   <canvas id="spaceCv"></canvas>
   <h1 id="boardTitle"><span class="orbit-mark" aria-hidden="true"></span>Orbit</h1>
   <select id="boardSwitch" title="Board wechseln" hidden
-    style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;width:160px"></select>
+    style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;width:112px"></select>
   <span class="header-meta" id="todayDate"></span>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: heute fällige und überfällige Tickets filtern">0 fällig</button>
@@ -1303,6 +1308,10 @@ function applyBoardConfig() {
   document.title = (state.settings.boardTitle || 'Orbit') + ' · Orbit';
   document.getElementById('kanban').style.setProperty('--ncols', ACTIVE_STATUSES.length);
   document.documentElement.style.setProperty('--ncols', ACTIVE_STATUSES.length);  // auch für die Toolbar-Ausrichtung
+  // Ab 5 Spalten: Suche endet bündig mit der 2. Spalte statt der 1., Kategorie-Filter rückt an die rechteste Spalte
+  document.documentElement.style.setProperty('--search-span', ACTIVE_STATUSES.length >= 5 ? 2 : 1);
+  document.documentElement.classList.toggle('cat-wide', ACTIVE_STATUSES.length >= 5);
+  positionCatFilter();
   // aktuellen Boardnamen in der Pickliste aktualisieren
   if (typeof myBoards !== 'undefined' && boardId) {
     const b = myBoards.find(x => x.id === boardId); if (b) b.title = state.settings.boardTitle;
@@ -1311,6 +1320,28 @@ function applyBoardConfig() {
   refreshStatusOptions();
   refreshFilters();
 }
+/* Kategorie-Filter (#globalCat) im Header positionieren: ab 5 Spalten bündig mit der
+   rechtesten Kanban-Spalte (aber links von Toggle/Theme/Settings, die dort ebenfalls
+   liegen), sonst mittig im Header. */
+function positionCatFilter() {
+  const cat = document.getElementById('globalCat');
+  const header = document.querySelector('header');
+  const toggle = header && header.querySelector('.toggle');
+  if (!cat || !header || !toggle) return;
+  const wide = document.documentElement.classList.contains('cat-wide') && window.innerWidth > 1180;
+  if (wide) {
+    const gap = 10;
+    const reserved = header.getBoundingClientRect().right - toggle.getBoundingClientRect().left + gap;
+    cat.style.left = 'auto';
+    cat.style.right = reserved + 'px';
+    cat.style.transform = 'translateY(-50%)';
+  } else {
+    cat.style.right = 'auto';
+    cat.style.left = '50%';
+    cat.style.transform = 'translate(-50%,-50%)';
+  }
+}
+window.addEventListener('resize', () => { clearTimeout(window.__catPosT); window.__catPosT = setTimeout(positionCatFilter, 100); });
 
 /* ============================================================
    LADEN / SPEICHERN / MIGRATION
