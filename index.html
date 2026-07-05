@@ -60,6 +60,7 @@ body{
 }
 button{font:inherit;cursor:pointer}
 input,select,textarea{font:inherit}
+input[type=checkbox],input[type=radio]{accent-color:var(--blue)}
 
 /* ---------- Header ---------- */
 header{
@@ -77,7 +78,7 @@ header h1{font-size:16px; font-weight:700; color:var(--blue-dark); white-space:n
 /* Weltall-Hintergrund: füllt den ganzen Header, liegt hinter den Bedienelementen, fängt keine Klicks ab */
 #spaceCv{position:absolute; inset:0; width:100%; height:100%; z-index:-1; display:none; pointer-events:none}
 .header-meta{color:var(--text-weak); font-size:11.5px; white-space:nowrap; font-family:var(--font-mono)}
-#viewerBadge{background:var(--yellow); color:#5a3b00; border-radius:10px; padding:1px 10px; font-size:11px; font-weight:700; white-space:nowrap}
+#viewerBadge{background:var(--yellow); color:#5a3b00; border-radius:var(--radius); padding:1px 10px; font-size:11px; font-weight:700; white-space:nowrap}
 /* Nur-Lesen-Modus: Bearbeiten-Elemente ausblenden */
 body.viewer .col-add, body.viewer .ghost-card, body.viewer .card-menu, body.viewer .sticky .sticky-head button{display:none}
 body.viewer .card{cursor:default}
@@ -121,7 +122,7 @@ body.viewer .card{cursor:default}
 /* Snappy: kurze, dezente Zustandswechsel + klare Fokus-Ringe (Tastatur-Nutzer) */
 .btn,.chip,.toggle button{transition:background .1s ease,color .1s ease,border-color .1s ease}
 .btn:active,.chip:active{transform:translateY(1px)}
-:focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:4px}
+:focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:var(--radius)}
 
 /* ---------- Export-Erinnerung ---------- */
 .banner{
@@ -145,12 +146,15 @@ body.viewer .card{cursor:default}
 #kanbanLeft{display:flex; gap:8px; align-items:center; flex:0 0 auto;
   width:calc((100% - (var(--ncols,5) - 1) * 10px) / var(--ncols,5))}
 #kanbanLeft #kanbanSearch{flex:1 1 auto; min-width:0; max-width:none}
+/* Board-Auswahl (Header) und Sortierung (Toolbar) exakt gleich breit */
+#kanbanSort{width:160px; flex:0 0 auto}
+@media (max-width:700px){ #kanbanSort{width:auto} }
 @media (max-width:1180px){ #kanbanLeft{ width:calc((100% - (min(var(--ncols,5),3) - 1) * 10px) / min(var(--ncols,5),3)) } }
 @media (max-width:860px){ #kanbanLeft{ width:calc((100% - (min(var(--ncols,5),2) - 1) * 10px) / min(var(--ncols,5),2)) } }
 .toolbar .lbl{font-size:11px; color:var(--text-weak); font-weight:700}
 .chips{display:flex; gap:6px; flex-wrap:wrap}
 .chip{
-  border:1px solid var(--border); background:var(--card); border-radius:12px;
+  border:1px solid var(--border); background:var(--card); border-radius:var(--radius);
   padding:3px 11px; font-size:11px; font-weight:600; color:var(--text-weak);
 }
 .chip:hover{border-color:var(--blue); color:var(--blue)}
@@ -163,7 +167,7 @@ body.viewer .card{cursor:default}
   display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
   padding:10px 16px 24px; align-items:stretch;
 }
-.col{background:var(--col-bg); border-radius:12px; padding:11px 11px 12px; min-height:140px}
+.col{background:var(--col-bg); border-radius:var(--radius); padding:11px 11px 12px; min-height:140px}
 /* Sobald ein Ticket angehoben wird, leuchten ALLE Ablage-Spalten blau (nicht erst beim Hovern) */
 .col.drop-active{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
 .col.dragover{outline:2px solid var(--blue); outline-offset:-2px; background:var(--blue-bg); box-shadow:inset 0 0 0 9999px rgba(60,120,240,.08)}
@@ -172,13 +176,13 @@ body.viewer .card{cursor:default}
   font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
   color:var(--text-weak); padding:2px 4px 8px;
 }
-.col-count{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:0 8px; font-size:11px; color:var(--text)}
+.col-count{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:0 8px; font-size:11px; color:var(--text)}
 .col-head-l{display:flex; align-items:center; gap:4px; min-width:0}
 .col-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:text}
 .col-name:hover{text-decoration:underline dotted; text-underline-offset:2px}
 body.viewer .col-name{cursor:default}
 body.viewer .col-name:hover{text-decoration:none}
-.col-name.editing{cursor:text; background:var(--card); color:var(--text); border:1px solid var(--blue); border-radius:4px; padding:0 4px; text-transform:none; letter-spacing:normal; overflow:visible}
+.col-name.editing{cursor:text; background:var(--card); color:var(--text); border:1px solid var(--blue); border-radius:var(--radius); padding:0 4px; text-transform:none; letter-spacing:normal; overflow:visible}
 
 .col[data-status="Blocked / Wartend"] .col-head span:first-child{color:var(--red)}
 
@@ -221,7 +225,7 @@ body.viewer .col-name:hover{text-decoration:none}
 /* ⋯-Menü auf der Kachel */
 .card-menu{
   position:absolute; top:3px; right:3px; border:none; background:none;
-  color:var(--text-weak); font-size:15px; line-height:1; padding:1px 5px; border-radius:4px;
+  color:var(--text-weak); font-size:15px; line-height:1; padding:1px 5px; border-radius:var(--radius);
 }
 .card-menu:hover{background:var(--blue-bg); color:var(--blue)}
 /* Karte mit offenem ⋯-Menü liegt über allem (Plus/Geisterticket darf nicht drüber) */
@@ -231,7 +235,7 @@ body.viewer .col-name:hover{text-decoration:none}
   background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
   box-shadow:0 6px 18px rgba(0,0,0,.18); display:grid; padding:4px;
 }
-.card-menu-pop button{border:none; background:none; text-align:left; padding:6px 9px; font-size:12px; border-radius:4px}
+.card-menu-pop button{border:none; background:none; text-align:left; padding:6px 9px; font-size:12px; border-radius:calc(var(--radius) - 2px)}
 .card-menu-pop button:hover{background:var(--blue-bg)}
 
 /* Pixel-Lauf (Gimmick) in der Kopfzeile */
@@ -243,16 +247,16 @@ body.viewer .col-name:hover{text-decoration:none}
 
 /* Sticky Notes */
 #noteSel{position:fixed; border:2px dashed var(--yellow); background:rgba(255,183,93,.15);
-  z-index:95; pointer-events:none; display:none; border-radius:4px}
+  z-index:95; pointer-events:none; display:none; border-radius:var(--radius)}
 .sticky{position:fixed; width:200px; height:170px; z-index:96; min-width:140px; min-height:110px;
-  background:#FFF7C4; border:1px solid #E8D98A; border-radius:3px; resize:both; overflow:hidden;
+  background:#FFF7C4; border:1px solid #E8D98A; border-radius:var(--radius); resize:both; overflow:hidden;
   box-shadow:0 5px 16px rgba(0,0,0,.22); display:flex; flex-direction:column}
 .sticky.drag-over-col{outline:3px solid var(--blue); outline-offset:2px; transform:scale(1.04)}
 /* Plus-Ziel pulsiert, wenn eine Notiz darüber schwebt */
 .col-add.note-target,.ghost-card.note-target{color:var(--blue); opacity:1}
 .col-add.note-target span,.ghost-card.note-target span{animation:plusPulse .5s ease-in-out infinite}
 @keyframes plusPulse{0%,100%{transform:translate(-0%,0) scale(1)} 50%{transform:scale(1.35)}}
-.sticky-head{height:22px; background:#FBE98A; cursor:grab; border-radius:3px 3px 0 0;
+.sticky-head{height:22px; background:#FBE98A; cursor:grab; border-radius:var(--radius) var(--radius) 0 0;
   display:flex; align-items:center; justify-content:space-between; padding:0 4px 0 8px;
   font-size:11px; color:#7a6a1f; user-select:none}
 .sticky-head .grip{letter-spacing:1px}
@@ -281,7 +285,7 @@ body.viewer .col-name:hover{text-decoration:none}
 .csel-item{
   display:flex; align-items:center; gap:7px; width:100%; text-align:left;
   border:none; background:none; padding:5px 8px; font-size:12px;
-  border-radius:4px; white-space:nowrap;
+  border-radius:calc(var(--radius) - 2px); white-space:nowrap;
 }
 .csel-item:hover{background:var(--blue-bg)}
 
@@ -292,14 +296,14 @@ body.viewer .col-name:hover{text-decoration:none}
 /* Erfolgs-Toast */
 .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-30px);
   background:var(--green);color:#fff;font-weight:700;font-size:14px;padding:9px 20px;
-  border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:301;opacity:0;
+  border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:301;opacity:0;
   transition:opacity .3s, transform .3s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ---------- Ticket-Card: wertig & ruhig (klare Kante, feiner Verlauf, Grab-Cursor) ---------- */
 .card{
   background:linear-gradient(180deg, color-mix(in srgb, var(--card) 100%, transparent), var(--card) 55%);
-  border:1px solid var(--border); border-radius:12px;
+  border:1px solid var(--border); border-radius:var(--radius);
   border-left:3px solid var(--border);
   box-shadow:0 1px 2px rgba(15,22,40,.06), 0 2px 8px rgba(15,22,40,.05);
   padding:11px 12px; margin-bottom:10px; cursor:grab;
@@ -330,7 +334,7 @@ body.compact .card .desc{display:none}
 .card-foot{display:flex; justify-content:space-between; align-items:flex-end; gap:6px; margin-top:4px}
 .card select.quick-status{
   font-size:11px; padding:2px 4px; flex:1;
-  border:1px solid var(--border); border-radius:4px; background:var(--gray-bg);
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--gray-bg);
   display:none; /* Fallback für Drag&Drop auf Touch */
 }
 /* Eskalation: rotes Ausrufezeichen rechts oben bei überfällig */
@@ -343,10 +347,10 @@ body.compact .card .desc{display:none}
 /* Prioritäts-Farben P1 (kritisch) … P4 — auf Karten NUR über Farbe (linke Kante) */
 .prio-1{border-left-color:var(--p1)} .prio-2{border-left-color:var(--p2)}
 .prio-3{border-left-color:var(--p3)} .prio-4{border-left-color:var(--p4)}
-.pill{border-radius:10px; padding:0 7px; font-weight:700; color:#fff; font-size:11px; white-space:nowrap}
+.pill{border-radius:var(--radius); padding:0 7px; font-weight:700; color:#fff; font-size:11px; white-space:nowrap}
 .pill.p1{background:var(--p1)} .pill.p2{background:var(--p2)}
 .pill.p3{background:var(--p3)} .pill.p4{background:var(--p4)}
-.tag{border-radius:10px; padding:0 7px; font-size:11px; font-weight:600; white-space:nowrap}
+.tag{border-radius:var(--radius); padding:0 7px; font-size:11px; font-weight:600; white-space:nowrap}
 .deadline{color:var(--text-weak); white-space:nowrap}
 .jira{color:var(--blue); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap; display:inline-flex; align-items:center; gap:3px}
 .card-foot .foot-right{display:flex; align-items:center; gap:9px; margin-left:auto}
@@ -389,14 +393,25 @@ tr.row.done-final td{opacity:.4}
 .plist-head.lp-1 .plist-dot{background:var(--p1)} .plist-head.lp-2 .plist-dot{background:var(--p2)}
 .plist-head.lp-3 .plist-dot{background:var(--p3)} .plist-head.lp-4 .plist-dot{background:var(--p4)}
 .plist-count{margin-left:auto; font-weight:600; color:var(--text-weak); opacity:.7}
-/* Gemeinsames Spalten-Raster: Prio | Titel | Beschreibung | Deadline | Status | Kategorie */
+/* Gemeinsames Spalten-Raster: Prio | Titel | Beschreibung | Deadline | Status | Kategorie.
+   Linksbündig, an der Kanban-Säule ausgerichtet: Titel und Beschreibung sind je so breit
+   wie EINE Kanban-Spalte, Prio/Deadline/Status/Kategorie je ein Viertel davon.
+   max(): Untergrenzen, damit Datum/Select auf schmalen Fenstern bedienbar bleiben. */
 .plist-grid{display:grid; align-items:center; gap:10px; padding:6px 10px; min-width:760px;
-  grid-template-columns:88px minmax(150px,1.1fr) minmax(170px,1.4fr) 118px minmax(110px,150px) minmax(96px,130px)}
+  --lcolw:calc((100% - (var(--ncols,5) - 1) * 10px) / var(--ncols,5));
+  justify-content:start;
+  grid-template-columns:
+    max(64px, calc(var(--lcolw) / 4))
+    var(--lcolw)
+    var(--lcolw)
+    max(104px, calc(var(--lcolw) / 4))
+    max(96px, calc(var(--lcolw) / 4))
+    max(90px, calc(var(--lcolw) / 4))}
 .plist-cols{padding:6px 11px 2px; font-size:10.5px; font-weight:600; text-transform:uppercase;
   letter-spacing:.07em; color:var(--text-weak); font-family:var(--font-mono)}
 /* Jede Zeile als klar abgegrenzte Karte: Rahmen + sehr subtiler Schatten (Best Practice:
    1px Hairline trennt, der Schatten gibt minimale Tiefe — Augen müssen nicht raten) */
-.plist-row{border-radius:10px; background:var(--card); border:1px solid var(--border);
+.plist-row{border-radius:var(--radius); background:var(--card); border:1px solid var(--border);
   box-shadow:0 1px 2px rgba(15,22,40,.05);
   transition:border-color .1s ease, box-shadow .1s ease}
 .plist-row:hover{border-color:color-mix(in srgb, var(--blue) 40%, var(--border));
@@ -405,7 +420,7 @@ tr.row.done-final td{opacity:.4}
 .plist-title-cell{display:flex; align-items:center; gap:5px; min-width:0}
 .li-desc{font-size:12px; color:var(--text-weak); line-height:1.35;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; cursor:text}
-.li-desc-edit{min-width:0; width:100%; border:1px solid var(--blue); border-radius:6px;
+.li-desc-edit{min-width:0; width:100%; border:1px solid var(--blue); border-radius:var(--radius);
   background:var(--card); padding:3px 6px; font-size:12px; color:var(--text); outline:none}
 .plist-row.due-today{background:var(--today-bg)} .plist-row.overdue{background:var(--overdue-bg)}
 .plist-row.done{opacity:.55}
@@ -419,14 +434,14 @@ tr.row.done-final td{opacity:.4}
 .pd.p3:hover,.pd.p3.on{border-color:var(--p3); background:var(--p3)}
 .pd.p4:hover,.pd.p4.on{border-color:var(--p4); background:var(--p4)}
 .pd:hover:not(.on){background:transparent}
-.li-title{font-weight:600; flex:1; min-width:0; width:100%; border:1px solid transparent; border-radius:6px;
+.li-title{font-weight:600; flex:1; min-width:0; width:100%; border:1px solid transparent; border-radius:var(--radius);
   background:transparent; padding:4px 6px; font-size:13px; color:var(--text)}
 .li-title:hover{border-color:var(--border)}
 .li-title:focus{border-color:var(--blue); background:var(--card); outline:none}
-.li-open{border:none; background:none; color:var(--text-weak); font-size:13px; padding:2px 6px; border-radius:5px; opacity:0; flex:0 0 auto}
+.li-open{border:none; background:none; color:var(--text-weak); font-size:13px; padding:2px 6px; border-radius:var(--radius); opacity:0; flex:0 0 auto}
 .plist-row:hover .li-open{opacity:1}
 .li-open:hover{color:var(--blue); background:var(--card)}
-.plist-row input.li-deadline,.plist-row select.li-status{border:1px solid transparent; border-radius:6px; background:transparent;
+.plist-row input.li-deadline,.plist-row select.li-status{border:1px solid transparent; border-radius:var(--radius); background:transparent;
   padding:3px 5px; font-size:12px; color:var(--text-weak); min-width:0; max-width:100%}
 .plist-row input.li-deadline:hover,.plist-row select.li-status:hover{border-color:var(--border)}
 .plist-row input.li-deadline:focus,.plist-row select.li-status:focus{border-color:var(--blue); background:var(--card); outline:none}
@@ -437,7 +452,7 @@ tr.row.done-final td{opacity:.4}
 .share-code-label{font-size:12px; font-weight:700}
 .share-code-label span{font-weight:400; color:var(--text-weak); font-size:11px; margin-left:4px}
 .share-code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; user-select:all; color:var(--blue)}
-.member-role{border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); font-size:11px; padding:2px 4px}
+.member-role{border:1px solid var(--border); border-radius:var(--radius); background:var(--card); color:var(--text); font-size:11px; padding:2px 4px}
 
 /* ---------- Modals ---------- */
 .overlay{
@@ -445,7 +460,7 @@ tr.row.done-final td{opacity:.4}
   align-items:flex-start; justify-content:center; z-index:100; padding:24px 12px; overflow-y:auto;
 }
 .overlay.open{display:flex}
-.modal{background:var(--card); border-radius:10px; width:100%; max-width:560px; box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.modal{background:var(--card); border-radius:var(--radius); width:100%; max-width:560px; box-shadow:0 8px 30px rgba(0,0,0,.3)}
 .modal-head{display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--border)}
 .modal-head h2{font-size:16px; color:var(--blue-dark)}
 .modal-close{border:none; background:none; font-size:18px; color:var(--text-weak)}
@@ -480,7 +495,7 @@ tr.row.done-final td{opacity:.4}
 /* Kategorien-Verwaltung in Einstellungen */
 .cat-row{display:flex; gap:6px; align-items:center}
 .cat-row input[type=text]{flex:1}
-.cat-row input[type=color]{width:34px; height:28px; padding:1px; border:1px solid var(--border); border-radius:4px; background:var(--card); cursor:pointer}
+.cat-row input[type=color]{width:34px; height:28px; padding:1px; border:1px solid var(--border); border-radius:var(--radius); background:var(--card); cursor:pointer}
 .cat-row .btn{padding:3px 8px}
 /* Undo/Redo-Tasten in der Taskleiste (mit sichtbarem Tastenkürzel) */
 .undo-btn,.redo-btn{font-variant-numeric:tabular-nums}
@@ -488,7 +503,7 @@ tr.row.done-final td{opacity:.4}
 /* Settings-Tabs: eine ruhige Leiste statt langem Scrollen */
 .tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:16px}
 .tabs button{border:none; background:none; padding:8px 13px; font-size:12.5px; font-weight:600;
-  color:var(--text-weak); border-bottom:2px solid transparent; margin-bottom:-1px; border-radius:6px 6px 0 0}
+  color:var(--text-weak); border-bottom:2px solid transparent; margin-bottom:-1px; border-radius:var(--radius) var(--radius) 0 0}
 .tabs button:hover{color:var(--text); background:var(--gray-bg)}
 .tabs button.active{color:var(--blue); border-bottom-color:var(--blue)}
 .tab-hidden{display:none !important}
@@ -500,27 +515,32 @@ tr.row.done-final td{opacity:.4}
 .settings-section h3::before{content:''; width:3px; height:12px; border-radius:2px; background:var(--blue); opacity:.8}
 .set-row{display:flex; align-items:center; gap:8px; justify-content:space-between}
 .set-row label{font-size:12px}
-/* einheitliche, runde Eingabefelder in den Einstellungen (CI-konform) */
-.set-row select,.set-row input,#setColumns input,#setBoardTitle,#setJoinCode,#catManagerNew{
+/* Checkbox-Zeilen: Haken sitzt DIREKT neben dem Text (ein Klickziel, eine Höhe) */
+.set-check{display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer}
+.set-check input[type=checkbox]{width:14px; height:14px; margin:0; flex:0 0 auto; accent-color:var(--blue)}
+/* einheitliche, runde Eingabefelder in den Einstellungen (CI-konform).
+   WICHTIG: Checkboxen ausnehmen — sonst werden sie zu Rahmen-Feldern aufgeblasen. */
+.set-row select,.set-row input:not([type=checkbox]),#setColumns input[type=text],#setBoardTitle,#setJoinCode,#catManagerNew{
   border:1px solid var(--border); border-radius:var(--radius); padding:5px 8px; font-size:13px; background:var(--card); color:var(--text);
 }
 .set-row select,.set-row input[type=number]{width:130px}
-#setColumns input,#setBoardTitle{width:170px}
+#setBoardTitle{width:170px}   /* Spaltenname-Felder: width:100% über .set-col-row .set-col */
 #setColumns .set-row label{color:var(--text-weak)}
-/* Kompakte Spaltenzeile: Name | aktiv | erledigt — festes Raster, bricht nie um */
-.set-col-row{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; align-items:center; justify-content:stretch}
+/* Kompakte Spaltenzeile: Name | aktiv | erledigt — festes Raster, bricht nie um.
+   Haken sitzt DIREKT vor seinem Wort (label = ein Klickziel). */
+.set-col-row{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; align-items:center; justify-content:stretch}
 .set-col-row .set-col{width:100%; min-width:0}
-.set-flag{display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-weak); white-space:nowrap; cursor:pointer}
-.set-flag input{margin:0}
+.set-flag{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-weak); white-space:nowrap; cursor:pointer; line-height:1}
+.set-flag input[type=checkbox]{width:13px; height:13px; margin:0; padding:0; flex:0 0 auto; accent-color:var(--blue)}
 .set-done{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-weak); white-space:nowrap; cursor:pointer}
 .set-done input{width:auto}
-#setColumns input:focus,#setBoardTitle:focus{outline:2px solid var(--blue); outline-offset:-1px}
+#setColumns input[type=text]:focus,#setBoardTitle:focus{outline:2px solid var(--blue); outline-offset:-1px}
 
 /* ---------- Rich-Text (Beschreibung/Notiz mit Inline-Bildern) ---------- */
 .richtext{width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:6px 8px;font-size:13px;min-height:72px;max-height:300px;overflow-y:auto;background:var(--card)}
 .richtext:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .richtext:empty::before{content:attr(data-ph);color:var(--text-weak)}
-.richtext img{max-width:100%;display:block;margin:6px 0;border:1px solid var(--border);border-radius:4px;cursor:zoom-in}
+.richtext img{max-width:100%;display:block;margin:6px 0;border:1px solid var(--border);border-radius:var(--radius);cursor:zoom-in}
 .richtext ul,.richtext ol{padding-left:22px;margin:4px 0}
 .richtext li{margin:2px 0}
 
@@ -550,10 +570,10 @@ tr.row.done-final td{opacity:.4}
   border-radius:50%; border:1.5px solid var(--text-weak); color:var(--text-weak);
   font-size:11px; font-weight:700; font-family:var(--font-mono); cursor:help; user-select:none}
 .head-info:hover{border-color:var(--blue); color:var(--blue)}
-.recur-panel{border:1px solid var(--border); border-radius:8px; padding:10px 12px;
+.recur-panel{border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px;
   display:grid; gap:9px; background:var(--gray-bg)}
 .recur-row{display:flex; align-items:center; gap:8px; font-size:12px; flex-wrap:wrap}
-.recur-row input,.recur-row select{border:1px solid var(--border); border-radius:6px;
+.recur-row input,.recur-row select{border:1px solid var(--border); border-radius:var(--radius);
   background:var(--card); color:var(--text); padding:3px 6px; font-size:12px}
 .recur-end label{display:flex; align-items:center; gap:4px; white-space:nowrap}
 .wd-chips{display:flex; gap:4px}
@@ -578,17 +598,17 @@ tr.row.done-final td{opacity:.4}
 .att-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:12px;text-align:center;color:var(--text-weak);font-size:12px;cursor:pointer}
 .att-zone:hover,.att-zone.drag{border-color:var(--blue);background:var(--blue-bg)}
 .att-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.att-thumb{position:relative;width:74px;height:74px;border:1px solid var(--border);border-radius:4px;overflow:hidden;cursor:zoom-in;background:var(--gray-bg)}
+.att-thumb{position:relative;width:74px;height:74px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:zoom-in;background:var(--gray-bg)}
 .att-thumb img{width:100%;height:100%;object-fit:cover}
 .att-thumb button{position:absolute;top:2px;right:2px;width:18px;height:18px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1}
-.att-file{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:4px;
+.att-file{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius);
   padding:4px 8px;font-size:11px;cursor:pointer;max-width:170px;background:var(--gray-bg)}
 .att-file:hover{border-color:var(--blue)}
 .att-file .att-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .att-file button{border:none;background:none;color:var(--text-weak);font-size:11px;padding:0}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:200;cursor:zoom-out}
 .lightbox.open{display:flex}
-.lightbox img{max-width:95vw;max-height:95vh;border-radius:4px}
+.lightbox img{max-width:95vw;max-height:95vh;border-radius:var(--radius)}
 
 /* ---------- Responsiv ---------- */
 @media (max-width:1180px){ .kanban{grid-template-columns:repeat(min(var(--ncols,5),3),1fr)} }
@@ -612,7 +632,7 @@ tr.row.done-final td{opacity:.4}
   .modal-foot .foot-left{flex-basis:100%; margin-bottom:6px}
   /* Ticket-Dialog als Bottom-Sheet: volle Breite, von unten, bequem erreichbar */
   .overlay{align-items:flex-end; padding:0}
-  .modal{width:100%; max-width:100%; max-height:94vh; border-radius:14px 14px 0 0}
+  .modal{width:100%; max-width:100%; max-height:94vh; border-radius:var(--radius) var(--radius) 0 0}
   /* iOS-Zoom verhindern: Eingaben mind. 16px */
   input, select, textarea, .richtext{font-size:16px}
   .toolbar input,.toolbar select{font-size:14px}
@@ -634,8 +654,8 @@ tr.row.done-final td{opacity:.4}
 .modal-head,.modal-foot{flex:0 0 auto}
 .modal-body{overflow:auto}
 /* ---------- Dino-Spiel ---------- */
-#dinoGameBox{background:var(--card); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.4); padding:14px; position:relative; width:min(92vw,720px)}
-#dinoGameCv{display:block; width:100%; height:auto; border-radius:8px; background:var(--gray-bg); image-rendering:pixelated; touch-action:manipulation}
+#dinoGameBox{background:var(--card); border-radius:var(--radius); box-shadow:0 12px 40px rgba(0,0,0,.4); padding:14px; position:relative; width:min(92vw,720px)}
+#dinoGameCv{display:block; width:100%; height:auto; border-radius:var(--radius); background:var(--gray-bg); image-rendering:pixelated; touch-action:manipulation}
 #dinoGameClose{position:absolute; top:6px; right:8px; border:none; background:none; font-size:18px; color:var(--text-weak); cursor:pointer; z-index:2}
 #dinoGameHint{text-align:center; font-size:12px; color:var(--text-weak); margin-top:8px}
 /* ---------- Enterprise-Feinschliff: konsistente Abstände auf allen Größen ---------- */
@@ -661,7 +681,7 @@ header{gap:12px}
   <canvas id="spaceCv"></canvas>
   <h1 id="boardTitle"><span class="orbit-mark" aria-hidden="true"></span>Orbit</h1>
   <select id="boardSwitch" title="Board wechseln" hidden
-    style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;max-width:180px"></select>
+    style="border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px;width:160px"></select>
   <span class="header-meta" id="todayDate"></span>
   <span id="viewerBadge" hidden title="Du hast auf diesem Board nur Lesezugriff">👁 Nur Lesen</span>
   <button class="badge-today" id="dueTodayBadge" title="Klick: heute fällige und überfällige Tickets filtern">0 fällig</button>
@@ -709,7 +729,9 @@ header{gap:12px}
 
 <!-- Listen-Toolbar -->
 <div class="toolbar" id="listBar" hidden>
-  <input type="search" id="search" placeholder="Suche in Titel + Beschreibung…">
+  <button class="chip undo-btn" title="Rückgängig — Strg+Z" disabled>↶</button>
+  <button class="chip redo-btn" title="Wiederholen — Strg+Shift+Z" disabled>↷</button>
+  <input type="search" id="search" placeholder="Suchen…" title="Filtert nach Titel und Beschreibung">
   <select id="filterStatus"></select>
   <select id="filterPrio">
     <option value="">Priorität: Alle</option>
@@ -720,9 +742,6 @@ header{gap:12px}
     <button class="chip" data-q="active">Aktiv</button>
     <button class="chip" data-q="overdue">Überfällig</button>
   </div>
-  <span class="spacer"></span>
-  <button class="chip undo-btn" title="Rückgängig — Strg+Z" disabled>↶</button>
-  <button class="chip redo-btn" title="Wiederholen — Strg+Shift+Z" disabled>↷</button>
 </div>
 
 <main>
@@ -893,10 +912,10 @@ header{gap:12px}
           <label>Karten sortieren nach</label>
           <select id="setKanbanSort"><option value="deadline">Fälligkeit</option><option value="prio">Priorität (P1 zuerst)</option></select>
         </div>
-        <div class="set-row">
-          <label>Kompakte Karten (ohne Beschreibungstext)</label>
+        <label class="set-check">
           <input type="checkbox" id="setCompact">
-        </div>
+          Kompakte Karten (ohne Beschreibungstext)
+        </label>
         <div class="set-row">
           <label>Dark Mode</label>
           <select id="setThemeMode">
@@ -927,10 +946,10 @@ header{gap:12px}
 
       <div class="settings-section" data-tab="view">
         <h3>Pixel-Lauf &amp; Extras</h3>
-        <div class="set-row">
-          <label>Pixel-Lauf in der Kopfzeile anzeigen</label>
+        <label class="set-check">
           <input type="checkbox" id="setDino">
-        </div>
+          Pixel-Lauf in der Kopfzeile anzeigen
+        </label>
         <div class="set-row">
           <label>Animation</label>
           <button type="button" class="btn" id="setDinoPlay">⏸ Pause</button>
@@ -1532,7 +1551,21 @@ function renderHeader() {
     b.classList.toggle('zero', n === 0);   // nichts fällig -> blau (alle drei Badges)
     b.classList.toggle('filter-on', cur === q);
   });
+  alignKanbanToolbar();
 }
+/* Suchfeld endet bündig mit dem „in 30 Tagen"-Badge darüber. Das Badge ändert seine
+   Breite mit der Ziffernzahl — deshalb messen statt raten. Fallback: CSS-Spaltenbreite. */
+function alignKanbanToolbar() {
+  try {
+    const left = document.getElementById('kanbanLeft');
+    const badge = document.getElementById('dueMonthBadge');
+    if (!left || !badge || typeof badge.getBoundingClientRect !== 'function') return;
+    if (!badge.offsetParent || !left.offsetParent) { left.style.width = ''; return; }
+    const w = badge.getBoundingClientRect().right - left.getBoundingClientRect().left;
+    left.style.width = (w && w > 280) ? w + 'px' : '';
+  } catch (e) { /* Test-DOM ohne Layout-Engine: CSS-Fallback greift */ }
+}
+window.addEventListener('resize', alignKanbanToolbar);
 
 /* ---------- Kanban ---------- */
 function renderKanban() {
@@ -1776,6 +1809,9 @@ function listRowEl(t) {
   const row = document.createElement('div');
   row.className = ['plist-grid', 'plist-row', 'lp-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
   const ro = boardReadOnly ? ' disabled' : '';
+  // Beschreibung auf Zeichenlänge begrenzen (volle Fassung im Tooltip; Doppelklick editiert)
+  const descFull = stripHtml(t.desc || '');
+  const descShort = descFull.length > 90 ? descFull.slice(0, 90).trimEnd() + '…' : descFull;
   row.innerHTML =
     '<span class="plist-prios">' +
       [1, 2, 3, 4].map(p => '<button type="button" class="pd p' + p + (p === t.prio ? ' on' : '') + '" title="' + PRIO_NAMES[p] + '"' + ro + '></button>').join('') +
@@ -1785,7 +1821,7 @@ function listRowEl(t) {
         : isToday(t) ? '<span class="escal today" style="position:static;display:inline-flex;flex:0 0 auto">!</span>' : '') +
       '<input class="li-title" maxlength="200" value="' + esc(t.title) + '"' + ro + '>' +
     '</span>' +
-    '<span class="li-desc" title="' + esc(stripHtml(t.desc || '')) + '">' + esc(stripHtml(t.desc || '')) + '</span>' +
+    '<span class="li-desc" title="' + esc(descFull) + '">' + esc(descShort) + '</span>' +
     '<input type="date" class="li-deadline"' + ro + ' value="' + esc(t.deadline || '') + '">' +
     '<select class="li-status"' + ro + '>' + statusOptions(t.status) + '</select>' +
     '<span class="li-cat-cell"></span>';
@@ -4396,8 +4432,9 @@ const DinoGame = (() => {
 function applyGimmick() {
   const on = state.settings.dino !== false;
   document.getElementById('dinoWrap').hidden = !on;
-  // Szene ist an den Modus gebunden: Light = Urzeit, Dark = Weltall (kein manuelles Umschalten mehr)
-  if (on) { DINO.start(); DINO.setMode(state.settings.theme === 'dark' ? 'space' : 'run'); }
+  // Szene folgt dem WIRKSAMEN Modus (isDarkNow, nicht settings.theme):
+  // im Automatik-Modus wäre settings.theme sonst veraltet und die Szene bliebe hängen.
+  if (on) { DINO.start(); DINO.setMode(isDarkNow() ? 'space' : 'run'); }
   else { DINO.stop(); document.getElementById('spaceCv').style.display = 'none'; }  // aus -> auch Weltall-Hintergrund weg
   updateDinoPlayIcon();
 }

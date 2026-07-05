@@ -134,6 +134,20 @@ try {
   ok(bound.l === 'run', 'Light Mode -> Urzeit-Szene (automatisch gebunden)');
   for (let i = 0; i < 10; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
 
+  // Regression: Automatik-Modus — applyGimmick bindet die Szene an isDarkNow(),
+  // NICHT an settings.theme (sonst hängt die Szene beim Zeitfenster-Wechsel fest)
+  const autoScene = vm.runInContext(`(function(){
+    state.settings.themeMode = 'auto'; state.settings.theme = 'light';   // veraltete manuelle Einstellung
+    state.settings.darkFrom = '00:00'; state.settings.darkTo = '24:00';  // jetzt: dunkel
+    applyGimmick(); var dark = DINO.getMode();
+    state.settings.darkFrom = '00:00'; state.settings.darkTo = '00:00';  // leeres Fenster: hell
+    applyGimmick(); var light = DINO.getMode();
+    state.settings.themeMode = 'manual'; state.settings.theme = 'light'; applyTheme();
+    return { dark, light };
+  })()`, context);
+  ok(autoScene.dark === 'space', 'Automatik dunkel -> Weltall, obwohl settings.theme=light (isDarkNow-Bindung)');
+  ok(autoScene.light === 'run', 'Automatik hell -> Urzeit-Szene');
+
 // (Schiffskatze entfernt — Tests dazu ebenfalls)
 
   // Sticky Note + Ticket-render INNERHALB des vm (Zugriff auf let-Variablen)
