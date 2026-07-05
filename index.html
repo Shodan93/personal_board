@@ -40,12 +40,6 @@
   color-scheme:dark;
 }
 :root[data-theme="dark"] th{background:var(--col-bg)}
-/* Leere Säulen (keine einzige Karte) lösen sich im Dark Mode nach unten hin
-   ganz leicht auf — sehr subtil, lenkt den Blick auf gefüllte Spalten */
-:root[data-theme="dark"] .col:not(:has(.card)){
-  background:linear-gradient(180deg, var(--col-bg) 0%, var(--col-bg) 45%,
-    color-mix(in srgb, var(--col-bg) 55%, transparent) 100%);
-}
 :root[data-theme="dark"] .due-today .deadline{color:#e0a955}
 :root[data-theme="dark"] .badge-today{color:#fff}
 /* Dark Mode: Kopfzeile liegt über dem Weltall — Texte gut lesbar halten (best practice:
@@ -245,26 +239,7 @@ body.viewer .col-name:hover{text-decoration:none}
 #dinoWrap{display:flex; align-items:stretch; flex:1 1 200px; min-width:150px; height:34px; overflow:hidden}
 #dinoCv{flex:1 1 auto; min-width:0; height:34px}
 
-/* Schwarze Schiffskatze (Office-Tipps) auf einem Balken mit Datum/Uhrzeit.
-   Orbit-Vibe: als säße man im Raumschiff und die Schiffskatze döst auf der Konsole. */
-#astro{position:fixed; right:18px; bottom:16px; z-index:90; width:240px; cursor:pointer; display:none;
-  transform-origin:bottom right; pointer-events:none}              /* Container blockt keine Klicks */
-#astroBody{position:relative; width:100%; z-index:1}
-#astroCv,#astroBubble{pointer-events:auto}                        /* nur Katze + Sprechblase sind klickbar */
-#astroCv{display:block; image-rendering:pixelated}                /* keine Animation -> kein Flimmern */
-/* Kleinere Laptops: Widget verkleinern; Handy: komplett ausblenden */
-@media (max-width:1280px){ #astro{transform:scale(.82)} }
-@media (max-width:1000px){ #astro{transform:scale(.66)} }
-@media (max-width:640px){ #astro{display:none !important} }
-/* Sprechblase mittig ÜBER der Katze */
-#astroBubble{position:absolute; left:50%; transform:translateX(-50%); bottom:calc(100% - 6px); width:220px; max-width:60vw; z-index:5;
-  background:var(--card); border:1px solid var(--border); border-radius:10px;
-  box-shadow:0 6px 20px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; line-height:1.5;
-  text-align:center; animation:astroPop .18s ease}
-#astroBubble::after{content:''; position:absolute; bottom:-7px; left:50%; margin-left:-6px; width:12px; height:12px;
-  background:var(--card); border-right:1px solid var(--border); border-bottom:1px solid var(--border);
-  transform:rotate(45deg)}
-@keyframes astroPop{from{opacity:0} to{opacity:1}}
+/* (Schiffskatze/Astronaut entfernt) */
 
 /* Sticky Notes */
 #noteSel{position:fixed; border:2px dashed var(--yellow); background:rgba(255,183,93,.15);
@@ -522,10 +497,11 @@ tr.row.done-final td{opacity:.4}
 .set-row select,.set-row input[type=number]{width:130px}
 #setColumns input,#setBoardTitle{width:170px}
 #setColumns .set-row label{color:var(--text-weak)}
-.set-col-row{gap:8px; justify-content:flex-start; flex-wrap:nowrap}
-.set-col-row .set-col{flex:1 1 auto; width:auto; min-width:80px}
-.set-col-row .set-done{flex:0 0 auto}
-@media (max-width:480px){ .set-col-row{flex-wrap:wrap} .set-col-row .set-col{flex-basis:100%} }
+/* Kompakte Spaltenzeile: Name | aktiv | erledigt — festes Raster, bricht nie um */
+.set-col-row{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; align-items:center; justify-content:stretch}
+.set-col-row .set-col{width:100%; min-width:0}
+.set-flag{display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-weak); white-space:nowrap; cursor:pointer}
+.set-flag input{margin:0}
 .set-done{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-weak); white-space:nowrap; cursor:pointer}
 .set-done input{width:auto}
 #setColumns input:focus,#setBoardTitle:focus{outline:2px solid var(--blue); outline-offset:-1px}
@@ -592,7 +568,7 @@ tr.row.done-final td{opacity:.4}
   .toolbar{padding:8px 12px 0}
   #kanbanLeft{width:100%}   /* Handy: Spalten scrollen horizontal -> Suche volle Breite */
   /* Unnötiges auf dem Handy ausblenden: Fälligkeits-Badges, Pixel-Lauf, Katze */
-  #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #todayDate, #astro{display:none !important}
+  #dinoWrap, #dueTodayBadge, #dueWeekBadge, #dueMonthBadge, #todayDate{display:none !important}
   .kanban{
     display:flex; overflow-x:auto; gap:10px; padding:10px 12px 20px;
     scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
@@ -871,10 +847,7 @@ tr.row.done-final td{opacity:.4}
           <button type="button" class="btn" id="setDinoPlay">⏸ Pause</button>
         </div>
         <div style="font-size:11px;color:var(--text-weak)">Die Szene folgt dem Modus: ☀️ Tag = Urzeit-Landschaft, 🌙 Nacht = Sternenhimmel.</div>
-        <div class="set-row" style="margin-top:6px">
-          <label>Schiffskatze mit Wohlfühl-Tipps</label>
-          <input type="checkbox" id="setTips">
-        </div>
+
       </div>
 
       <div class="settings-section" id="accountSection">
@@ -1039,13 +1012,7 @@ tr.row.done-final td{opacity:.4}
   </div>
 </div>
 
-<!-- Schiffskatze mit Office-Tipps (Ein-/Ausblenden über die Einstellungen) -->
-<div id="astro" title="Streichel mich für einen Tipp!">
-  <div id="astroBubble" hidden><span id="astroText"></span></div>
-  <div id="astroBody">
-    <canvas id="astroCv" width="240" height="112"></canvas>
-  </div>
-</div>
+
 
 <div class="lightbox" id="lightbox"><img id="lightboxImg" alt="Anhang"></div>
 
@@ -1379,13 +1346,6 @@ function isoWeek(d) {
   t.setUTCDate(t.getUTCDate() + 4 - day);  // auf Donnerstag dieser Woche
   const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
   return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
-}
-// Datum/Uhrzeit für den Glas-Balken der Katze (kompakt, inkl. Kalenderwoche)
-function catClockStr() {
-  const n = new Date();
-  return 'KW ' + isoWeek(n) + ' · ' +
-    n.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) +
-    ' · ' + n.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
 }
 function tickClock() {
   const el = document.getElementById('todayDate'); if (!el) return;
@@ -2021,13 +1981,13 @@ function openSettings() {
   document.getElementById('setBoardTitle').value = s.boardTitle || 'Mein Board';
   // Säulen-Eingabefelder (eines pro aktueller Säule)
   document.getElementById('setColumns').innerHTML = STATUSES.map((name, i) =>
-    '<div class="set-row set-col-row">' +
+    '<div class="set-col-row">' +
       '<input type="text" class="set-col" maxlength="30" value="' + esc(name) + '">' +
-      '<label class="set-done" title="Spalte auf dem Board anzeigen. Deaktiviert = ausgeblendet — Tickets darin bleiben erhalten.">' +
-        '<input type="checkbox" class="set-active-cb"' + (ACTIVE_STATUSES.includes(name) ? ' checked' : '') + '> aktiv' +
+      '<label class="set-flag" title="Spalte auf dem Board anzeigen. Deaktiviert = ausgeblendet — Tickets darin bleiben erhalten.">' +
+        '<input type="checkbox" class="set-active-cb"' + (ACTIVE_STATUSES.includes(name) ? ' checked' : '') + '>aktiv' +
       '</label>' +
-      '<label class="set-done" title="Tickets in dieser Spalte gelten als erledigt: Konfetti + Erledigt-Markierung, keine Fälligkeits-/Eskalationsfärbung.">' +
-        '<input type="checkbox" class="set-done-cb"' + (DONE.includes(name) ? ' checked' : '') + '> erledigt' +
+      '<label class="set-flag" title="Tickets in dieser Spalte gelten als erledigt: Konfetti + Erledigt-Markierung, keine Fälligkeits-/Eskalationsfärbung.">' +
+        '<input type="checkbox" class="set-done-cb"' + (DONE.includes(name) ? ' checked' : '') + '>erledigt' +
       '</label>' +
     '</div>').join('');
   document.getElementById('setView').value = s.defaultView;
@@ -2036,7 +1996,6 @@ function openSettings() {
   document.getElementById('setRemind').value = s.remindDays;
   document.getElementById('setCompact').checked = !!s.compact;
   document.getElementById('setDino').checked = s.dino !== false;
-  document.getElementById('setTips').checked = s.tips !== false;
   renderCatManager();
   document.getElementById('setUsage').textContent = sb && sbSession ? 'wird von Supabase verwaltet' : 'nur lokal (nicht angemeldet)';
   document.getElementById('setAccountEmail').textContent = (sbSession && sbSession.user && sbSession.user.email) || 'nicht angemeldet';
@@ -2227,7 +2186,6 @@ function closeSettings() {
   s.remindDays = Math.max(0, +document.getElementById('setRemind').value || 0);
   s.compact = document.getElementById('setCompact').checked;
   s.dino = document.getElementById('setDino').checked;
-  s.tips = document.getElementById('setTips').checked;
   save(); settingsOverlay.classList.remove('open');
   applyBoardConfig(); render(); applyGimmick(); applyTips();
   if (justCompleted > 0) celebrate(); // Säule als „erledigt" markiert -> Konfetti
@@ -4207,476 +4165,8 @@ function toggleDinoPlay() {
   updateDinoPlayIcon();
 }
 
-/* ============================================================
-   OFFICE-TIPPS — Gesundheit, Haltung, Motivation, Humor
-   Erscheinen dezent als Leiste, rotieren ohne Wiederholung.
-   ============================================================ */
-const TIPS = [
-  'Hast du dich heute schon gedehnt und gestreckt? Jetzt wäre ein guter Moment.',
-  'Gönn deinen Augen eine Pause: 20 Sekunden auf etwas in 20 Metern Entfernung schauen.',
-  'Atme einmal tief durch — vier Sekunden ein, sechs Sekunden aus. Wirkt sofort.',
-  'Schultern hochziehen, fünf Sekunden halten, fallen lassen. Dreimal. Danke später.',
-  'Wann hast du zuletzt Wasser getrunken? Hol dir ein Glas — das Board läuft nicht weg.',
-  'Sitzt du gerade aufrecht? Füße flach auf den Boden, Schultern locker.',
-  'It’s just a job — die wichtigsten Dinge im Leben haben kein Ticket.',
-  'Steh kurz auf und geh ein paar Schritte. Dein Rücken zählt mit.',
-  'Ein erledigtes Ticket ist ein gutes Ticket. Perfekt ist der Feind von fertig.',
-  'Blinzeln nicht vergessen! Bildschirmarbeit halbiert die Blinzelrate.',
-  'Kreise langsam mit dem Kopf — erst links, dann rechts. Dein Nacken dankt.',
-  'Mach die Faust, spreize die Finger, wiederhole. Deine Hände tippen den ganzen Tag für dich.',
-  'Multitasking ist ein Mythos. Ein Ticket nach dem anderen — wie auf diesem Board.',
-  'Kurzer Realitätscheck: Was du heute schaffst, musst du morgen nicht schaffen.',
-  'Lüften! Frische Luft bringt mehr als der dritte Kaffee.',
-  'Apropos Kaffee: Ein Glas Wasser dazu, dann bleibt der Kopf klar.',
-  'Lächle kurz — selbst ein künstliches Lächeln senkt nachweislich Stress.',
-  'Die Pomodoro-Idee: 25 Minuten fokussiert, 5 Minuten Pause. Probier’s mal.',
-  'Dein Stuhl ist kein Käfig. Wechsle die Sitzposition ruhig öfter.',
-  'Handgelenke kreisen lassen — zehn Sekunden, beide Richtungen.',
-  'Was wäre, wenn du das schwierigste Ticket zuerst machst? Danach wird alles leichter.',
-  'Stress ist die Würze des Lebens — aber niemand isst gern pures Gewürz. Pause machen!',
-  'Schau aus dem Fenster. Der Horizont entspannt die Augenmuskeln.',
-  'Heute schon gelacht? Such dir einen Grund — Lachen ist Mini-Sport.',
-  'Niemand erinnert sich an die E-Mail, die du um 22 Uhr geschickt hast. Geh offline.',
-  'Stell dich kurz hin und streck die Arme zur Decke. Wachstum auf Knopfdruck.',
-  'Trink-Tipp: Eine Flasche auf den Tisch stellen schlägt jede Erinnerungs-App.',
-  'Dein Wert hängt nicht von der Anzahl erledigter Tickets ab. Aber schön sind sie trotzdem.',
-  'Augen-Yoga: Mit den Augen eine liegende Acht zeichnen. Zweimal.',
-  'Mini-Spaziergang nach dem Mittag — 10 Minuten reichen für einen klaren Kopf.',
-  'Sag heute einem Menschen Danke. Kostet nichts, wirkt Wunder.',
-  'Der beste Zeitpunkt für eine Pause war vor 20 Minuten. Der zweitbeste ist jetzt.',
-  'Ein aufgeräumter Schreibtisch ist wie ein aufgeräumtes Board: halbe Miete.',
-  'Telefonate im Stehen führen — gut für den Rücken, gut für die Stimme.',
-  'Vergleiche dich nicht mit anderen. Vergleiche dich mit dir von gestern.',
-  'Snack-Idee: Nüsse statt Gummibärchen. Dein 15-Uhr-Ich wird es merken.',
-  'Bildschirm zu nah? Eine Armlänge Abstand ist die Faustregel.',
-  'Mach es wie die Profis: Erst denken, dann tippen, dann erst klicken.',
-  'Kleiner Trick gegen Aufschieberitis: Nur 2 Minuten anfangen. Der Rest kommt von allein.',
-  'Dein Nacken ist kein Smartphone-Halter. Kopf hoch — wörtlich.',
-  'Musik ohne Text hilft beim Fokussieren. Text-Musik hilft beim Aufräumen.',
-  'Die Sonne ist auch nur ein großer Bildschirm — aber mit besserem Vitamin D. Geh kurz raus!',
-  'Beine übereinander? Lieber beide Füße auf den Boden — die Durchblutung dankt.',
-  'Erledigt ist erledigt. Grübel nicht über Tickets von gestern.',
-  'Heute schon gestreckt wie eine Katze? Die wissen, wie man lebt.',
-  'Pausen sind keine Schwäche. Auch Formel-1-Autos fahren an die Box.',
-  'Tipp für Meetings: Wer steht, fasst sich kürzer. Probier ein Steh-Meeting.',
-  'Augen zu, zehn Sekunden Dunkelheit. Ein Mini-Urlaub für die Netzhaut.',
-  'Wasser, Bewegung, Tageslicht — die unschlagbare Gratis-Kombi.',
-  'Sei nett zu dir selbst. Du bist der einzige Kollege, der immer dabei ist.',
-  'Eine Aufgabe delegieren ist auch eine erledigte Aufgabe.',
-  'Schreibtisch-Tetris: Räum drei Dinge weg, die da nicht hingehören.',
-  'Der Unterschied zwischen dringend und wichtig entscheidet deinen Tag. Wähle weise.',
-  'Atme aus, bevor du auf „Senden“ drückst. Besonders bei dieser einen Mail.',
-  'Stell den Drucker weiter weg. Erzwungene Schritte sind die besten Schritte.',
-  'Dein Gehirn braucht Leerlauf für gute Ideen. Langeweile ist ein Feature.',
-  'Handflächen aneinander reiben, warm werden lassen, auf die Augen legen. Spa-Moment.',
-  'Fünf Minuten früher Schluss machen und bewusst aufräumen — der Morgen dankt.',
-  'Niemand hat je gesagt: „Hätte ich nur mehr Zeit am Schreibtisch verbracht.“',
-  'Zucker macht müde Männer (und Frauen) munter — für 20 Minuten. Dann kommt die Rechnung.',
-  'Schon mal die Treppe statt den Aufzug probiert? Dein Puls freut sich über Abwechslung.',
-  'Klare Deadline schlägt vage Absicht. Gib dem Ticket ein Datum.',
-  'Ein Lob an Kollegen kostet 10 Sekunden und hält tagelang.',
-  'Stress-Check: Zunge vom Gaumen lösen, Kiefer lockern, Schultern senken. Besser?',
-  'Fokus-Trick: Handy in eine andere Ecke legen. Außer Sichtweite, außer Verstand.',
-  'Heute ist ein guter Tag, um ein altes Ticket endlich zu schließen — oder zu löschen.',
-  'Auch Pflanzen am Schreibtisch senken Stress. Und sie hören beim Monolog zu.',
-  'Wer fragt, wirkt nicht dumm. Wer nie fragt, bleibt es.',
-  'Belohn dich nach einem erledigten Ticket. Konfetti gibt’s hier schon gratis.',
-  'Rückenschule in 5 Sekunden: Brustbein anheben, Schulterblätter sanft zusammen.',
-  'Die wichtigste Verbindung im Büro ist nicht das WLAN — es sind die Menschen.',
-  'Mach Feierabend, wenn Feierabend ist. Das Board ist morgen noch da.',
-  'Trink-Mythos geklärt: Auch Tee zählt. Prost!',
-  'Einmal pro Stunde aufstehen senkt das Rückenrisiko deutlich. Timer stellen!',
-  'Dunkle Schokolade ist Nervennahrung. Sagt die Wissenschaft. Manchmal.',
-  'Setz dir heute EIN Hauptziel. Alles andere ist Bonus.',
-  'Gähnen ist erlaubt — es kühlt sogar das Gehirn. Bitte sehr.',
-  'Eine kurze To-do-Notiz vor dem Schlafengehen leert den Kopf fürs Kissen.',
-  'Schultern sind keine Ohrringe. Runter damit.',
-  'Wer dokumentiert, muss sich weniger merken. Dein Verlauf-Feld wartet.',
-  'Frustriert? Erst 90 Sekunden warten — so lange dauert die Hormonwelle. Dann handeln.',
-  'Die zwei-Minuten-Regel: Was unter 2 Minuten dauert, sofort erledigen.',
-  'Bildschirmhelligkeit an die Umgebung anpassen — deine Augen arbeiten sonst Überstunden.',
-  'Kalt duschen muss nicht sein. Aber kaltes Wasser über die Handgelenke weckt auf.',
-  'Sag öfter „nein“ zu Kleinkram, damit du „ja“ zum Wichtigen sagen kannst.',
-  'Dein Postfach ist die To-do-Liste anderer Leute. Dein Board ist deine.',
-  'Mittagessen ohne Bildschirm schmeckt nachweislich besser. Wirklich.',
-  'Geräuschpegel zu hoch? Kopfhörer auf, Welt aus, Fokus an.',
-  'Ein Spaziergang löst mehr Probleme als eine Stunde Grübeln am Schreibtisch.',
-  'Tief im Bauch atmen, nicht in der Brust — das beruhigt das Nervensystem.',
-  'Hab den Mut, ein totes Ticket zu beerdigen. Nicht alles muss erledigt werden.',
-  'Lieber 80 % heute als 100 % nie.',
-  'Tageslichtpause: 5 Minuten draußen sind besser als 50 mg Koffein.',
-  'Wackel mit den Zehen. Na? Merkst du, wie wenig du deine Füße heute bewegt hast?',
-  'Erfolg ist die Summe kleiner Schritte — dein Board kennt sie alle.',
-  'Behandle deine Pausen wie Meetings: fest eingeplant und nicht verschiebbar.',
-  'Du musst nicht jede Nachricht sofort beantworten. Asynchron ist das neue Pünktlich.',
-  'Augen trocken? Bewusst 10-mal langsam blinzeln. Besser als jeder Tropfen.',
-  'Heute schon bewusst gelächelt, gestreckt UND Wasser getrunken? Triple-Win!',
-  'Und zum Schluss: Du machst das besser, als du denkst. Weiter so. 🚀',
-  // ----- Weitere Office- & Wohlfühl-Tipps -----
-  'Trink-Erinnerung: Das Glas neben dir ist nicht nur Deko. Ein Schluck jetzt.',
-  'Mach die obersten Knöpfe deiner To-do-Liste zu — den Rest erledigt das Morgen-Ich.',
-  'Ein tiefer Atemzug ist die kürzeste Pause, die es gibt. Nimm sie dir.',
-  'Steh auf, wenn du das liest. Ja, jetzt. Drei Schritte zählen schon.',
-  'Notier eine Sache, für die du heute dankbar bist. Klein zählt auch.',
-  'Bildschirmrand kurz fixieren, dann in die Ferne schauen. Augen-Reset in 5 Sekunden.',
-  'Eine Aufgabe halb fertig? Häkchen verdient sich auch der mutige Anfang.',
-  'Räum eine einzige Sache von deinem Schreibtisch. Sofort fühlt sich der Kopf leichter an.',
-  'Du darfst auch mal nichts tun. Leerlauf ist kein Stillstand.',
-  'Lehn dich zurück, Schultern kreisen, ausatmen. Der Stuhl hält dich, lass ihn.',
-  'Frag dich: Was ist heute WIRKLICH wichtig? Der Rest darf warten.',
-  'Ein freundliches Wort an dich selbst wirkt wie ein warmer Tee. Probier es.',
-  'Hände kurz schütteln, als würdest du Wasser abschütteln. Spannung — weg.',
-  'Pausen sind die Kommas im Satz deines Tages. Ohne sie wird alles ein Wortbrei.',
-  'Heute schon aus dem Fenster geschaut? Der Himmel macht gerade was Schönes.',
-  'Kleiner Stretch: Arme hoch, auf die Zehenspitzen, lang machen wie eine Katze.',
-  'Mut zur Lücke im Kalender. Ein leerer Block ist auch ein Termin — mit dir.',
-  'Eine Sache nach der anderen. Dein Board weiß: Spalten füllt man von links.',
-  // ----- Atmosphäre: gemütlich hier im Orbit (Raumschiff-Vibe) -----
-  'Gemütlich hier im Orbit, oder? Lehn dich zurück, die Sterne ziehen für dich vorbei. ✨',
-  'Die Schiffskatze schnurrt. Alle Systeme im grünen Bereich. Du darfst durchatmen.',
-  'Wir treiben ruhig durchs All — kein Grund zur Eile. Ein Ticket nach dem anderen. 🪐',
-  'Draußen ist es still und weit. Hier drinnen ist es warm. Schön, dass du da bist.',
-  'Kurswechsel gefällig? Streck dich, trink was, schau kurz aus dem Bullauge. 🛰️',
-  'Der Autopilot hat alles im Griff. Gönn dir einen Moment Schwerelosigkeit.',
-  'Sternenstaub auf dem Schreibtisch? Macht nichts. Im Orbit darf es gemütlich sein.',
-  'Heißgetränk andocken, Decke über die Knie, Board im Blick. Perfekter Orbit-Moment.',
-  'Die Katze hat sich umgedreht — alles in bester Ordnung an Bord. 😺',
-  'Leise surren die Triebwerke. Du musst heute nichts beweisen, nur sanft weiterfliegen.',
-  'Ein Tee, ein Ticket, ein tiefer Atemzug. Mehr braucht eine gute Orbit-Runde nicht.',
-  'Wenn dir nach Pause ist: Die Sterne warten geduldig. Sie sind seit Milliarden Jahren entspannt.',
-  'Willkommen zurück an Bord. Schön, dass du wieder reinschaust. ☕',
-  'Selbst im Weltall gilt: Erst die Katze streicheln, dann die Welt retten.',
-  'Mach es dir bequem im Cockpit. Der schönste Teil der Reise ist das ruhige Dahingleiten.',
-  'Kleine Erinnerung aus dem Maschinenraum deines Körpers: Wasser nachfüllen, bitte. 💧',
-  'Die Nacht draußen ist tiefblau und ruhig. Lass deinen Schultern dieselbe Ruhe.',
-  'Ein erledigtes Ticket ist ein kleiner Stern mehr an deinem Himmel. Sammle in Ruhe.',
-];
-let tipPool = [], tipTimer = null, bubbleTimer = null;
-
-/* Schlafende Schiffskatze (Pixel-Art) auf einem transparenten Glas-Regal.
-   Atmen läuft per CSS; Blinzeln + gelegentliches Umlegen/Drehen per JS. */
-const catCv = document.getElementById('astroCv');
-const cctx = catCv.getContext('2d');
-const CP = 2, SHELF_ROW = 33;                            // feine 2px-Pixel (höheres Niveau als der Pixel-Lauf)
-// Schwarze-Katze-Palette: o=Kontur B=Fell D=Schatten/dunkel L=heller Akzent m=Schnauze
-// n=Nase(rosa) E=Auge(gelbgrün) P=Pupille W=Glanz i=Ohr-innen
-const catCol = { o: '#0b0b11', B: '#272a33', D: '#16171d', L: '#3c3f4b', m: '#454853',
-                 n: '#d98a9c', E: '#b7d24a', P: '#0b0b11', W: '#ffffff', i: '#6e4350' };
-// Vier 48×40-Posen (schwarze Katze), Boden/Regal bei Reihe 33 -> automatischer Wechsel.
-const CAT_POSES = {
-  sitFront: [
-    '..............ooo...............ooo.............',
-    '..............oBoo.............ooBo.............',
-    '..............ooBooo.........oooBoo.............',
-    '...............oiBBoo..ooo..ooBBio..............',
-    '...............oBiBBooooBooooBBiBo..............',
-    '...............oBiiiBBBBBBBBBiiiBo..............',
-    '...............oBiiiiBBBBBBBiiiiBo..............',
-    '...............oBiiiiiiBBBiiiiiiBo..............',
-    '...............oBiiiiBBBBBBBiiiiBo..............',
-    '...............oBBBBBBBBBBBBBBBBBo..............',
-    '...............oBBBBBBBBBBBBBBBBBo..............',
-    '..............ooBBBBWEBBBBBWEBBBBoo.............',
-    '..............oBBBBEEPEBBBEEPEBBBBo.............',
-    '..............oBBBBBEELLmLLEEBBBBBo.............',
-    '..............oBBBBBLLmmmmmLLBBBBBo.............',
-    '..............ooBBBLLmmnnmmmLLBBBoo.............',
-    '...............ooBBBLLmmmmmLLBBBoo..............',
-    '................oBBBBLLLmLLLBBBBo...............',
-    '................ooBBBBBBBBBBBBBoo...............',
-    '...............ooBBBBBBBBBBBBBBBoo..............',
-    '..............ooBBDBBBBBDBBBBBDBBoo.............',
-    '..............oBBBDBBBBBDBBBBBDBBBo.............',
-    '.............ooBBBDBBBBBLBBBBBDBBBoo............',
-    '.............oBBBBDBBLLLLLLLBBDBBBBo............',
-    '.............oBBBBDBLLLLLLLLLBDBBBBo............',
-    '.............oBBBBDLLLLLLLLLLLDBBBBo............',
-    '.............oBBBBLLLLLLLLLLLLLBBBBo............',
-    '.............oBBBBLLLLLLLLLLLLLBBBBo............',
-    '.............oBBBBLLLLLLLLLLLLLBBBBo............',
-    '.............oBBBBLLLLLLLLLLLLLBBBBooo..........',
-    '.............ooBBBLLLLLLLLLLLLLBBBBBBo..........',
-    '.............ooBBBBLLLLLLLLLLLBBBBBBBo..........',
-    '.............oBBBBBBLLLLLLLLLBBBBBBBBo..........',
-    '.............ooBBBBBBLLLLLLLBBBBBBBBoo..........',
-    '..............oooBBBBBBBLBBBBBBBoBBoo...........',
-    '................ooooBBBBBBBBBooooooo............',
-    '...................oooooBooooo..................',
-    '.......................ooo......................',
-    '................................................',
-    '................................................',
-  ],
-  loaf: [
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '.....ooo...........ooo..........................',
-    '.....oBoo.........ooBo..........................',
-    '.....ooioo..ooo..ooioo..........................',
-    '......oBiooooBooooiBo..............ooooooo......',
-    '......oBiiBBBBBBBiiBo.....ooo.....ooBBBBBoo.....',
-    '......oBiiiiBBBiiiiBoooooooBoooooooBBBBBBBoo....',
-    '.....ooBiiiBBBBBiiiBBBDBBBBDBBBBDBBBBDBBBBBoo...',
-    '.....oBBBBBBBBBBBBBBBBDBBBBDBBBBDBBBBDBBBBBBo...',
-    '.....oBBBBBBBBBBBBBBBBDBBBBDBBBBDBBBBDBBBBBBoo..',
-    '....ooBBBWEEBBBWEEBBBBDBBBBDBBBBDBBBBDBBBBBBBo..',
-    '....oBBBBEPEBBBEPEBBBBBBBBBBBBBBBBBBBBBBBBBBBoo.',
-    '....oBBBBEEELmLEEEBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.',
-    '....oBBBLLLmmmmmLBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.',
-    '....ooBLLLmmnnmmmLBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.',
-    '.....ooBLLLmmmmmLLLLLLLLLLLLLLLLLLLLLLLLBBBBBoo.',
-    '......ooBBLLLmLLLLLLLLLLLLLLLLLLLLLLLLLLBBBBBo..',
-    '.....oooBBBBBBBBBLooLLLLLLLLLLLLLLLoLLLBBBBooo..',
-    '.....oBBBBBBBBBBBBBooooooooBooooooooooooBBoo....',
-    '.....oooBBBBBBBBBooo......ooo..........oooo.....',
-    '.......ooooooooooo..............................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-  ],
-  sit34: [
-    '................................................',
-    '............ooo.............ooo.................',
-    '............oBoo...........ooBo.................',
-    '............ooBoo.........ooBoo.................',
-    '.............oiBoooooooooooBio..................',
-    '.............oBiBBoBBBBBoBBiBo..................',
-    '.............oBiiiBBBBBBBiiiBo..................',
-    '.............oBiiiiBBBBBiiiiBo..................',
-    '.............oBiiiiiiBiiiiiiBo..................',
-    '.............oBBBBBBBBBBBBBBBo..................',
-    '.............oBBBBBBBBBBBBBBBo..................',
-    '............ooBBBWEEBBBWEEBBBoo.................',
-    '............oBBBBEPEBBBEPEBBBBo.................',
-    '............oBBBBEEELmLEEEBBBBo.................',
-    '............oBBBBLLmmmmmLLBBBBo.................',
-    '............ooBBBLmmnnmmmLBBBoo.................',
-    '.............ooBBLLmmmmmLLBBoo..................',
-    '..............ooBBBLLmLLBBBBBoo.................',
-    '.............ooBBBBBBBBBBBBBBBoo................',
-    '.............oBBBBBBBBBBBBBBBBBo................',
-    '............ooDBBBBDBBBBDBBBBDBoo...............',
-    '............oBDBBBBDBBLBDBBBBDBBo...............',
-    '............oBDBBBBLLLLLLLBBBDBBo...............',
-    '............oBDBBBLLLLLLLLLBBDBBo...............',
-    '...........ooBDBBLLLLLLLLLLLBDBBoo..............',
-    '...........oBBBBBLLLLLLLLLLLBBBBBo..............',
-    '...........ooBBBBLLLLLLLLLLLBBBBooooo...........',
-    '............oBBBLLLLLLLLLLLLLBBBoooBooo.........',
-    '............oBBBBLLLLLLLLLLLBBBBBBBBBBo.........',
-    '............oBBBBLLLLLLLLLLLBBBBBBBBBBo.........',
-    '............ooBBBLLLLLLLLLLLBBBBBBBBBBo.........',
-    '............ooBBBBLLLLLLLLLBBBBBBBBBBBo.........',
-    '............oBBBBBBLLLLLLLBBBBBBBBBBBoo.........',
-    '............ooBBBBBBBBLBBBBBBBBoBBBBoo..........',
-    '.............oooBBBBBBBBBBBBBooooBBoo...........',
-    '...............oooBoooBoooBooo..oooo............',
-    '.................ooo.ooo.ooo....................',
-    '................................................',
-    '................................................',
-    '................................................',
-  ],
-  standSide: [
-    '................................................',
-    '................................................',
-    '................................................',
-    '.......................................ooooo....',
-    '......ooo.........ooo..................oBBBoo...',
-    '......oBoo.......ooBo..................oBBBBoo..',
-    '......oBioo.....ooBBo..................oBBBBBoo.',
-    '......oBiioo...ooBiBo..................ooBBBBBo.',
-    '......oBiiioooooBiiBo...................ooBBBBo.',
-    '......oBiiiiBBBBiiiBo....................oBBBBo.',
-    '......oBiiiiiBiiiiiBo....................oBBBBo.',
-    '......oBiBBBBBBBBBBBo.............ooo...ooBBBBo.',
-    '......oBBBBBBBBBBBBBo...ooo....ooooBoooooBBBBBo.',
-    '......oBBWEEBBBWEEBBoooooBooooooBBBBBBBoBBBBBoo.',
-    '.....ooBBEPEBBBEPEBBBBDBBBBDBBBBDBBBBBBBBBBBBo..',
-    '.....oBBBEEELmLEEEBBBBDBBBBDBBBBDBBBBBBBBBBBBo..',
-    '.....oBBBLLmmmmmLLBBBBDBBBBDBBBBDBBBBBBBBBBBoo..',
-    '.....oBBBLmmnnmmmLBBBBDBBBBDBBBBDBBBBBBBBBBoo...',
-    '.....ooBBLLmmmmmLLBBBBDBBBBDBBBBDBBBBBBBBBBo....',
-    '......ooBBLLLmLLLBBBBBBBBBBBBBBBBBBBBBBBBBBo....',
-    '.......ooBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBoo....',
-    '........oooBBBBBLLLLLLLLLLLLLLLLLLLBBBBBBBo.....',
-    '..........ooooLLLLLLLLLLLLLLLLLLLLLLLBBBBBo.....',
-    '.............ooBLLLLLLLLLLLLLLLLLLLBBBBBBoo.....',
-    '..............oBBBBBBBBBBBBBBBBBBBBBBBBBoo......',
-    '..............oBBBooBBBooBoooooBBBBBBBBBoo......',
-    '..............oBBBooBBBoooo..oBBBBBBBBBBBo......',
-    '.............ooBBBooBBBoo....oBBBBBoBBBBBo......',
-    '.............oBBBBBBBBBBo....oBBBBBoBBBBBo......',
-    '.............ooBBBooBBBoo....oBBBBBoBBBBBo......',
-    '..............oBBBooBBBo.....oBBBBBoBBBBBo......',
-    '..............oBBBooBBBo.....ooBBBoooBBBoo......',
-    '.............ooBBBooBBBoo....ooBBBoooBBBoo......',
-    '.............oBBBBBBBBBBo....oBBBBBoBBBBBo......',
-    '.............ooBBBooBBBoo....ooBBBoooBBBoo......',
-    '..............oooooooooo......ooooo.ooooo.......',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-  ],
-};
-const POSE_ORDER = ['sitFront', 'loaf', 'sit34', 'standSide'];
-let catPoseIdx = 1, catBlink = false, catBlinkT = null, catMoveT = null;
-let catSheet = null, catFrames = 4, catFrameRects = [];  // optionales eigenes Sprite-Sheet (Originalbild)
-function fadeGrad(W, a, mid) {                            // horizontaler Verlauf: an den Enden transparent
-  const g = cctx.createLinearGradient && cctx.createLinearGradient(0, 0, W, 0);
-  if (!g || !g.addColorStop) return a + mid + ')';       // Fallback (Test-Stubs ohne Gradient)
-  g.addColorStop(0, a + '0)'); g.addColorStop(0.18, a + mid + ')');
-  g.addColorStop(0.82, a + mid + ')'); g.addColorStop(1, a + '0)');
-  return g;
-}
-const CAT_BOX = 150;                                     // Breite der Katzen-Zone (links)
-function catCount() { return (catSheet && catFrameRects.length) ? catFrameRects.length : POSE_ORDER.length; }
-function drawCat() {
-  const W = catCv.width, H = catCv.height, BAR = 26, sy = H - BAR;
-  const dark = document.documentElement.dataset.theme === 'dark';
-  cctx.clearRect(0, 0, W, H);
-  // Schwebende Plattform: weiche Enden (links/rechts Fade), leichte Transparenz, CI-Farben
-  const card = dark ? '40,44,55' : '255,255,255';
-  cctx.fillStyle = fadeGrad(W, 'rgba(8,14,30,.', dark ? '34' : '12'); cctx.fillRect(0, H - 3, W, 3);          // weicher Schlagschatten -> schwebt
-  cctx.fillStyle = fadeGrad(W, 'rgba(' + card + ',.', dark ? '70' : '82'); cctx.fillRect(0, sy, W, BAR - 2);  // Plattform
-  cctx.fillStyle = fadeGrad(W, 'rgba(' + (dark ? '255,255,255' : '1,118,211') + ',.', dark ? '12' : '15'); cctx.fillRect(0, sy, W, 1); // CI-Glanzkante (blau)
-  // Katze mittig auf dem Balken, sitzt direkt darauf
-  const availW = W * 0.52, availH = sy - 14;
-  if (catSheet && catFrameRects.length) {
-    const r = catFrameRects[catPoseIdx % catFrameRects.length];
-    const sc = 0.8 * Math.min(availW / r.w, availH / r.h);
-    const dw = Math.round(r.w * sc), dh = Math.round(r.h * sc);
-    const dx = Math.round((W - dw) / 2), dy = Math.round(sy - dh + 1);   // mittig, Füße auf dem Balken
-    cctx.imageSmoothingEnabled = false;                  // knackscharf
-    cctx.drawImage(catSheet, r.x, r.y, r.w, r.h, dx, dy, dw, dh);
-  } else {
-    const pose = CAT_POSES[POSE_ORDER[catPoseIdx % POSE_ORDER.length]];
-    const pw = pose[0].length, ph = pose.length;
-    const sc = Math.max(1, Math.floor(0.8 * Math.min(availW / pw, availH / ph)));
-    const dx = Math.round((W - pw * sc) / 2), dy = Math.round(sy - ph * sc + 1);
-    pose.forEach((row, y) => [...row].forEach((ch, x) => {
-      let c = ch;
-      if (catBlink && (c === 'E' || c === 'W')) c = 'B';
-      else if (catBlink && c === 'P') c = 'o';
-      const col = catCol[c];
-      if (col) { cctx.fillStyle = col; cctx.fillRect(dx + x * sc, dy + y * sc, sc, sc); }
-    }));
-  }
-  // Datum/Uhrzeit auf dem Balken (Schriftgröße auto-angepasst, Farbe je nach Theme)
-  try {
-    const txt = catClockStr(); let fz = 13;
-    const setF = () => cctx.font = '600 ' + fz + 'px ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif';
-    cctx.textBaseline = 'middle'; cctx.textAlign = 'center'; setF();
-    while (cctx.measureText(txt).width > W - 16 && fz > 8) { fz--; setF(); }
-    cctx.fillStyle = dark ? '#d2d9e6' : '#2b313d';
-    cctx.fillText(txt, W / 2, sy + BAR / 2 + 1);
-  } catch (e) {}                                          // Test-Stubs ohne measureText/fillText
-}
-function catBlinkOnce() {
-  catBlink = true; drawCat();
-  setTimeout(() => { catBlink = false; drawCat(); }, 170);
-  catBlinkT = setTimeout(catBlinkOnce, 3500 + Math.random() * 5500);
-}
-function catCyclePose() {  // automatischer Posenwechsel — selten und ohne Animation (sofort)
-  catPoseIdx = (catPoseIdx + 1) % catCount();
-  drawCat();
-  catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);   // alle ~24–46 s
-}
-const CAT_LIVE = true;    // Schiffskatze ist wieder an Bord — das Setting schaltet sie um
-if (CAT_LIVE) {
-  drawCat();
-  catBlinkT = setTimeout(catBlinkOnce, 4000 + Math.random() * 4000);
-  catMoveT = setTimeout(catCyclePose, 24000 + Math.random() * 22000);
-}
-// Eigenes Sprite-Sheet laden (4 Posen nebeneinander). Hintergrund wird freigestellt
-// (Eckfarbe wird transparent), jede Pose auf ihre Bounding-Box zugeschnitten.
-function processCatSheet(img) {
-  const oc = document.createElement('canvas'); oc.width = img.width; oc.height = img.height;
-  const o = oc.getContext('2d'); o.drawImage(img, 0, 0);
-  let data;
-  try { data = o.getImageData(0, 0, oc.width, oc.height); }
-  catch (e) {                                              // z. B. getImageData nicht verfügbar -> ganzes Frame nutzen
-    const fw = Math.floor(img.width / catFrames);
-    catSheet = img; catFrameRects = Array.from({ length: catFrames }, (_, f) => ({ x: f * fw, y: 0, w: fw, h: img.height }));
-    return;
-  }
-  const d = data.data, W = img.width, fh = img.height, br = d[0], bg = d[1], bb = d[2], tol = 40;
-  for (let p = 0; p < d.length; p += 4) {
-    const r = d[p], g = d[p + 1], b = d[p + 2];
-    if (Math.abs(r - br) < tol && Math.abs(g - bg) < tol && Math.abs(b - bb) < tol) { d[p + 3] = 0; continue; }  // Hintergrund -> transparent
-    // Braunes Tabby -> komplett SCHWARZE Katze: ALLES aufs dunkle Graustufen-Band (Deckel 85 = nie weiß).
-    // Läuft einmalig beim Laden, unabhängig vom Theme -> Dark/Light ändern die Katze NICHT.
-    let L = 0.299 * r + 0.587 * g + 0.114 * b, nl = L * 0.45 - 6; nl = nl < 7 ? 7 : nl > 85 ? 85 : nl;
-    d[p] = Math.round(nl * 0.92); d[p + 1] = Math.round(nl * 0.97); d[p + 2] = Math.round(nl * 1.12);
-  }
-  o.putImageData(data, 0, 0);
-  catSheet = oc;
-  // Posen über LEERSPALTEN segmentieren (robust gegen Schwänze, die Zellgrenzen überqueren)
-  const col = new Array(W).fill(0);
-  for (let x = 0; x < W; x++) for (let y = 0; y < fh; y++) if (d[(y * W + x) * 4 + 3] > 16) col[x]++;
-  const clusters = []; let s = -1;
-  for (let x = 0; x < W; x++) { const on = col[x] >= 2;
-    if (on && s < 0) s = x;
-    if ((!on || x === W - 1) && s >= 0) { const e = on ? x : x - 1; if (e - s + 1 >= 20) clusters.push([s, e]); s = -1; } }
-  catFrameRects = clusters.map(([x0, x1]) => {
-    let miny = fh, maxy = 0;
-    for (let x = x0; x <= x1; x++) for (let y = 0; y < fh; y++) if (d[(y * W + x) * 4 + 3] > 16) { if (y < miny) miny = y; if (y > maxy) maxy = y; }
-    return { x: x0, y: miny, w: x1 - x0 + 1, h: maxy - miny + 1 };
-  });
-  if (!catFrameRects.length) catFrameRects = [{ x: 0, y: 0, w: W, h: fh }];
-  catFrames = catFrameRects.length;
-}
-(function loadCatSheet() {
-  if (!CAT_LIVE || typeof Image === 'undefined') return;
-  const names = ['cat-sprites.png', 'cats.png', 'cat.png', 'katze.png']; let i = 0;
-  const img = new Image();
-  img.onload = () => { try { processCatSheet(img); } catch (e) {} drawCat(); };
-  img.onerror = () => { if (++i < names.length) img.src = names[i]; };  // sonst handgebaute Sprites behalten
-  img.src = names[0];
-})();
-// Bei Fensterfokus immer einen frischen Tipp zeigen
-window.addEventListener('focus', () => { if (state.settings.tips !== false) speakTip(); });
-
-function nextTip() {
-  if (!tipPool.length) tipPool = [...TIPS].sort(() => Math.random() - 0.5);
-  return tipPool.pop();
-}
-function speakTip(text) {
-  const b = document.getElementById('astroBubble');
-  document.getElementById('astroText').textContent = text || nextTip();
-  b.hidden = false;
-  clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(() => { b.hidden = true; }, 12000);
-}
-function scheduleAutoTip() {
-  clearTimeout(tipTimer);
-  if (state.settings.tips === false || state.settings.tipsAuto === false) return;
-  tipTimer = setTimeout(function run() {
-    if (state.settings.tips !== false && state.settings.tipsAuto !== false) speakTip();
-    tipTimer = setTimeout(run, 5 * 60 * 1000 + Math.random() * 4 * 60 * 1000); // alle 5–9 Min
-  }, 18000); // erster Tipp nach 18 Sekunden
-}
-function applyTips() {
-  const on = CAT_LIVE && state.settings.tips !== false;
-  document.getElementById('astro').style.display = on ? 'block' : 'none';
-  document.getElementById('tipBar').hidden = true;   // alte Tipp-Leiste bleibt aus
-  scheduleAutoTip();
-}
-document.getElementById('astroCv').onclick = () => { speakTip(); clearTimeout(catMoveT); catCyclePose(); };
+/* Office-Tipps & Schiffskatze: komplett entfernt (bewusst). */
+function applyTips() { document.getElementById('tipBar').hidden = true; }
 document.getElementById('btnTipClose').onclick = () => document.getElementById('tipBar').hidden = true;
 
 /* ============================================================
@@ -4822,7 +4312,7 @@ function startDragNote(e, el, note) {
 // Aufziehen eines Rechtecks irgendwo auf der UI erzeugt eine Notiz
 document.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
-  if (e.target.closest('.card, button, a, select, input, textarea, .col-add, .ghost-card, .card-menu-pop, .sticky, .overlay, header, #astro, #dinoWrap, .list-wrap, .toolbar, label')) return;
+  if (e.target.closest('.card, button, a, select, input, textarea, .col-add, .ghost-card, .card-menu-pop, .sticky, .overlay, header, #dinoWrap, .list-wrap, .toolbar, label')) return;
   const sx = e.clientX, sy = e.clientY;
   const sel = document.getElementById('noteSel');
   sel.style.display = 'block'; sel.style.left = sx + 'px'; sel.style.top = sy + 'px';

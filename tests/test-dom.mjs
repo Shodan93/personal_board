@@ -134,22 +134,7 @@ try {
   ok(bound.l === 'run', 'Light Mode -> Urzeit-Szene (automatisch gebunden)');
   for (let i = 0; i < 10; i++) { perf += 16; const cb = rafCb; rafCb = null; if (cb) cb(perf); }
 
-  // Schwarze Schiffskatze in 4 Posen mit automatischem Wechsel (übernimmt die Office-Tipps)
-  const cat = vm.runInContext(`(function(){
-    var names = POSE_ORDER.slice();
-    var sizes = names.map(n => CAT_POSES[n].length + 'x' + CAT_POSES[n][0].length);
-    var drawn = [];
-    for (var i = 0; i < names.length; i++) { catCyclePose(); drawn.push(POSE_ORDER[catPoseIdx]); }  // alle Posen durchzeichnen
-    catBlink = true; drawCat(); catBlink = false; drawCat();                                          // Blinzeln
-    speakTip('miau');
-    return { count: names.length, sizes: sizes.join(','), cycled: drawn.length,
-             bubble: document.getElementById('astroBubble').hidden === false,
-             text: document.getElementById('astroText').textContent };
-  })()`, context);
-  ok(cat.count === 4, 'Katze: vier Posen vorhanden');
-  ok(cat.sizes === '40x48,40x48,40x48,40x48', 'Katze: alle Posen 48×40 (gemeinsames Raster)');
-  ok(cat.cycled === 4, 'Katze: automatischer Posenwechsel zeichnet jede Pose fehlerfrei');
-  ok(cat.bubble && cat.text === 'miau', 'Katze übernimmt die Office-Tipps (Sprechblase)');
+// (Schiffskatze entfernt — Tests dazu ebenfalls)
 
   // Sticky Note + Ticket-render INNERHALB des vm (Zugriff auf let-Variablen)
   const probe = vm.runInContext(`(function(){
