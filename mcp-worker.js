@@ -29,6 +29,11 @@ const TASKS_SCHEMA = { type: "array", description: "Checklisten-Aufgaben im Tick
   items: { type: "object", properties: { text: { type: "string" }, done: { type: "boolean" } }, required: ["text"], additionalProperties: false } };
 const BOARD_ID = { type: "string", description: "Board-id aus list_boards. Ohne board_id/board wird das zuletzt geänderte Board genutzt." };
 const BOARD_NAME = { type: "string", description: "Board-Name statt id (z. B. \"Life\"), alternativ zu board_id." };
+const RECUR_SCHEMA = { type: ["object", "null"],
+  description: "Wiederholung: {every: 1-365, unit: day|week|month, weekdays: [0-6, Mo=0] (nur week), end_date: YYYY-MM-DD, end_count: 1-999}. null = Wiederholung entfernen.",
+  properties: { every: { type: "integer" }, unit: { type: "string", enum: ["day", "week", "month"] },
+    weekdays: { type: "array", items: { type: "integer", minimum: 0, maximum: 6 } },
+    end_date: { type: "string" }, end_count: { type: "integer" } } };
 
 const TOOLS = [
   { name: "list_boards", description: "Listet ALLE deine Boards (id + Titel). ZUERST aufrufen, um board_id oder Namen für die anderen Tools zu bekommen.",
@@ -47,14 +52,14 @@ const TOOLS = [
       prio: { type: "integer", minimum: 1, maximum: 4, description: "1 = kritisch … 4 = niedrig (Alt: Hoch/Mittel/Niedrig wird gemappt)" },
       deadline: { type: "string", description: "YYYY-MM-DD" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
-      tasks: TASKS_SCHEMA,
+      tasks: TASKS_SCHEMA, recur: RECUR_SCHEMA,
       board_id: BOARD_ID, board: BOARD_NAME }, required: ["title"], additionalProperties: false } },
   { name: "update_ticket", description: "Felder eines Tickets ändern (nur gesetzte werden überschrieben).",
     inputSchema: { type: "object", properties: {
       id: { type: "string" }, title: { type: "string" }, status: { type: "string" },
       prio: { type: "integer", minimum: 1, maximum: 4, description: "1 = kritisch … 4 = niedrig (Alt: Hoch/Mittel/Niedrig wird gemappt)" }, deadline: { type: "string" },
       desc: { type: "string" }, cats: { type: "array", items: { type: "string" } },
-      tasks: TASKS_SCHEMA,
+      tasks: TASKS_SCHEMA, recur: RECUR_SCHEMA,
       board_id: BOARD_ID, board: BOARD_NAME }, required: ["id"], additionalProperties: false } },
   { name: "move_ticket", description: "Ticket in eine andere Spalte (Status) verschieben.",
     inputSchema: { type: "object", properties: { id: { type: "string" }, status: { type: "string" }, board_id: BOARD_ID, board: BOARD_NAME }, required: ["id", "status"], additionalProperties: false } },
@@ -69,6 +74,18 @@ function normPrio(p) {
   const n = parseInt(p, 10);
   if (n === 5) return 4;
   return (n >= 1 && n <= 4) ? n : null;
+}
+// Wiederholung: { every, unit: day|week|month, weekdays:[0-6, Mo=0], end_date, end_count }
+function normRecur(r) {
+  if (r === null || r === false) return null;
+  if (!r || typeof r !== "object") return undefined;   // nicht angegeben
+  const unit = ["day", "week", "month"].includes(r.unit) ? r.unit : "week";
+  let every = parseInt(r.every, 10); if (!(every >= 1 && every <= 365)) every = 1;
+  let weekdays = Array.isArray(r.weekdays) ? r.weekdays.map((n) => parseInt(n, 10)).filter((n) => n >= 0 && n <= 6) : [];
+  weekdays = [...new Set(weekdays)].sort((a, b) => a - b);
+  const endDate = /^\d{4}-\d{2}-\d{2}$/.test(r.end_date || r.endDate || "") ? (r.end_date || r.endDate) : null;
+  let endCount = parseInt(r.end_count ?? r.endCount, 10); endCount = (endCount >= 1 && endCount <= 999) ? endCount : null;
+  return { every, unit, weekdays, endDate, endCount, done: parseInt(r.done, 10) || 0 };
 }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -147,6 +164,7 @@ function pub(t) {
     title: t.title, status: t.status, prio: t.prio, deadline: t.deadline,
     desc: t.desc || "", note: t.note || "", cats: t.cats || [],
     tasks: (t.tasks || []).map((x) => ({ text: x.text, done: !!x.done })),
+    recur: t.recur || null,
     createdAt: t.createdAt, completedAt: t.completedAt || null };
 }
 
@@ -178,7 +196,7 @@ async function callTool(name, a, env) {
     const prio = a.prio === undefined ? 3 : normPrio(a.prio);
     if (prio === null) throw new Error("prio muss 1-4 sein (1 = kritisch).");
     const ticket = { id: uid(), title: a.title, status: useStatus, prio,
-      deadline: a.deadline || today(), desc: a.desc || "", note: "", cats: a.cats || [], imgs: [], tasks: normTasks(a.tasks) || [], createdAt: today() };
+      deadline: a.deadline || today(), desc: a.desc || "", note: "", cats: a.cats || [], imgs: [], tasks: normTasks(a.tasks) || [], recur: normRecur(a.recur) ?? null, createdAt: today() };
     b.data.tickets = [...b.data.tickets, ticket];
     await saveData(env, b.id, b.data);
     return JSON.stringify({ created: ticket.id, url: SITE_URL + "#t=" + ticket.id, status: useStatus, board: b.title, tasks: ticket.tasks }, null, 2);
@@ -191,6 +209,7 @@ async function callTool(name, a, env) {
     if (a.prio !== undefined) { const np = normPrio(a.prio); if (np === null) throw new Error("prio muss 1-4 sein (1 = kritisch)."); a.prio = np; }
     for (const k of ["title", "status", "prio", "deadline", "desc", "cats"]) if (a[k] !== undefined) t[k] = a[k];
     if (a.tasks !== undefined) t.tasks = normTasks(a.tasks) || [];   // Checklisten-Aufgaben ersetzen
+    if (a.recur !== undefined) { const nr = normRecur(a.recur); if (nr !== undefined) t.recur = nr; }   // Wiederholung setzen/entfernen
     const done = doneOf(b);
     if (done.includes(t.status) && !t.completedAt) t.completedAt = today();
     if (!done.includes(t.status)) delete t.completedAt;

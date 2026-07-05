@@ -509,6 +509,46 @@ try {
   ok(win.ueber === false, 'Fällig-Fenster ignoriert überfällige Tickets');
   ok(win.erledigt === false, 'Fällig-Fenster ignoriert erledigte Tickets');
 
+  // Wiederkehrende Tickets: Termin-Berechnung + Respawn nach Abschluss
+  const rec = vm.runInContext(`(function(){
+    state.settings.statuses = ['Offen','Doing','Fertig']; state.settings.doneStatuses = ['Fertig'];
+    state.settings.disabledStatuses = []; applyBoardConfig();
+    var day3 = nextRecurDate('2026-07-06', { every: 3, unit: 'day', weekdays: [] });          // Mo +3
+    var satW = nextRecurDate('2026-07-06', { every: 1, unit: 'week', weekdays: [5] });        // Mo -> Sa gleiche Woche
+    var sat2 = nextRecurDate('2026-07-11', { every: 2, unit: 'week', weekdays: [5] });        // Sa -> Sa in 2 Wochen
+    var mClamp = nextRecurDate('2026-01-31', { every: 1, unit: 'month', weekdays: [] });      // 31.1. -> 28.2.
+    var t1 = { id:'r1', title:'Serie', prio:2, deadline:'2026-07-06', desc:'', note:'', cats:[], imgs:[], tasks:[],
+               status:'Doing', createdAt:'2026-07-01', recur: normRecur({ every:3, unit:'day' }) };
+    state.tickets = [t1];
+    setStatus(t1, 'Fertig');                       // Abschluss -> Respawn
+    var respawn = { status: t1.status, deadline: t1.deadline, done: t1.recur.done, completed: 'completedAt' in t1 };
+    var t2 = { id:'r2', title:'Ende', prio:2, deadline:'2026-07-06', desc:'', note:'', cats:[], imgs:[], tasks:[],
+               status:'Doing', createdAt:'2026-07-01', recur: normRecur({ every:1, unit:'day', endCount:1, done:1 }) };
+    state.tickets.push(t2);
+    setStatus(t2, 'Fertig');                       // Serie zu Ende -> bleibt erledigt
+    var ended = { status: t2.status, completed: !!t2.completedAt };
+    return { day3, satW, sat2, mClamp, respawn, ended };
+  })()`, context);
+  ok(rec.day3 === '2026-07-09', 'Recur: alle 3 Tage -> +3 Tage');
+  ok(rec.satW === '2026-07-11', 'Recur: wöchentlich am Sa (von Mo) -> Sa derselben Woche');
+  ok(rec.sat2 === '2026-07-25', 'Recur: alle 2 Wochen am Sa -> Sa in 2 Wochen');
+  ok(rec.mClamp === '2026-02-28', 'Recur: monatlich klemmt 31. auf Monatsende');
+  ok(rec.respawn.status === 'Offen' && rec.respawn.deadline === '2026-07-09' && rec.respawn.done === 1 && rec.respawn.completed === false,
+     'Recur: Abschluss legt Ticket mit neuem Termin zurück in die erste Spalte');
+  ok(rec.ended.status === 'Fertig' && rec.ended.completed === true, 'Recur: Serie zu Ende -> Ticket bleibt erledigt');
+
+  // Auto-Theme nach Uhrzeit
+  const auto = vm.runInContext(`(function(){
+    state.settings.themeMode = 'auto'; state.settings.darkFrom = '00:00'; state.settings.darkTo = '24:00';
+    applyTheme(); var allDark = document.documentElement.dataset.theme === 'dark';
+    state.settings.darkFrom = '23:58'; state.settings.darkTo = '23:59';
+    applyTheme(); var tinyWin = document.documentElement.dataset.theme === 'dark';
+    state.settings.themeMode = 'manual'; state.settings.theme = 'light'; applyTheme();
+    return { allDark, tinyWin, manual: document.documentElement.dataset.theme };
+  })()`, context);
+  ok(auto.allDark === true, 'Auto-Theme: Fenster 00:00-24:00 -> dunkel');
+  ok(auto.manual === '', 'Auto-Theme aus -> manueller Light Mode greift wieder');
+
   // Spalte direkt umbenennen
   const rename = vm.runInContext(`(function(){
     state.settings.statuses = ['A','B','C']; state.settings.doneStatuses = ['C']; applyBoardConfig();
