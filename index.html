@@ -161,13 +161,14 @@ body.viewer .card{cursor:default}
 .chip.active{background:var(--blue); border-color:var(--blue); color:#fff}
 
 /* ---------- Kanban ----------
-   align-items:stretch: alle Spalten einer Reihe enden auf derselben Grundlinie
-   (festes Raster unten) — Spalten wirken als zusammengehörige Konsole. */
+   align-items:start: jede Spalte ist nur so hoch wie ihre Tickets
+   (kein Ausdehnen bis zum Seitenende) — leere Spalten behalten eine
+   Mindesthöhe, damit sie als Ablageziel bedienbar bleiben. */
 .kanban{
   display:grid; grid-template-columns:repeat(var(--ncols,5),1fr); gap:10px;
-  padding:10px 16px 24px; align-items:stretch;
+  padding:10px 16px 24px; align-items:start;   /* Spalten nur so hoch wie ihr Inhalt */
 }
-.col{background:var(--col-bg); border-radius:var(--radius); padding:11px 11px 12px; min-height:140px}
+.col{background:var(--col-bg); border-radius:var(--radius); padding:11px 11px 12px; min-height:96px}
 /* Sobald ein Ticket angehoben wird, leuchten ALLE Ablage-Spalten blau (nicht erst beim Hovern) */
 .col.drop-active{outline:2px dashed var(--blue); outline-offset:-2px; background:var(--blue-bg)}
 .col.dragover{outline:2px solid var(--blue); outline-offset:-2px; background:var(--blue-bg); box-shadow:inset 0 0 0 9999px rgba(60,120,240,.08)}
@@ -202,13 +203,16 @@ body.viewer .col-name:hover{text-decoration:none}
 .col-add:hover{color:var(--blue-dark)}
 .col-add:hover::before,.col-add:hover::after{background:var(--blue)}
 
-/* Geister-Ticket: Klick auf leere Fläche legt direkt ein Ticket an */
+/* Geister-Ticket: Klick auf leere Fläche legt direkt ein Ticket an.
+   Ohne Hover nimmt es KEINEN Platz weg (Spalte = nur so hoch wie die Tickets);
+   beim Überfahren der Spalte klappt es als Ablage-/Anlege-Ziel auf. */
 .ghost-card{
-  border:2px dashed var(--border); border-radius:var(--radius); height:64px;
+  border:2px dashed var(--border); border-radius:var(--radius);
+  height:0; border-width:0; margin:0; overflow:hidden;
   display:flex; align-items:center; justify-content:center; cursor:pointer;
-  opacity:0; transition:opacity .15s; margin-bottom:8px; color:var(--blue);
+  opacity:0; transition:opacity .15s, height .15s, margin .15s; color:var(--blue);
 }
-.col:hover .ghost-card{opacity:.85}
+.col:hover .ghost-card{opacity:.85; height:64px; border-width:2px; margin-top:8px}
 .ghost-card:hover{border-color:var(--blue); background:var(--blue-bg)}
 .ghost-card span{position:relative; width:20px; height:20px; border:2px solid currentColor; border-radius:50%}
 .ghost-card span::before,.ghost-card span::after{
