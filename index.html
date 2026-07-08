@@ -398,21 +398,25 @@ tr.row.done-final td{opacity:.4}
 .plist-head.lp-3 .plist-dot{background:var(--p3)} .plist-head.lp-4 .plist-dot{background:var(--p4)}
 .plist-count{margin-left:auto; font-weight:600; color:var(--text-weak); opacity:.7}
 /* Gemeinsames Spalten-Raster: Prio | Titel | Beschreibung | Deadline | Status | Kategorie.
-   Linksbündig, an der Kanban-Säule ausgerichtet: Titel und Beschreibung sind je so breit
-   wie EINE Kanban-Spalte, Prio/Deadline/Status/Kategorie je ein Viertel davon.
-   max(): Untergrenzen, damit Datum/Select auf schmalen Fenstern bedienbar bleiben. */
-.plist-grid{display:grid; align-items:center; gap:10px; padding:6px 10px; min-width:760px;
-  --lcolw:calc((100% - (var(--ncols,5) - 1) * 10px) / var(--ncols,5));
-  justify-content:start;
-  grid-template-columns:
-    max(64px, calc(var(--lcolw) / 4))
-    var(--lcolw)
-    var(--lcolw)
-    max(104px, calc(var(--lcolw) / 4))
-    max(96px, calc(var(--lcolw) / 4))
-    max(90px, calc(var(--lcolw) / 4))}
-.plist-cols{padding:6px 11px 2px; font-size:10.5px; font-weight:600; text-transform:uppercase;
+   Feste, LINKSBÜNDIGE Spaltenbreiten aus CSS-Variablen — smarte Vorgabe (Titel folgt dem
+   längsten Titel) und pro Spalte per Ziehgriff in der Kopfzeile anpassbar (renderList setzt
+   die Variablen; Ziehen speichert sie in den Einstellungen). */
+#listBody{
+  --w-prio:64px; --w-title:280px; --w-desc:320px;
+  --w-deadline:118px; --w-status:132px; --w-cat:122px;
+}
+.plist-grid{display:grid; align-items:center; gap:10px; padding:6px 10px; justify-content:start;
+  grid-template-columns:var(--w-prio) var(--w-title) var(--w-desc) var(--w-deadline) var(--w-status) var(--w-cat)}
+.plist-cols{padding:6px 11px 4px; font-size:10.5px; font-weight:600; text-transform:uppercase;
   letter-spacing:.07em; color:var(--text-weak); font-family:var(--font-mono)}
+/* Spalten-Ziehgriff in der Kopfzeile: schmaler Streifen an der rechten Kante */
+.plist-cols .lh{position:relative; overflow:visible}
+.col-grip{position:absolute; top:-4px; right:-5px; width:11px; height:20px; cursor:col-resize;
+  display:inline-block}
+.col-grip::after{content:''; position:absolute; right:4px; top:2px; width:2px; height:16px;
+  background:var(--border); border-radius:1px; transition:background .1s}
+.col-grip:hover::after,.col-grip.dragging::after{background:var(--blue)}
+body.col-resizing{cursor:col-resize; user-select:none}
 /* Jede Zeile als klar abgegrenzte Karte: Rahmen + sehr subtiler Schatten (Best Practice:
    1px Hairline trennt, der Schatten gibt minimale Tiefe — Augen müssen nicht raten) */
 .plist-row{border-radius:var(--radius); background:var(--card); border:1px solid var(--border);
@@ -421,9 +425,10 @@ tr.row.done-final td{opacity:.4}
 .plist-row:hover{border-color:color-mix(in srgb, var(--blue) 40%, var(--border));
   box-shadow:0 2px 6px rgba(15,22,40,.09)}
 :root[data-theme="dark"] .plist-row{box-shadow:0 1px 3px rgba(0,0,0,.35)}
-.plist-title-cell{display:flex; align-items:center; gap:5px; min-width:0}
-.li-desc{font-size:12px; color:var(--text-weak); line-height:1.35;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; cursor:text}
+.plist-title-cell{display:flex; align-items:center; gap:5px; min-width:0; position:relative}
+/* Beschreibung: höchstens 2 Zeilen, dann abgeschnitten (…) — voller Text im Tooltip */
+.li-desc{font-size:12px; color:var(--text-weak); line-height:1.35; min-width:0; cursor:text;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden}
 .li-desc-edit{min-width:0; width:100%; border:1px solid var(--blue); border-radius:var(--radius);
   background:var(--card); padding:3px 6px; font-size:12px; color:var(--text); outline:none}
 .plist-row.due-today{background:var(--today-bg)} .plist-row.overdue{background:var(--overdue-bg)}
@@ -442,9 +447,12 @@ tr.row.done-final td{opacity:.4}
   background:transparent; padding:4px 6px; font-size:13px; color:var(--text)}
 .li-title:hover{border-color:var(--border)}
 .li-title:focus{border-color:var(--blue); background:var(--card); outline:none}
-.li-open{border:none; background:none; color:var(--text-weak); font-size:13px; padding:2px 6px; border-radius:var(--radius); opacity:0; flex:0 0 auto}
+/* Öffnen-Pfeil überlagert das rechte Ende (position:absolute), damit er dem
+   Titel KEINE Breite wegnimmt — der Titel wird voll ausgeschrieben. */
+.li-open{border:none; background:var(--card); color:var(--text-weak); font-size:13px; padding:2px 6px;
+  border-radius:var(--radius); opacity:0; position:absolute; right:0; top:50%; transform:translateY(-50%)}
 .plist-row:hover .li-open{opacity:1}
-.li-open:hover{color:var(--blue); background:var(--card)}
+.li-open:hover{color:var(--blue)}
 .plist-row input.li-deadline,.plist-row select.li-status{border:1px solid transparent; border-radius:var(--radius); background:transparent;
   padding:3px 5px; font-size:12px; color:var(--text-weak); min-width:0; max-width:100%}
 .plist-row input.li-deadline:hover,.plist-row select.li-status:hover{border-color:var(--border)}
@@ -752,7 +760,7 @@ header{gap:12px}
   <div class="kanban" id="kanban"></div>
   <div class="list-wrap" id="listWrap" hidden>
     <div id="listBody" class="prio-list"></div>
-    <div class="list-hint">Prio per Klick auf die Punkte umstecken · Titel-Klick öffnet das Ticket · Felder direkt editierbar</div>
+    <div class="list-hint">Prio per Klick auf die Punkte umstecken · Felder direkt editierbar · Spaltenbreite an der Kopfzeile ziehen</div>
   </div>
 </main>
 
@@ -1792,10 +1800,19 @@ function renderList() {
 
   body.innerHTML = '';
   if (!rows.length) { body.innerHTML = '<div class="empty">Keine Tickets gefunden.</div>'; return; }
-  // Spaltenüberschriften (eine Kopfzeile für alle Gruppen)
+  applyListColWidths(rows);
+  // Spaltenüberschriften (eine Kopfzeile für alle Gruppen) — mit Ziehgriffen zum Breite-Anpassen
   const cols = document.createElement('div');
   cols.className = 'plist-grid plist-cols';
-  cols.innerHTML = '<span>Prio</span><span>Titel</span><span>Beschreibung</span><span>Deadline</span><span>Status</span><span>Kategorie</span>';
+  cols.innerHTML =
+    '<span class="lh" data-col="prio">Prio<i class="col-grip"></i></span>' +
+    '<span class="lh" data-col="title">Titel<i class="col-grip"></i></span>' +
+    '<span class="lh" data-col="desc">Beschreibung<i class="col-grip"></i></span>' +
+    '<span class="lh" data-col="deadline">Deadline<i class="col-grip"></i></span>' +
+    '<span class="lh" data-col="status">Status<i class="col-grip"></i></span>' +
+    '<span class="lh" data-col="cat">Kategorie</span>';
+  cols.querySelectorAll('.col-grip').forEach(g =>
+    g.addEventListener('pointerdown', e => startColResize(e, g.parentElement.dataset.col, g)));
   body.appendChild(cols);
   // Gruppen P1..P4, innerhalb nach Fälligkeit
   [1, 2, 3, 4].forEach(p => {
@@ -1808,14 +1825,53 @@ function renderList() {
     grp.forEach(t => body.appendChild(listRowEl(t)));
   });
 }
+/* Spaltenbreiten setzen: gespeicherte Werte gewinnen, sonst smarte Vorgabe.
+   „Smart" = die Titelspalte folgt dem längsten Titel (linksbündig, Titel wird
+   ausgeschrieben), gedeckelt, damit sie nicht die halbe Seite frisst. */
+const LIST_COL_MIN = { prio: 48, title: 140, desc: 130, deadline: 96, status: 100, cat: 92 };
+function applyListColWidths(rows) {
+  const body = document.getElementById('listBody');
+  if (!body || !body.style || !body.style.setProperty) return;
+  const saved = state.settings.listColW || {};
+  const longest = rows.reduce((m, t) => Math.max(m, (t.title || '').length), 0);
+  // Titelspalte folgt dem längsten Titel (Zeichenzahl · ~8px + Platz für Icons), gedeckelt
+  const smartTitle = Math.min(560, Math.max(200, Math.round(longest * 8 + 46)));
+  const defs = { prio: 64, title: smartTitle, desc: 320, deadline: 118, status: 132, cat: 122 };
+  Object.keys(defs).forEach(k => {
+    const w = Math.max(LIST_COL_MIN[k], saved[k] || defs[k]);
+    body.style.setProperty('--w-' + k, w + 'px');
+  });
+}
+/* Spalte per Ziehgriff in der Kopfzeile anpassen; Ergebnis pro Board speichern. */
+function startColResize(e, key, grip) {
+  if (typeof e.preventDefault === 'function') e.preventDefault();
+  const body = document.getElementById('listBody');
+  const startX = e.clientX;
+  const cur = parseFloat(getComputedStyle(body).getPropertyValue('--w-' + key)) || 120;
+  const min = LIST_COL_MIN[key] || 80;
+  if (grip) grip.classList.add('dragging');
+  document.body.classList.add('col-resizing');
+  const widthAt = x => Math.max(min, Math.round(cur + (x - startX)));
+  const move = ev => body.style.setProperty('--w-' + key, widthAt(ev.clientX) + 'px');
+  const up = ev => {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    if (grip) grip.classList.remove('dragging');
+    document.body.classList.remove('col-resizing');
+    state.settings.listColW = Object.assign({}, state.settings.listColW, { [key]: widthAt(ev.clientX) });
+    save();
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+}
 /* Eine Zeile: [P1–P4-Punkte] Titel … Deadline | Status | Kategorie */
 function listRowEl(t) {
   const row = document.createElement('div');
   row.className = ['plist-grid', 'plist-row', 'lp-' + t.prio, deadlineClass(t), doneClass(t)].join(' ').trim();
   const ro = boardReadOnly ? ' disabled' : '';
-  // Beschreibung auf Zeichenlänge begrenzen (volle Fassung im Tooltip; Doppelklick editiert)
+  // Beschreibung: CSS begrenzt auf 2 Zeilen; sehr lange Texte hart kappen (voller Text im Tooltip)
   const descFull = stripHtml(t.desc || '');
-  const descShort = descFull.length > 90 ? descFull.slice(0, 90).trimEnd() + '…' : descFull;
+  const descShort = descFull.length > 240 ? descFull.slice(0, 240).trimEnd() + '…' : descFull;
   row.innerHTML =
     '<span class="plist-prios">' +
       [1, 2, 3, 4].map(p => '<button type="button" class="pd p' + p + (p === t.prio ? ' on' : '') + '" title="' + PRIO_NAMES[p] + '"' + ro + '></button>').join('') +
