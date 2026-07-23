@@ -1,0 +1,34 @@
+# Profil-Vorlage für den Job-Agenten.
+# Kopiere diese Datei zu einer PRIVATEN Ablage (NICHT ins öffentliche Repo)
+# und fülle deine echten Daten ein. Siehe docs/job-agent-konzept.md, §4.
+
+# --- Wonach gesucht wird -----------------------------------------------------
+rollen:
+  - "Beispiel-Rolle 1"
+  - "Beispiel-Rolle 2"
+keywords_boost: []            # Begriffe, die den Score erhöhen (z. B. Tools/Zertifikate)
+senioritaet: "mid"            # junior | mid | senior | lead
+
+# --- Wo ----------------------------------------------------------------------
+orte: ["München"]
+umkreis_km: 50
+remote_ok: true
+
+# --- Harte Filter (Ausschluss bei Verletzung) --------------------------------
+gehalt_min_eur: 0             # 0 = kein Mindestgehalt-Filter
+sprache_muss: ["Deutsch"]
+no_go: []                     # z. B. "Zeitarbeit", "Schichtdienst"
+
+# --- Weiche Präferenzen (nur Ranking, kein Ausschluss) -----------------------
+praeferenzen: []              # z. B. "unbefristet", "Gleitzeit"
+
+# --- Kontext fürs semantische Matching (frei formuliert) ---------------------
+kurzprofil: >
+  Kurze Beschreibung von Erfahrung, Stärken, Wunschrolle und was du NICHT willst.
+
+# --- Zustellung --------------------------------------------------------------
+report:
+  ziele: ["orbit-ticket", "cockpit-kachel"]   # orbit-ticket | cockpit-kachel | email
+  max_treffer_pro_tag: 10
+  uhrzeit: "07:00"
+  zeitzone: "Europe/Berlin"
