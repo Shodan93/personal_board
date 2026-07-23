@@ -1,15 +1,35 @@
 {
-  "rollen": ["Zahntechniker", "CAD/CAM", "Dentaltechnik"],
-  "keywords_boost": ["CEREC", "exocad", "Kronen"],
+  "rollen": [
+    "E-Commerce Manager", "E-Commerce Managerin", "Junior E-Commerce Manager",
+    "E-Commerce Operations Manager", "E-Commerce Operations",
+    "E-Commerce Projektmanager", "E-Commerce Specialist", "E-Commerce Coordinator",
+    "E-Commerce Assistant", "Content Manager E-Commerce", "Account Manager E-Commerce",
+    "Online Shop Manager", "Online-Shop Manager", "Digital Shop Manager",
+    "Webshop Manager", "Digital Commerce Manager", "Digital Commerce Managerin",
+    "Online Sales Manager", "Online Sales Coordinator",
+    "Marketplace Manager", "Product Listing Specialist",
+    "Amazon PPC Manager", "Amazon Ads Manager", "Amazon Brand Manager",
+    "E-Commerce Content Creator", "Content Creator",
+    "Digital Marketing Manager", "Digital Project Manager", "Junior Digital Project Manager",
+    "CRM Manager", "CRM Lead",
+    "Content Manager", "Redakteur", "Redakteurin",
+    "Marketing Manager", "Brand Manager", "SEA Manager", "Performance Marketing Manager"
+  ],
+  "keywords_boost": [
+    "Amazon", "PPC", "Amazon Ads", "SEA", "Google Ads", "Marketplace", "Otto",
+    "Zalando", "Shopify", "SEO", "Produktfotografie", "Produktfotos", "Content",
+    "Listings", "CRM", "Performance Marketing", "Outdoor", "Sport", "Finanzen", "Börse"
+  ],
   "senioritaet": "mid",
   "land": "de",
-  "orte": ["München", "Rosenheim"],
+  "orte": [],
   "umkreis_km": 50,
   "remote_ok": true,
-  "gehalt_min_eur": 40000,
+  "gehalt_min_eur": 60000,
   "sprache_muss": ["Deutsch"],
-  "no_go": ["Zeitarbeit", "Schichtdienst", "reiner Außendienst"],
-  "praeferenzen": ["unbefristet", "Gleitzeit"],
-  "kurzprofil": "Demo-Profil für den Testlauf: Zahntechnik mit CAD/CAM-Schwerpunkt im Raum München.",
-  "report": { "ziele": ["orbit-ticket"], "max_treffer_pro_tag": 10, "uhrzeit": "07:00", "zeitzone": "Europe/Berlin" }
+  "no_go": ["Zeitarbeit", "Schichtdienst", "Praktikum", "Werkstudent", "Ausbildung"],
+  "praeferenzen": ["unbefristet", "Remote", "hybrid", "Amazon", "Marketplace"],
+  "browser_queries": ["E-Commerce Manager", "Amazon PPC Manager", "Marketplace Manager", "Online Shop Manager", "Digital Commerce Manager", "E-Commerce Content Creator"],
+  "kurzprofil": "E-Commerce/Marketplace-Profil mit Foto-/Content-Hintergrund (Produktfotografie, Listings). Schwerpunkt Amazon/PPC/SEA, Marktplätze (Amazon/Otto/Zalando), Online-Shop-Betrieb; Perspektive Richtung E-Commerce Manager oder CRM Lead. Zusatzinteressen: Content/Redaktion für Sport/Outdoor/Finanz-Marken.",
+  "report": { "ziele": ["orbit-ticket"], "max_treffer_pro_tag": 12, "uhrzeit": "07:00", "zeitzone": "Europe/Berlin" }
 }

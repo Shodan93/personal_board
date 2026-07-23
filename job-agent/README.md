@@ -44,8 +44,14 @@ profile → Quellen abrufen → Matching (Filter + Score) → Dedup → Bericht
 | **Jooble** (`jooble`) | ja (`JOOBLE_KEY`, gratis) | Aggregator inkl. **StepStone/Indeed** |
 
 StepStone/Indeed/LinkedIn haben **keine** offene Such-API — über Adzuna/Jooble
-sind ihre Inhalte aber **legal** mit dabei. Direktes Scraping nur als optionales,
-lokal-sichtbares Zusatzmodul: [`docs/browser-modul.md`](docs/browser-modul.md).
+sind ihre Inhalte aber **legal** mit dabei. Für **direkten** Indeed-Zugriff gibt
+es ein optionales, lokal-sichtbares Modul (du loggst dich selbst ein, der Bot
+scrollt sichtbar): **[`browser/`](browser/README.md)** (`node browser/scrape-indeed.mjs`).
+Hintergrund/Grenzen: [`docs/browser-modul.md`](docs/browser-modul.md).
+
+> **Wichtig:** Indeed/StepStone sind weder aus der Claude-Sandbox erreichbar
+> (Netzwerk-Policy) noch kann Claude deinen lokalen Chrome fernsteuern. Direkter
+> Zugriff auf diese Börsen läuft daher **auf deinem Rechner** über `browser/`.
 
 ## Echten Lauf einrichten (lokal)
 
@@ -99,7 +105,7 @@ einkommentieren (`0 5 * * *` ≈ 07:00 Berlin).
 | Worker `POST /scan` deployen (Button-Backend) | ⬜ |
 | `/mcp`-Endpoint → „Scanne meine Jobs" in der Claude-App | ⬜ (Skizze: [`docs/mcp-und-fertige-agenten.md`](docs/mcp-und-fertige-agenten.md)) |
 | Zustellung als **ORBIT-Ticket** „Bewerben bei X" | ⬜ |
-| Optionales Browser-Modul (Indeed & Co., sichtbar/lokal) | ⬜ (Konzept: [`docs/browser-modul.md`](docs/browser-modul.md)) |
+| Optionales Browser-Modul Indeed (sichtbar/lokal) | ✅ Skript da ([`browser/`](browser/README.md)) — läuft auf deinem Mac |
 | Cron-Automatik + Cockpit-„Jobs"-Kachel + ORBIT-Button-UI | ⬜ ganz zum Schluss |
 
 ## Wichtige Fragen — Kurzantworten

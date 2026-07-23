@@ -10,6 +10,7 @@
   "sprache_muss": ["Deutsch"],
   "no_go": [],
   "praeferenzen": [],
+  "browser_queries": [],
   "kurzprofil": "Kurze Beschreibung von Erfahrung, Stärken, Wunschrolle und was du NICHT willst.",
   "report": { "ziele": ["orbit-ticket", "cockpit-kachel"], "max_treffer_pro_tag": 10, "uhrzeit": "07:00", "zeitzone": "Europe/Berlin" }
 }

@@ -6,8 +6,18 @@
 
 const lc = (s) => (s || '').toLowerCase();
 
+// Vergleich auf "kompakter" Form: Kleinschreibung, Umlaute/Akzente entfernt,
+// alle Trennzeichen raus. So matchen "E-Commerce Manager", "E Commerce Manager"
+// und "Ecommerce Manager" gleichermaßen — Schreibweisen-Chaos der Börsen egal.
+const compact = (s) => (s || '')
+  .toLowerCase()
+  .normalize('NFKD')
+  .replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9]+/g, '');
+
 function hits(text, terms) {
-  return (terms || []).filter((t) => t && text.includes(lc(t)));
+  const h = compact(text);
+  return (terms || []).filter((t) => t && h.includes(compact(t)));
 }
 
 /**
