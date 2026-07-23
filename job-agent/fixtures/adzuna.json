@@ -1,0 +1,37 @@
+{
+  "results": [
+    {
+      "id": "4501112233",
+      "title": "CAD/CAM Zahntechniker (m/w/d) — unbefristet",
+      "company": { "display_name": "DentalTech Solutions AG" },
+      "location": { "display_name": "München, Bayern" },
+      "redirect_url": "https://www.adzuna.de/details/4501112233",
+      "salary_min": 46000,
+      "salary_max": 58000,
+      "description": "Moderne Fräszentren, exocad-Workflow, Gleitzeit, unbefristet.",
+      "created": "2026-07-23T06:10:00Z"
+    },
+    {
+      "id": "4501119988",
+      "title": "Zahntechniker (m/w/d) — Zeitarbeit, sofort",
+      "company": { "display_name": "FlexPersonal GmbH" },
+      "location": { "display_name": "München" },
+      "redirect_url": "https://www.adzuna.de/details/4501119988",
+      "salary_min": 34000,
+      "salary_max": 39000,
+      "description": "Einsatz über Zeitarbeit bei wechselnden Kunden.",
+      "created": "2026-07-23T05:00:00Z"
+    },
+    {
+      "id": "4501120777",
+      "title": "Vertriebsmitarbeiter Dental Außendienst",
+      "company": { "display_name": "DentSupply Vertrieb" },
+      "location": { "display_name": "München" },
+      "redirect_url": "https://www.adzuna.de/details/4501120777",
+      "salary_min": 40000,
+      "salary_max": 60000,
+      "description": "Reiner Außendienst, viel Reisetätigkeit.",
+      "created": "2026-07-22T09:00:00Z"
+    }
+  ]
+}

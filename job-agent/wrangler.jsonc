@@ -1,0 +1,16 @@
+{
+  // Cloudflare Worker "job-agent". Deploy: npx wrangler deploy
+  "name": "job-agent",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Für den täglichen Automatik-Lauf später einkommentieren (05:00 UTC ≈ 07:00 Berlin):
+  // "triggers": { "crons": ["0 5 * * *"] }
+
+  // Secrets NICHT hier eintragen, sondern per:
+  //   npx wrangler secret put PROFILE_JSON   (dein Profil als JSON-String)
+  //   npx wrangler secret put SCAN_TOKEN     (Passwort für den Button)
+  //   npx wrangler secret put ADZUNA_APP_ID  / ADZUNA_APP_KEY / JOOBLE_KEY (optional)
+  "vars": { "SOURCES": "arbeitsagentur,arbeitnow" }
+}

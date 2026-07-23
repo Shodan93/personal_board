@@ -1,0 +1,15 @@
+{
+  "rollen": ["Beispiel-Rolle 1", "Beispiel-Rolle 2"],
+  "keywords_boost": [],
+  "senioritaet": "mid",
+  "land": "de",
+  "orte": ["München"],
+  "umkreis_km": 50,
+  "remote_ok": true,
+  "gehalt_min_eur": 0,
+  "sprache_muss": ["Deutsch"],
+  "no_go": [],
+  "praeferenzen": [],
+  "kurzprofil": "Kurze Beschreibung von Erfahrung, Stärken, Wunschrolle und was du NICHT willst.",
+  "report": { "ziele": ["orbit-ticket", "cockpit-kachel"], "max_treffer_pro_tag": 10, "uhrzeit": "07:00", "zeitzone": "Europe/Berlin" }
+}

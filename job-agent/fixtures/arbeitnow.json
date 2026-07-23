@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "slug": "zahntechnik-software-support-cadcam-remote-1234",
+      "title": "CAD/CAM Software Support Zahntechnik (Remote)",
+      "company_name": "exocad-Partner DentSoft",
+      "location": "Remote (DE)",
+      "remote": true,
+      "url": "https://www.arbeitnow.com/jobs/zahntechnik-software-support-cadcam-remote-1234",
+      "description": "Support für Dentallabore, CAD/CAM, exocad, unbefristet.",
+      "tags": ["CAD/CAM", "exocad", "Support", "Remote"],
+      "created_at": 1784419200
+    },
+    {
+      "slug": "senior-frontend-developer-berlin-9988",
+      "title": "Senior Frontend Developer (m/f/d)",
+      "company_name": "ScaleUp Tech",
+      "location": "Berlin / Remote",
+      "remote": true,
+      "url": "https://www.arbeitnow.com/jobs/senior-frontend-developer-berlin-9988",
+      "description": "React, TypeScript, design systems.",
+      "tags": ["React", "TypeScript"],
+      "created_at": 1784332800
+    }
+  ]
+}

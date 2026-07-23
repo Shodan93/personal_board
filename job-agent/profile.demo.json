@@ -1,0 +1,15 @@
+{
+  "rollen": ["Zahntechniker", "CAD/CAM", "Dentaltechnik"],
+  "keywords_boost": ["CEREC", "exocad", "Kronen"],
+  "senioritaet": "mid",
+  "land": "de",
+  "orte": ["München", "Rosenheim"],
+  "umkreis_km": 50,
+  "remote_ok": true,
+  "gehalt_min_eur": 40000,
+  "sprache_muss": ["Deutsch"],
+  "no_go": ["Zeitarbeit", "Schichtdienst", "reiner Außendienst"],
+  "praeferenzen": ["unbefristet", "Gleitzeit"],
+  "kurzprofil": "Demo-Profil für den Testlauf: Zahntechnik mit CAD/CAM-Schwerpunkt im Raum München.",
+  "report": { "ziele": ["orbit-ticket"], "max_treffer_pro_tag": 10, "uhrzeit": "07:00", "zeitzone": "Europe/Berlin" }
+}

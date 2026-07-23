@@ -1,0 +1,31 @@
+{
+  "stellenangebote": [
+    {
+      "refnr": "10000-1188017946-S",
+      "titel": "Zahntechniker CAD/CAM (m/w/d)",
+      "beruf": "Zahntechnik CAD/CAM Fertigung",
+      "arbeitgeber": "Dentallabor Isartal GmbH",
+      "arbeitsort": { "ort": "München", "plz": "80331" },
+      "externeUrl": "",
+      "aktuelleVeroeffentlichungsdatum": "2026-07-22"
+    },
+    {
+      "refnr": "10000-1188020031-S",
+      "titel": "Zahntechnikermeister/in mit CEREC-Erfahrung",
+      "beruf": "Zahntechnik Meister CEREC Kronen",
+      "arbeitgeber": "Praxislabor Dr. Bauer",
+      "arbeitsort": { "ort": "Rosenheim", "plz": "83022" },
+      "externeUrl": "",
+      "aktuelleVeroeffentlichungsdatum": "2026-07-23"
+    },
+    {
+      "refnr": "10000-1188044777-S",
+      "titel": "Bürokraft Empfang (m/w/d)",
+      "beruf": "Büro Empfang Verwaltung",
+      "arbeitgeber": "MediCenter München",
+      "arbeitsort": { "ort": "München", "plz": "80337" },
+      "externeUrl": "",
+      "aktuelleVeroeffentlichungsdatum": "2026-07-21"
+    }
+  ]
+}

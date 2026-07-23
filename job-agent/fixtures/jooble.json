@@ -1,0 +1,23 @@
+{
+  "totalCount": 2,
+  "jobs": [
+    {
+      "id": "-7788991122334455",
+      "title": "Zahntechniker/in — Kronen & Brücken",
+      "company": "Zahnmanufaktur München",
+      "location": "München",
+      "link": "https://de.jooble.org/desc/-7788991122334455",
+      "snippet": "Unbefristete Festanstellung, Gleitzeit, modernes Labor, CEREC.",
+      "updated": "2026-07-23T04:30:00Z"
+    },
+    {
+      "id": "-1122334455667788",
+      "title": "Schichtleiter Produktion (m/w/d)",
+      "company": "Kunststoffwerk Süd",
+      "location": "München",
+      "link": "https://de.jooble.org/desc/-1122334455667788",
+      "snippet": "3-Schichtdienst, Führung eines Produktionsteams.",
+      "updated": "2026-07-22T10:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+# Persönliche Daten & Secrets — NIE ins Repo
+profile.json
+.env
+.dev.vars
+
+# Laufzeit-Artefakte
+node_modules/
+data/seen.json
+reports/*.md
+
+# Ausnahme: das Demo-Ergebnis darf als Beispiel im Repo bleiben
+!reports/*-demo.md
