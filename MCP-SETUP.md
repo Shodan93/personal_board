@@ -4,9 +4,10 @@
 stellt unter **`/mcp`** einen Remote-MCP-Server bereit. Damit kannst du aus
 Claude (Web **und** Handy) deine Tickets lesen und anlegen.
 
-**Streng auf dein Board beschränkt:** Jeder Datenbankzugriff filtert serverseitig
-`owner = ORBIT_OWNER_ID`. Du siehst also ausschließlich **deine** Boards — nie die
-anderer Nutzer, selbst wenn eine fremde `board_id` übergeben würde.
+**Streng pro Person beschränkt:** Jedes Token gehört genau einer Person. Der Server
+löst Token → Owner-UUID auf und filtert jeden Datenbankzugriff serverseitig auf
+`owner = <diese UUID>`. Jede/r sieht also ausschließlich die **eigenen** Boards —
+nie die anderer Nutzer, selbst wenn eine fremde `board_id` übergeben würde.
 
 ## 1) Secrets im Worker setzen (einmalig)
 
@@ -17,11 +18,37 @@ Secrets** → jeweils als **Secret** (encrypted) hinzufügen:
 |------|------|
 | `SUPABASE_URL` | `https://eqrzazmdamiplqiizrat.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | dein Supabase **service_role / secret** Key |
-| `ORBIT_OWNER_ID` | deine **Auth-User-UUID** (Supabase → Authentication → Users → deine Zeile → „User UID") |
-| `MCP_TOKEN` | ein langes, frei erfundenes Geheimnis (z. B. 32+ Zeichen) |
 
-> Alternativ per CLI: `npx wrangler secret put SUPABASE_SERVICE_KEY` usw.
+Dazu die **Zugänge** — pro Person ein Token. Zwei Wege, kombinierbar:
+
+**a) Einzelzugang (Alt/kompatibel, weiterhin gültig):**
+
+| Name | Wert |
+|------|------|
+| `ORBIT_OWNER_ID` | Auth-User-UUID der Person |
+| `MCP_TOKEN` | ein langes, frei erfundenes Geheimnis |
+
+**b) Mehrere Personen über EINEN JSON-Secret** (empfohlen, sobald >1 Zugang):
+
+| Name | Wert |
+|------|------|
+| `MCP_USERS` | JSON-Map `{"<token>":"<owner-uuid>", …}` |
+
+Beispiel (David + Svenja):
+
+```json
+{
+  "orbit_david_…":  "310705ff-fd41-4ad1-a940-877178191730",
+  "orbit_svenja_1f1483b7c9b940c8b02a5563729bd1dc": "345534e7-89bf-4d07-951c-8f08b17a079d"
+}
+```
+
+> Beide Wege dürfen gleichzeitig gesetzt sein; bei gleichem Token gewinnt `MCP_USERS`.
+> Wer nur `MCP_USERS` nutzt, kann `MCP_TOKEN`/`ORBIT_OWNER_ID` weglassen.
+> Alternativ per CLI: `npx wrangler secret put MCP_USERS` usw.
 > Die Secrets bleiben über Deployments hinweg erhalten.
+
+Owner-UUIDs findest du in Supabase → Authentication → Users (Spalte „User UID").
 
 ## 2) Deployen
 
@@ -31,12 +58,17 @@ statische Seite (`assets`). Die normale Website ändert sich dadurch nicht.
 
 ## 3) In Claude als Connector eintragen
 
-„Benutzerdefinierten Connector hinzufügen":
+„Benutzerdefinierten Connector hinzufügen" — **jede Person trägt ihr EIGENES
+Token ein** (David sein Token, Svenja ihres):
 
 - **Name:** Orbit
 - **Remote MCP Server URL:**
   ```
-  https://orbit.mumelter.org/mcp?key=DEIN_MCP_TOKEN
+  https://orbit.mumelter.org/mcp?key=DEIN_PERSÖNLICHES_TOKEN
+  ```
+  Svenja z. B.:
+  ```
+  https://orbit.mumelter.org/mcp?key=orbit_svenja_1f1483b7c9b940c8b02a5563729bd1dc
   ```
 - **OAuth-Felder leer lassen.** (Die Absicherung läuft über das Token in der URL.)
 

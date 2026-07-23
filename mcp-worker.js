@@ -6,17 +6,25 @@
  *
  * SICHERHEIT
  *  - Zugriff nur mit korrektem Token (?key=… oder Authorization: Bearer …).
- *  - ALLE Datenbankzugriffe werden serverseitig hart auf deine owner-UUID
- *    (ORBIT_OWNER_ID) gefiltert -> es ist ausschließlich DEIN Board sichtbar,
- *    niemals die Boards anderer Nutzer. Selbst eine fremde board_id liefert
- *    nichts, weil jeder Query zusätzlich owner=eq.<du> erzwingt.
+ *  - Jedes Token gehört GENAU EINER Person; der Server löst Token -> owner-UUID
+ *    auf und filtert ALLE Datenbankzugriffe serverseitig hart auf diese UUID.
+ *    -> Jede Person sieht ausschließlich IHRE eigenen Boards, niemals fremde.
+ *    Selbst eine fremde board_id liefert nichts (jeder Query erzwingt owner=eq.<du>).
  *  - Der Supabase-Service-Key liegt nur als Cloudflare-Secret im Worker.
  *
  * Erforderliche Secrets/Variablen (Worker -> Settings -> Variables & Secrets):
  *    SUPABASE_URL          z. B. https://eqrzazmdamiplqiizrat.supabase.co
  *    SUPABASE_SERVICE_KEY  Service-/Secret-Key (umgeht RLS — nur hier!)
- *    ORBIT_OWNER_ID        deine Auth-User-UUID (Supabase -> Authentication -> Users)
- *    MCP_TOKEN             frei wählbares langes Geheimnis (steht in der URL)
+ *
+ *  Zugänge (Token -> Owner) — beliebig viele Personen, zwei Wege kombinierbar:
+ *    a) Einzelzugang (Alt/kompatibel):
+ *         MCP_TOKEN        langes Geheimnis (steht in der URL)
+ *         ORBIT_OWNER_ID   dessen Auth-User-UUID
+ *    b) Mehrere Zugänge über EINEN JSON-Secret:
+ *         MCP_USERS        {"<token1>":"<owner-uuid1>","<token2>":"<owner-uuid2>"}
+ *       Beispiel (David + Svenja):
+ *         {"orbit_david_…":"310705ff-…","orbit_svenja_…":"345534e7-…"}
+ *    Beide Wege dürfen gleichzeitig gesetzt sein; MCP_USERS gewinnt bei Kollision.
  *
  * Alles andere (/, index.html, …) wird unverändert als Static Asset geliefert.
  * ===================================================================== */
@@ -262,6 +270,19 @@ function sse(messages) {
   return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", ...CORS } });
 }
 
+// Token -> owner-UUID auflösen. MCP_USERS (JSON-Map) zuerst, dann Einzel-Token (Alt).
+// Rückgabe: owner-UUID oder null (kein gültiger Zugang).
+function resolveOwner(env, token) {
+  if (!token) return null;
+  if (env.MCP_USERS) {
+    let map = null;
+    try { map = JSON.parse(env.MCP_USERS); } catch (e) { map = null; }
+    if (map && typeof map === "object" && typeof map[token] === "string" && map[token]) return map[token];
+  }
+  if (env.MCP_TOKEN && token === env.MCP_TOKEN && env.ORBIT_OWNER_ID) return env.ORBIT_OWNER_ID;
+  return null;
+}
+
 async function handleMcp(request, env, url) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
@@ -270,9 +291,12 @@ async function handleMcp(request, env, url) {
   const authHdr = request.headers.get("Authorization") || "";
   if (!token && authHdr.startsWith("Bearer ")) token = authHdr.slice(7);
   if (!token && url.pathname.length > 5) token = decodeURIComponent(url.pathname.slice(5)); // nach "/mcp/"
-  if (!env.MCP_TOKEN || token !== env.MCP_TOKEN) return json({ error: "Forbidden" }, 403);   // 403 -> kein OAuth-Flow
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY || !env.ORBIT_OWNER_ID)
-    return json(rpcErr(null, -32002, "Server nicht konfiguriert (SUPABASE_URL/SUPABASE_SERVICE_KEY/ORBIT_OWNER_ID fehlen)."), 200);
+  const owner = resolveOwner(env, token);
+  if (!owner) return json({ error: "Forbidden" }, 403);   // 403 -> kein OAuth-Flow
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY)
+    return json(rpcErr(null, -32002, "Server nicht konfiguriert (SUPABASE_URL/SUPABASE_SERVICE_KEY fehlen)."), 200);
+  // Ab hier ist der Owner fixiert: alle DB-Zugriffe filtern hart auf diese UUID.
+  env = { ...env, ORBIT_OWNER_ID: owner };
 
   const wantsSse = (request.headers.get("Accept") || "").includes("text/event-stream");
 
