@@ -50,6 +50,25 @@ Beispiel (David + Svenja):
 
 Owner-UUIDs findest du in Supabase → Authentication → Users (Spalte „User UID").
 
+### Ein Token auf EINZELNE Boards beschränken (z. B. Arbeits-Zugang)
+
+Statt einer Owner-UUID als String kann ein Token-Wert ein **Objekt** sein:
+
+```json
+{
+  "orbit_david_…": "310705ff-fd41-4ad1-a940-877178191730",
+  "orbit_work_fca8783830fd2320ab60cf86d1ff954d": {
+    "owner": "310705ff-fd41-4ad1-a940-877178191730",
+    "boards": ["9f32fbac-0a59-4609-88a5-63d1f1ffc005"]
+  }
+}
+```
+
+Dieses Token gehört zwar demselben Konto (David), sieht aber **ausschließlich** die
+gelisteten Board-IDs — ideal für einen Arbeits-Connector, der nur „dental bauer"
+braucht. Weitere Boards freigeben = weitere IDs ins Array. Board-IDs holst du aus
+`list_boards` oder aus Supabase (`public.boards`).
+
 ## 2) Deployen
 
 Passiert automatisch beim Push (Workers Builds baut `orbit` neu).

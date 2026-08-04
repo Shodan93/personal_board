@@ -70,7 +70,46 @@ try {
   ok(lastUrl.includes('owner=eq.' + SVENJA) && lastUrl.includes('id=eq.fremdes-board'), 'Svenja + fremde board_id -> Query bleibt auf Svenjas owner beschränkt');
   ok(/Fehler|nicht gefunden/i.test(text), 'Fremde board_id liefert kein fremdes Board (Fehler statt Daten)');
 
+  // 5b) Board-beschränktes Token (Arbeits-Token): sieht NUR das eine erlaubte Board
+  const BOARD_OK = '9f32fbac-0a59-4609-88a5-63d1f1ffc005';   // "dental bauer"
+  const BOARD_OTHER = '31dac948-66a3-49cf-b95c-0d9d73cc177c'; // "Life"
+  const T_WORK = 'orbit_work_TESTONLY';
+  const envW = {
+    SUPABASE_URL: env.SUPABASE_URL, SUPABASE_SERVICE_KEY: env.SUPABASE_SERVICE_KEY,
+    MCP_USERS: JSON.stringify({ [T_WORK]: { owner: DAVID, boards: [BOARD_OK] } }),
+  };
+  const postW = (msg) => worker.fetch(new Request(base + '/mcp?key=' + T_WORK, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(msg),
+  }), envW);
+
+  // list_boards -> Query enthält den in.(…)-Filter auf genau das erlaubte Board
+  lastUrl = '';
+  globalThis.fetch = async (u) => { lastUrl = String(u); return new Response(JSON.stringify([{ id: BOARD_OK, title: 'dental bauer', data: { tickets: [] } }]), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  let rw = await postW(rpc('tools/call', { name: 'list_boards', arguments: {} }));
+  ok(rw.status === 200 && lastUrl.includes('owner=eq.' + DAVID) && lastUrl.includes('id=in.(' + BOARD_OK), 'Arbeits-Token: list_boards ist auf das erlaubte Board eingeschränkt');
+
+  // Erlaubtes Board per id laden -> ok
+  lastUrl = '';
+  globalThis.fetch = async (u) => { lastUrl = String(u); return new Response(JSON.stringify([{ id: BOARD_OK, title: 'dental bauer', data: { tickets: [] } }]), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  rw = await postW(rpc('tools/call', { name: 'list_tickets', arguments: { board_id: BOARD_OK } }));
+  ok(rw.status === 200 && !/Fehler/.test(JSON.stringify(await rw.json())), 'Arbeits-Token: erlaubtes Board (dental bauer) ist zugänglich');
+
+  // Fremdes Board per id -> Fehler, und es geht KEINE Query dafür raus
+  lastUrl = 'NOCALL';
+  globalThis.fetch = async (u) => { lastUrl = String(u); return new Response(JSON.stringify([{ id: BOARD_OTHER, title: 'Life', data: { tickets: [] } }]), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  rw = await postW(rpc('tools/call', { name: 'list_tickets', arguments: { board_id: BOARD_OTHER } }));
+  const wtext = (await rw.json()).result?.content?.[0]?.text || '';
+  ok(/Fehler|nicht gefunden/i.test(wtext), 'Arbeits-Token: fremdes Board (Life) liefert Fehler, keine Daten');
+  ok(lastUrl === 'NOCALL', 'Arbeits-Token: fremde board_id löst gar keine Supabase-Abfrage aus');
+
+  // Schreibversuch auf fremdes Board -> abgelehnt
+  globalThis.fetch = async (u) => { lastUrl = String(u); return new Response(JSON.stringify([{ id: BOARD_OTHER, title: 'Life', data: { tickets: [] } }]), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  rw = await postW(rpc('tools/call', { name: 'create_ticket', arguments: { board_id: BOARD_OTHER, title: 'X' } }));
+  const wtext2 = (await rw.json()).result?.content?.[0]?.text || '';
+  ok(/Fehler|nicht gefunden|Kein Zugriff/i.test(wtext2), 'Arbeits-Token: create_ticket auf fremdes Board wird abgelehnt');
+
   // 6) Nur MCP_USERS gesetzt (kein Alt-Einzelzugang) funktioniert ebenfalls
+  globalThis.fetch = async (u) => { lastUrl = String(u); const body = JSON.stringify([{ id: 'b1', title: 'Testboard', data: { tickets: [] } }]); return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } }); };
   const env2 = { SUPABASE_URL: env.SUPABASE_URL, SUPABASE_SERVICE_KEY: env.SUPABASE_SERVICE_KEY, MCP_USERS: JSON.stringify({ [T_SVENJA]: SVENJA }) };
   lastUrl = '';
   globalThis.fetch = async (u) => { lastUrl = String(u); return new Response(JSON.stringify([{ id: 'b1', title: 'T', data: { tickets: [] } }]), { status: 200, headers: { 'Content-Type': 'application/json' } }); };

@@ -24,6 +24,9 @@
  *         MCP_USERS        {"<token1>":"<owner-uuid1>","<token2>":"<owner-uuid2>"}
  *       Beispiel (David + Svenja):
  *         {"orbit_david_…":"310705ff-…","orbit_svenja_…":"345534e7-…"}
+ *       Ein Token auf EINZELNE Boards beschränken (Wert als Objekt):
+ *         {"orbit_work_…":{"owner":"310705ff-…","boards":["9f32fbac-…"]}}
+ *       -> dieses Token sieht ausschließlich die gelisteten Board-IDs.
  *    Beide Wege dürfen gleichzeitig gesetzt sein; MCP_USERS gewinnt bei Kollision.
  *
  * Alles andere (/, index.html, …) wird unverändert als Static Asset geliefert.
@@ -126,25 +129,35 @@ async function sbGet(env, qs) {
   if (!r.ok) throw new Error("Supabase " + r.status + ": " + (await r.text()).slice(0, 200));
   return r.json();
 }
+// Zusatzfilter für Board-beschränkte Token: nur erlaubte Board-IDs (PostgREST in.(…)).
+// Leer, wenn das Token Vollzugriff hat (ALLOWED_BOARDS null/leer).
+function boardFilter(env) {
+  const allow = env.ALLOWED_BOARDS;
+  if (!allow || !allow.length) return "";
+  return "&id=in.(" + allow.map(encodeURIComponent).join(",") + ")";
+}
 async function listBoards(env) {
-  return sbGet(env, "select=id,title,updated_at&owner=eq." + encodeURIComponent(env.ORBIT_OWNER_ID) + "&order=updated_at.desc");
+  return sbGet(env, "select=id,title,updated_at&owner=eq." + encodeURIComponent(env.ORBIT_OWNER_ID) + boardFilter(env) + "&order=updated_at.desc");
 }
 // Board laden — gezielt per board_id ODER per Name (board), sonst zuletzt geändertes Board.
-// Immer auf owner=ORBIT_OWNER_ID eingeschränkt (nur deine Boards).
+// Immer auf owner=ORBIT_OWNER_ID und (falls gesetzt) auf erlaubte Board-IDs eingeschränkt.
 async function loadBoard(env, boardId, boardName) {
   const owner = encodeURIComponent(env.ORBIT_OWNER_ID);
+  const allow = env.ALLOWED_BOARDS;
   let rows;
   if (boardId) {
+    // Board-beschränktes Token: fremde id gar nicht erst abfragen.
+    if (allow && !allow.includes(boardId)) throw new Error('Kein Board mit id "' + boardId + '" gefunden, das dir gehört.');
     rows = await sbGet(env, "select=id,title,data&owner=eq." + owner + "&id=eq." + encodeURIComponent(boardId));
     if (!rows.length) throw new Error('Kein Board mit id "' + boardId + '" gefunden, das dir gehört.');
   } else if (boardName) {
-    const all = await sbGet(env, "select=id,title,data&owner=eq." + owner);
+    const all = await sbGet(env, "select=id,title,data&owner=eq." + owner + boardFilter(env));
     const t = String(boardName).trim().toLowerCase();
     const m = all.find((b) => (b.title || "").toLowerCase() === t) || all.find((b) => (b.title || "").toLowerCase().includes(t));
     if (!m) throw new Error('Kein Board namens "' + boardName + '" gefunden. Verfügbar: ' + all.map((b) => b.title).join(", "));
     rows = [m];
   } else {
-    rows = await sbGet(env, "select=id,title,data&owner=eq." + owner + "&order=updated_at.desc&limit=1");
+    rows = await sbGet(env, "select=id,title,data&owner=eq." + owner + boardFilter(env) + "&order=updated_at.desc&limit=1");
     if (!rows.length) throw new Error("Kein Board gefunden, das dir gehört.");
   }
   const b = rows[0];
@@ -153,6 +166,8 @@ async function loadBoard(env, boardId, boardName) {
   return b;
 }
 async function saveData(env, id, data) {
+  // Defense in depth: Board-beschränktes Token darf nie ein fremdes Board schreiben.
+  if (env.ALLOWED_BOARDS && !env.ALLOWED_BOARDS.includes(id)) throw new Error("Kein Zugriff auf dieses Board.");
   const r = await fetch(env.SUPABASE_URL + "/rest/v1/boards?id=eq." + encodeURIComponent(id) + "&owner=eq." + encodeURIComponent(env.ORBIT_OWNER_ID), {
     method: "PATCH", headers: { ...sbHeaders(env), Prefer: "return=minimal" },
     body: JSON.stringify({ data, updated_at: new Date().toISOString() }),
@@ -270,16 +285,26 @@ function sse(messages) {
   return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", ...CORS } });
 }
 
-// Token -> owner-UUID auflösen. MCP_USERS (JSON-Map) zuerst, dann Einzel-Token (Alt).
-// Rückgabe: owner-UUID oder null (kein gültiger Zugang).
-function resolveOwner(env, token) {
+// Token -> Zugang { owner, boards } auflösen. boards=null => ALLE Boards des Owners;
+// boards=[ids] => NUR diese Boards (z. B. ein Arbeits-Token, das nur ein Board sieht).
+// MCP_USERS-Wert je Token: String "<owner-uuid>" (Vollzugriff) ODER
+//   Objekt { "owner": "<uuid>", "boards": ["<board-id>", …] } (nur diese Boards).
+// Alt-Einzeltoken (MCP_TOKEN/ORBIT_OWNER_ID) bleibt Vollzugriff.
+function resolveAccess(env, token) {
   if (!token) return null;
   if (env.MCP_USERS) {
     let map = null;
     try { map = JSON.parse(env.MCP_USERS); } catch (e) { map = null; }
-    if (map && typeof map === "object" && typeof map[token] === "string" && map[token]) return map[token];
+    if (map && typeof map === "object" && map[token] !== undefined) {
+      const v = map[token];
+      if (typeof v === "string" && v) return { owner: v, boards: null };
+      if (v && typeof v === "object" && typeof v.owner === "string" && v.owner) {
+        const list = Array.isArray(v.boards) ? v.boards.filter((x) => typeof x === "string" && x) : null;
+        return { owner: v.owner, boards: list && list.length ? list : null };
+      }
+    }
   }
-  if (env.MCP_TOKEN && token === env.MCP_TOKEN && env.ORBIT_OWNER_ID) return env.ORBIT_OWNER_ID;
+  if (env.MCP_TOKEN && token === env.MCP_TOKEN && env.ORBIT_OWNER_ID) return { owner: env.ORBIT_OWNER_ID, boards: null };
   return null;
 }
 
@@ -291,12 +316,13 @@ async function handleMcp(request, env, url) {
   const authHdr = request.headers.get("Authorization") || "";
   if (!token && authHdr.startsWith("Bearer ")) token = authHdr.slice(7);
   if (!token && url.pathname.length > 5) token = decodeURIComponent(url.pathname.slice(5)); // nach "/mcp/"
-  const owner = resolveOwner(env, token);
-  if (!owner) return json({ error: "Forbidden" }, 403);   // 403 -> kein OAuth-Flow
+  const access = resolveAccess(env, token);
+  if (!access) return json({ error: "Forbidden" }, 403);   // 403 -> kein OAuth-Flow
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY)
     return json(rpcErr(null, -32002, "Server nicht konfiguriert (SUPABASE_URL/SUPABASE_SERVICE_KEY fehlen)."), 200);
-  // Ab hier ist der Owner fixiert: alle DB-Zugriffe filtern hart auf diese UUID.
-  env = { ...env, ORBIT_OWNER_ID: owner };
+  // Ab hier fixiert: alle DB-Zugriffe filtern hart auf diese owner-UUID und
+  // (falls gesetzt) auf die erlaubten Board-IDs.
+  env = { ...env, ORBIT_OWNER_ID: access.owner, ALLOWED_BOARDS: access.boards };
 
   const wantsSse = (request.headers.get("Accept") || "").includes("text/event-stream");
 
