@@ -1,0 +1,48 @@
+{
+  "results": [
+    {
+      "id": "ec-5001",
+      "title": "E-Commerce Manager (m/w/d) — Amazon & Marketplaces",
+      "company": { "display_name": "Bergzeit GmbH" },
+      "location": { "display_name": "München / hybrid" },
+      "redirect_url": "https://de.indeed.com/viewjob?jk=ec5001",
+      "salary_min": 63000,
+      "salary_max": 80000,
+      "description": "Amazon, Otto, Zalando, PPC, Shopify. Unbefristet, hybrid. Outdoor-Marke.",
+      "created": "2026-07-23T06:00:00Z"
+    },
+    {
+      "id": "ec-5002",
+      "title": "Amazon PPC Manager / Amazon Ads (m/w/d)",
+      "company": { "display_name": "Marketplace Heroes" },
+      "location": { "display_name": "Remote (DE)" },
+      "redirect_url": "https://www.stepstone.de/stellenangebote--Amazon-PPC-Manager--5002",
+      "salary_min": null,
+      "salary_max": null,
+      "description": "Steuerung Amazon Ads / PPC / SEA, Performance Marketing, remote.",
+      "created": "2026-07-23T05:40:00Z"
+    },
+    {
+      "id": "ec-5003",
+      "title": "Werkstudent E-Commerce (m/w/d)",
+      "company": { "display_name": "ShopStart UG" },
+      "location": { "display_name": "München" },
+      "redirect_url": "https://de.indeed.com/viewjob?jk=ec5003",
+      "salary_min": 18000,
+      "salary_max": 22000,
+      "description": "Werkstudentenstelle im Online-Shop.",
+      "created": "2026-07-22T12:00:00Z"
+    },
+    {
+      "id": "ec-5004",
+      "title": "Online Shop Manager (m/w/d)",
+      "company": { "display_name": "Regio Handel" },
+      "location": { "display_name": "Rosenheim" },
+      "redirect_url": "https://www.stepstone.de/stellenangebote--Online-Shop-Manager--5004",
+      "salary_min": 44000,
+      "salary_max": 52000,
+      "description": "Betreuung Webshop, Datenpflege, Logistik.",
+      "created": "2026-07-22T08:00:00Z"
+    }
+  ]
+}

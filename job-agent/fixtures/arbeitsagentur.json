@@ -1,0 +1,31 @@
+{
+  "stellenangebote": [
+    {
+      "refnr": "10000-ECOM-8001-S",
+      "titel": "E-Commerce Operations Manager (m/w/d)",
+      "beruf": "E-Commerce Operations Marktplatz Amazon",
+      "arbeitgeber": "Süddeutsche Handels GmbH",
+      "arbeitsort": { "ort": "München", "plz": "80333" },
+      "externeUrl": "",
+      "aktuelleVeroeffentlichungsdatum": "2026-07-23"
+    },
+    {
+      "refnr": "10000-ECOM-8002-S",
+      "titel": "Content Manager E-Commerce (Sport & Outdoor)",
+      "beruf": "Content Manager E-Commerce SEO Listings Outdoor",
+      "arbeitgeber": "Alpin Media Group",
+      "arbeitsort": { "ort": "Nürnberg", "plz": "90402" },
+      "externeUrl": "",
+      "aktuelleVeroeffentlichungsdatum": "2026-07-22"
+    },
+    {
+      "refnr": "10000-ECOM-8003-S",
+      "titel": "Empfangskraft (m/w/d) in Teilzeit",
+      "beruf": "Empfang Verwaltung Büro",
+      "arbeitgeber": "City Praxis",
+      "arbeitsort": { "ort": "München", "plz": "80331" },
+      "externeUrl": "",
+      "aktuelleVeroeffentlichungsdatum": "2026-07-21"
+    }
+  ]
+}
